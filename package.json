@@ -1,6 +1,6 @@
 {
   "name": "cordova-khipu",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Khipu Cordova Plugin",
   "cordova": {
     "id": "cordova-khipu",
@@ -29,7 +29,8 @@
   },
   "devDependencies": {
     "@release-it/conventional-changelog": "^9.0.3",
-    "release-it": "^17.10.0"
+    "release-it": "^17.10.0",
+    "xml2js": "^0.6.2"
   },
   "release-it": {
     "git": {
