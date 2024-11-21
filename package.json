@@ -23,5 +23,35 @@
   "bugs": {
     "url": "https://github.com/khipu/cordova-khipu/issues"
   },
-  "homepage": "https://github.com/khipu/cordova-khipu#readme"
+  "homepage": "https://github.com/khipu/cordova-khipu#readme",
+  "scripts": {
+    "release": "release-it"
+  },
+  "devDependencies": {
+    "@release-it/conventional-changelog": "^9.0.3",
+    "release-it": "^17.10.0"
+  },
+  "release-it": {
+    "git": {
+      "requireCleanWorkingDir": true,
+      "commitMessage": "chore: release ${version}",
+      "tagName": "${version}",
+      "push": true,
+      "requireBranch": "main"
+    },
+    "npm": {
+      "publish": true
+    },
+    "github": {
+      "release": true
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "angular"
+      }
+    },
+    "hooks": {
+      "after:bump": "node scripts/update-plugin-version.js && git add plugin.xml && git commit -m 'chore: sync version to plugin.xml'"
+    }
+  }
 }
