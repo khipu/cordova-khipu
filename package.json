@@ -1,0 +1,27 @@
+{
+  "name": "cordova-khipu",
+  "version": "1.0.0",
+  "description": "Khipu Cordova Plugin",
+  "cordova": {
+    "id": "cordova-khipu",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khipu/cordova-khipu.git"
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-android",
+    "cordova-ios"
+  ],
+  "author": "khipu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/khipu/cordova-khipu/issues"
+  },
+  "homepage": "https://github.com/khipu/cordova-khipu#readme"
+}

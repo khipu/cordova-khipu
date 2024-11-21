@@ -1,0 +1,16 @@
+repositories{
+	google()
+	jcenter()
+	maven { url 'https://dev.khipu.com/nexus/content/repositories/khenshin' }
+}
+
+dependencies {
+    implementation 'com.khipu:khipu-client-android:2.7.6'
+}
+
+android {
+	packagingOptions {
+		exclude 'META-INF/NOTICE'
+		exclude 'META-INF/LICENSE'
+	}
+}

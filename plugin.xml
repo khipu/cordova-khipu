@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<plugin id="cordova-khipu" version="1.0" xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>Cordova Khipu</name>
+    <js-module name="Khipu" src="www/cordova-khipu.js">
+        <clobbers target="window.Khipu"/>
+    </js-module>
+    <platform name="android">
+        <framework src="src/android/khipu.gradle" custom="true" type="gradleReference"/>
+        <config-file parent="/*" target="res/xml/config.xml">
+            <feature name="cordova-khipu">
+                <param name="android-package" value="com.khipu.cordova.KhipuPlugin"/>
+            </feature>
+        </config-file>
+        <config-file parent="/*" target="AndroidManifest.xml"/>
+        <source-file src="src/android/com/khipu/cordova/KhipuPlugin.java" target-dir="src/com/khipu/cordova"/>
+    </platform>
+    <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
+    <platform name="ios">
+        <config-file parent="/*" target="config.xml">
+            <feature name="cordova-khipu">
+                <param name="ios-package" value="KhipuPlugin"/>
+            </feature>
+        </config-file>
+        <podspec>
+            <config>
+                <source url="https://github.com/CocoaPods/Specs.git"/>
+            </config>
+            <pods use-frameworks="true">
+                <pod name="KhipuClientIOS" version="2.7.7" swift-version="5.1"/>
+            </pods>
+        </podspec>
+        <source-file src="src/ios/KhipuPlugin.swift"/>
+    </platform>
+</plugin>
