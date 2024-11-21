@@ -25,11 +25,13 @@
   },
   "homepage": "https://github.com/khipu/cordova-khipu#readme",
   "scripts": {
-    "release": "release-it"
+    "release": "release-it",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^19.6.0",
     "@release-it/conventional-changelog": "^9.0.3",
+    "husky": "^9.1.7",
     "release-it": "^17.10.0",
     "xml2js": "^0.6.2"
   },
