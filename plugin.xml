@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<plugin id="cordova-khipu" version="2.6.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+<plugin id="cordova-khipu" version="2.7.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
   <name>Cordova Khipu</name>
   <js-module name="Khipu" src="www/cordova-khipu.js">
     <clobbers target="window.Khipu"/>
@@ -31,5 +31,5 @@
     <source-file src="src/ios/KhipuPlugin.swift"/>
   </platform>
   <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
-  <hook type="after_prepare" src="scripts/enable-gradle-kotlin-plugin.js" />
+  <hook type="after_prepare" src="scripts/enable-gradle-kotlin-plugin.js"/>
 </plugin>
