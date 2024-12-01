@@ -2,7 +2,6 @@
 
 Cordova plugin for Khipu
 
-## Install
 
 ## iOS pre setup
 
@@ -16,6 +15,8 @@ In order to do that make sure the `config.xml` of your app to have a `platform` 
         <preference name="deployment-target" value="12.0" />
     </platform>
 ```
+
+## Install
 
 ```bash
 cordova plugin add cordova-khipu
