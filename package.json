@@ -1,6 +1,6 @@
 {
   "name": "cordova-khipu",
-  "version": "2.7.1",
+  "version": "2.7.2",
   "description": "Khipu Cordova Plugin",
   "cordova": {
     "id": "cordova-khipu",
