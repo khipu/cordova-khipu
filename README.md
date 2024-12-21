@@ -16,6 +16,20 @@ In order to do that make sure the `config.xml` of your app to have a `platform` 
     </platform>
 ```
 
+## Android pre setup
+
+If you are using cordova 11, you may need to upgrade `Kotlin`, the android SDK and the Gradle stack. In order to do that you can add the following configuration to the `config.xml` file:
+
+```xml
+    <platform name="android">
+        <preference name="GradlePluginKotlinVersion" value="1.9.10" />
+        <preference name="GradleVersion" value="8.7" />
+        <preference name="AndroidGradlePluginVersion" value="8.3.0" />
+        <preference name="android-targetSdkVersion" value="34" />
+        <preference name="android-compileSdkVersion" value="34" />
+    </platform>
+```
+
 ## Install
 
 ```bash
@@ -28,7 +42,37 @@ No need for aditional steps
 
 ## Android setup
 
-No need for aditional steps
+If you are using cordova 11 you may need to do the following steps
+
+### Avoid Using the `kotlin-android-extensions` Plugin
+
+Kotlin 1.9.0 no longer requires or supports the `kotlin-android-extensions` plugin. If you encounter the error `The 'kotlin-android-extensions' Gradle plugin is no longer supported`, remove or comment out the following line in your `platform/android/app/build.gradle` file:
+
+```groovy
+apply plugin: 'kotlin-android-extensions'
+```
+
+### Configure the App's `namespace`
+
+In modern versions of the Android Gradle plugin, the `namespace` property is configured in Gradle files instead of the `AndroidManifest.xml`.
+
+Ensure that the following exists in the `platform/android/app/build.gradle` file under the `android` section:
+
+```groovy
+android {
+    namespace '<the main package of the application>'
+    ...
+```
+
+The app's main package can be obtained from the `package` property in the `manifest` element in the `AndroidManifest.xml` file.
+
+And in the `platform/android/CordovaLib/build.gradle` file:
+
+```groovy
+android {
+    namespace 'org.apache.cordova'
+    ...
+```
 
 ## Usage
 
