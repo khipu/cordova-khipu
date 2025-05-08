@@ -5,7 +5,7 @@ repositories{
 }
 
 dependencies {
-    implementation 'com.khipu:khipu-client-android:2.7.6'
+    implementation 'com.khipu:khipu-client-android:2.16.0'
 }
 
 android {
