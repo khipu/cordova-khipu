@@ -25,7 +25,7 @@
         <source url="https://github.com/CocoaPods/Specs.git"/>
       </config>
       <pods use-frameworks="true">
-        <pod name="KhipuClientIOS" version="2.12.0" swift-version="5.1"/>
+        <pod name="KhipuClientIOS" version="2.12.1" swift-version="5.1"/>
       </pods>
     </podspec>
     <source-file src="src/ios/KhipuPlugin.swift"/>
