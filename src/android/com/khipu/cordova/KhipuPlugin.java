@@ -58,6 +58,9 @@ public class KhipuPlugin extends CordovaPlugin {
             if (options.has("skipExitPage")) {
                 optionsBuilder.skipExitPage(Boolean.TRUE.equals(options.optBoolean("skipExitPage")));
             }
+            if (options.has("skipExitSuccessPage")) {
+                optionsBuilder.skipExitSuccessPage(Boolean.TRUE.equals(options.optBoolean("skipExitSuccessPage")));
+            }
             if (options.has("showFooter")) {
                 optionsBuilder.showFooter(Boolean.TRUE.equals(options.optBoolean("showFooter")));
             }

@@ -96,6 +96,7 @@ The second parameter is a callback funcion that will be invoked if the authoriza
               showMerchantLogo: true, // If true, the merchant's logo is displayed in the top bar.
               showPaymentDetails: true, // If true, the payment code and a link to view the details are displayed.
               skipExitPage: false, // If true, skips the exit page at the end of the payment process, whether successful or failed.
+              skipExitSuccessPage: false, // If true, skips the exit page at the end of the payment process when its successful.
               colors: {
                   lightTopBarContainer: '<colorHex>', // Optional background color for the top bar in light mode.
                   lightOnTopBarContainer: '<colorHex>', // Optional color of the elements on the top bar in light mode.

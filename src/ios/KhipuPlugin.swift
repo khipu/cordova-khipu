@@ -47,6 +47,10 @@ public class KhipuPlugin: CDVPlugin {
                 optionsBuilder = optionsBuilder.skipExitPage(options!["skipExitPage"]! as! Bool)
             }
 
+            if (options!["skipExitSuccessPage"] != nil) {
+                optionsBuilder = optionsBuilder.skipExitSuccessPage(options!["skipExitSuccessPage"]! as! Bool)
+            }
+
             if (options!["showFooter"] != nil) {
                 optionsBuilder = optionsBuilder.showFooter(options!["showFooter"]! as! Bool)
             }
