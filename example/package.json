@@ -8,9 +8,9 @@
   "scripts": {
     "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
     "plugin:add": "node scripts/install-plugin.mjs",
-    "ios:pods": "npm run reset && cordova platform add ios@7.1.1 --nosave && npm run plugin:add && cordova run ios",
-    "ios:spm": "npm run reset && cordova platform add ios@8.1.1 --nosave && npm run plugin:add && cordova run ios",
-    "android": "npm run reset && cordova platform add android@15.1.0 --nosave && npm run plugin:add && cordova run android"
+    "ios:pods": "npm run reset && npm run plugin:add && cordova platform add ios@7.1.1 --nosave && cordova run ios",
+    "ios:spm": "npm run reset && npm run plugin:add && cordova platform add ios@8.1.1 --nosave && cordova run ios",
+    "android": "npm run reset && npm run plugin:add && cordova platform add android@15.1.0 --nosave && cordova run android"
   },
   "engines": {
     "node": "^20.17.0 || >=22.9.0"
