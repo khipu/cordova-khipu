@@ -1189,7 +1189,8 @@ Si falla el build de Gradle, **no arreglarlo acá**: anotar el error y seguir. L
 - [ ] **Step 8: Commit**
 
 ```bash
-git add example/package.json example/config.xml example/.gitignore example/www/index.html
+git add package.json example/package.json example/config.xml example/.gitignore \
+  example/www/index.html example/scripts/install-plugin.mjs example/package-lock.json
 git commit -m "feat(example): esqueleto de la app de ejemplo
 
 Scripts ios:pods, ios:spm y android, que pinnean el major de la
@@ -2178,6 +2179,17 @@ Es lo único que demuestra que el camino de cordova-ios 8 no necesita CocoaPods.
 - **Persistencia.** El `operationId` sobrevive a una recarga.
 - **Resultado.** Al terminar la operación aparecen los campos de `KhipuResult`
   y la tabla de eventos.
+
+## Fricciones conocidas del entorno
+
+Ninguna es del plugin, pero cuestan tiempo si no se saben:
+
+- **`cordova run ios` en el camino de CocoaPods** puede fallar buscando un runtime que el
+  simulador por defecto no tiene. Se resuelve con `cordova run ios --target=<simIdentifier>`.
+  Ojo: `cordova-ios` 7 espera un identificador tipo `iPhone-17`, **no** un UDID.
+- **`adb install` puede fallar por falta de espacio** en la partición `/data` del emulador, sin
+  que el build de Gradle tenga nada que ver. Se resuelve arrancando el AVD con
+  `-wipe-data -partition-size 8192`.
 
 ## Limitaciones
 
