@@ -417,13 +417,28 @@ Otras características:
   lugares; hoy un `title: 123` **crashea la app** en vez de devolver un error al JS. Se
   extrae a `src/ios/KhipuOptionsMapper.swift`, con una función pura
   `[String: Any] -> KhipuOptions` y `as?` en todos lados.
-- **`UIApplication.shared.windows`** está deprecado desde iOS 15. Se reemplaza por
-  `connectedScenes` filtrando `UIWindowScene` y su `keyWindow`.
-- **El `DispatchQueue.main.asyncAfter(deadline: .now() + 1)`** posterior al `dismiss` es un
-  segundo fijo al aire. Se reemplaza por el `completion:` de `dismiss(animated:completion:)`,
-  que es determinista. Si al probarlo resulta que ese segundo estaba tapando un
-  comportamiento conocido del SDK, se revierte y se deja **con un comentario que explique
-  qué tapa**, en vez de volver al número mágico sin explicación.
+- **La búsqueda del presenter tiene dos defectos, y un solo arreglo.** Se parte de
+  `self.viewController` de `CDVPlugin` —el controller que Cordova asocia al webview que hizo
+  la llamada— y se baja por la cadena de `presentedViewController`.
+
+  El primer defecto es que `UIApplication.shared.windows` está deprecado desde iOS 15 y
+  devuelve ventanas de todas las escenas conectadas. **El compilador no avisa**: a un
+  deployment target de iOS 13 la API todavía no está deprecada, así que el log del build no
+  sirve para detectarlo (verificado con `swiftc -typecheck` a iOS 13, 15 y 18).
+
+  El segundo es que UIKit rechaza presentar sobre un controller que ya está presentando algo.
+  El código lo esquiva con `presentedViewController?.dismiss(animated: false)` seguido de un
+  `asyncAfter` de un segundo fijo: es decir, **le cierra el modal al comercio** y adivina
+  cuánto tarda. Bajar por la cadena no destruye nada y no necesita esperar, así que el
+  `dismiss` y el segundo fijo desaparecen juntos.
+
+  `CDVPlugin.viewController` existe en cordova-ios 7 (`UIViewController *`) y en 8
+  (`CDVViewController *`), y no está deprecado en ninguna de las dos, a diferencia de otras
+  propiedades del mismo header. La función se deja privada al plugin y no como extensión de
+  `UIViewController`, porque el plugin se enlaza estáticamente dentro de la app del comercio.
+
+  Los dos defectos los detectó primero la sesión que migró `flutter_khipu`, sobre el mismo
+  patrón; acá se verificaron de nuevo contra el código de cordova-ios.
 - **Tests** en `tests/ios/`: los veinte campos mapean correctamente, un campo con el tipo
   equivocado no crashea, y las claves ausentes no se agregan. El target de tests recién puede
   existir cuando existe `Package.swift`, así que esta fase va después de la de SPM.
