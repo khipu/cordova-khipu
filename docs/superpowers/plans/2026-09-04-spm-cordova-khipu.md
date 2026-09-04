@@ -45,6 +45,7 @@ Estos valores aplican a **todas** las tareas. Están copiados textuales del spec
 | `tests/scripts/check-native-versions.test.js` | Tests del comparador de versiones. |
 | `example/package.json` | Scripts `ios:pods` / `ios:spm` / `android`. |
 | `example/scripts/install-plugin.mjs` | Empaqueta el plugin y lo instala en el ejemplo desde el tarball, con los dos rodeos que exige `cordova-lib` 13. |
+| `.nvmrc` | Fija Node 20.19.4. Hoy el repo hereda el `.nvmrc` del directorio padre, que apunta a una versión que `cordova-ios` 8 no acepta. |
 | `example/config.xml` | Config de la app de ejemplo. Piso iOS 13. |
 | `example/.gitignore` | Ignora `platforms/`, `plugins/`, `node_modules/` y los tarballs. |
 | `example/www/index.html` | Shell del harness. |
@@ -1082,6 +1083,36 @@ execFileSync('npx', ['cordova', 'plugin', 'add', `file:${join(example, tarball)}
     stdio: 'inherit'
 });
 ```
+
+- [ ] **Step 1c: Agregar el campo `files` al `package.json` de la RAÍZ del repositorio**
+
+No es cosmético y por eso va acá y no más adelante: el ejemplo se instala desde un tarball de
+`npm pack`, y hoy `package.json` no tiene `files` ni hay `.npmignore`, así que ese tarball se
+lleva todo el repositorio. El spike ya lo comprobó: apareció `.husky/` dentro de
+`plugins/cordova-khipu`. En cuanto exista `example/`, el tarball que instala el ejemplo
+contendría además una copia del ejemplo y los 3.000 y pico de líneas de `docs/`.
+
+En `/Users/edavis/git/cordova-khipu/package.json`, después de `"homepage"`, agregar:
+
+```json
+  "files": [
+    "plugin.xml",
+    "Package.swift",
+    "www/",
+    "src/",
+    "tests/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+```
+
+`tests/` **tiene que estar**: `Package.swift` declara un target en `tests/ios` y SPM falla si esa
+ruta no existe en el paquete instalado. Son unos pocos KB. `LICENSE` todavía no existe; npm
+avisa y sigue, y el archivo lo crea la Task 12.
+
+Run: `npm pack --dry-run 2>&1 | grep -cE "docs/|\.husky/|example/" || echo "no se publica docs/, .husky/ ni example/: OK"`
+Expected: `no se publica docs/, .husky/ ni example/: OK`
 
 - [ ] **Step 2: Crear `example/config.xml`**
 
@@ -2989,22 +3020,12 @@ Expected: `check-native-versions: KhipuClientIOS 2.16.5 sincronizado entre Packa
 
 - [ ] **Step 6: Actualizar `package.json`**
 
-Agregar el campo `files` después de `"homepage"`:
+El campo `files` ya lo agregó la Task 5, porque sin él el tarball que instala el ejemplo se
+llevaba el repositorio entero. Verificar que sigue ahí y que no perdió `tests/`, que es el que
+más fácil se cae porque parece prescindible y no lo es:
 
-```json
-  "files": [
-    "plugin.xml",
-    "Package.swift",
-    "www/",
-    "src/",
-    "tests/",
-    "scripts/",
-    "README.md",
-    "LICENSE"
-  ],
-```
-
-`tests/` **tiene que estar**: `Package.swift` declara un target en `tests/ios` y SPM falla si esa ruta no existe en el paquete instalado. Son unos pocos KB.
+Run: `node -e "const f=require('./package.json').files; if(!f) throw new Error('falta files'); if(!f.includes('tests/')) throw new Error('falta tests/ en files'); console.log('files OK:', f.join(', '))"`
+Expected: `files OK: plugin.xml, Package.swift, www/, src/, tests/, scripts/, README.md, LICENSE`
 
 Dejar `scripts` así:
 
