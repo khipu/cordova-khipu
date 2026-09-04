@@ -1019,9 +1019,7 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
     "node": "^20.17.0 || >=22.9.0"
   },
   "devDependencies": {
-    "cordova": "^13.0.0",
-    "cordova-android": "^15.1.0",
-    "cordova-ios": "^8.1.1"
+    "cordova": "^13.0.0"
   },
   "cordova": {
     "platforms": []
@@ -1032,6 +1030,14 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 Notas sobre el diseño de los scripts:
 - `reset` borra `platforms/` y `plugins/` porque el gestor de paquetes de iOS lo decide el major de la plataforma, y no se puede cambiar en caliente.
 - `cordova.platforms` queda vacío a propósito: cada script agrega la que necesita.
+- **Las plataformas no van en `devDependencies`.** Solo el CLI. Quién decide el major es el
+  script, con `platform add ios@7.1.1` o `ios@8.1.1`; declarar además `cordova-ios` como
+  dependencia crea una contradicción que npm resuelve en contra nuestra. Cualquier `npm install`
+  posterior dentro de `example/` —incluido el que `cordova plugin add` dispara internamente—
+  reconcilia el árbol contra `package.json` y revierte `node_modules/cordova-ios` al major
+  declarado, aunque el `platform add` haya dejado el otro instalado un paso antes. El síntoma es
+  `CordovaError: ... not an up-to-date Cordova iOS project` al instalar el plugin, en el camino
+  de CocoaPods.
 - **`--nosave` en los tres `cordova platform add`, y no solo en el `plugin add`.** Sin él,
   cordova reescribe este `package.json` en cada corrida: `cordova.platforms` se llena y
   `devDependencies.cordova-ios` queda con el major de la última corrida. Como los scripts se
