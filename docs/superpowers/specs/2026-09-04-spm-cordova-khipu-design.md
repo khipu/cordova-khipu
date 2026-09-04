@@ -546,3 +546,25 @@ El escenario de SPM hay que correrlo con CocoaPods fuera del `PATH` al menos una
 - Limpiar el patrón `Objects.requireNonNull` / `assert` de `KhipuPlugin.java`.
 - Subir `khipu-client-android`: ya está en 2.27.0, la última.
 - Soporte de Cordova para macOS/Catalyst.
+
+## 15. Resultados de verificación
+
+### Fase 1 — los dos majors de iOS (Task 3 del plan)
+
+Ejecutado el 2026-09-04 con:
+
+```
+Xcode 26.6
+Build version 17F113
+```
+
+| Escenario | Resultado |
+| --- | --- |
+| `cordova-ios@7.1.1` + CocoaPods, `cordova build ios --emulator` | OK — `** BUILD SUCCEEDED **`. Dos ajustes de entorno, ninguno atribuible al plugin ni a cordova-ios 7: (1) `cordova plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave` (el comando literal del brief) falla siempre en este cordova-lib/npm, tanto en cordova-ios 7 como 8 — ver detalle debajo; se instaló desde el `.tgz` ya extraído a un directorio. (2) el simulador "iPhone 16" solo existía en runtimes iOS 18.1/18.5, no en el runtime más nuevo instalado (26.5), que es el que `xcodebuild -destination` pide por defecto cuando no se fija OS; `cordova build ios --emulator --target=iPhone-16` fallaba con `Unable to find a device matching the provided destination specifier: { OS:latest, name:iPhone 16 }` hasta crear una instancia con `xcrun simctl create "iPhone 16" com.apple.CoreSimulator.SimDeviceType.iPhone-16 com.apple.CoreSimulator.SimRuntime.iOS-26-5`. |
+| `cordova-ios@7.1.1`: Podfile presente con `KhipuClientIOS 2.16.5` | Parcial. El Podfile existe y contiene `pod 'KhipuClientIOS'`, pero **sin** el pin de versión esperado (`pod 'KhipuClientIOS', '2.16.5'`). Causa raíz: `plugin.xml` declara `<pod name="KhipuClientIOS" version="2.16.5" .../>`, pero cordova-ios (`PluginInfo.getPodSpecs` + `Podfile.write` en `cordova-ios/lib/Podfile.js:311`) solo reconoce el atributo `spec` para emitir la versión al Podfile (`<pod name="..." spec="2.16.5" />`, según el propio ejemplo documentado en `PluginInfo.js`); `version` se ignora silenciosamente. `Podfile.lock` confirma que CocoaPods resolvió igualmente `KhipuClientIOS (2.16.5)`, pero por ser la última versión publicada en el spec repo, no porque el Podfile la fije — un release futuro de `KhipuClientIOS` fluiría sin control por este camino. Es un bug de `plugin.xml` (Task 1/2), no del build ni de cordova-ios 7; requiere corregir el atributo a `spec=` en una tarea aparte. |
+| `cordova-ios@7.1.1`: hook fijó `SWIFT_VERSION` y el bridging header | Sí. `project.pbxproj` contiene `SWIFT_VERSION = 5.0;` y `SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/$(PROJECT_NAME)/Bridging-Header.h";`, y el log de build muestra `cordova-khipu: SWIFT_VERSION=5.0 configurado para cordova-ios < 8.` |
+| `cordova-ios@8.1.1` + SPM, `cordova build ios --emulator` | OK — `** BUILD SUCCEEDED **`. Mismos dos ajustes de entorno que en el escenario de cordova-ios 7 (instalación desde tarball extraído; simulador iPhone 16 creado en el runtime 26.5). |
+| `cordova-ios@8.1.1`: sin Podfile, con `packages/cordova-khipu` | Parcial. `packages/cordova-khipu/` existe y es correcto (Package.swift copiado, con la dependencia a `cordova-ios` reescrita a `path: "../cordova-ios"`, y `cordova-ios-plugins/Package.swift` con las dos líneas `package.dependencies.append(...)` / `package.targets.first?.dependencies.append(...)`). Pero **sí se crea un Podfile** (vacío: `[!] The Podfile does not contain any dependencies.`, con `Pods/`, `Podfile.lock` y `pods.json` cuyo `libraries` queda `{}`). Causa raíz: en `cordova-ios/lib/Api.js#addPodSpecs`, el flag `nospm` del `<pod>` solo filtra `obj.libraries` (el pod concreto); los `obj.declarations` (`use_frameworks!`, viene de `<pods use-frameworks="true">`) y `obj.sources` (`<config><source .../></config>`) del mismo `<podspec>` se agregan al Podfile sin mirar `nospm`, y eso alcanza para marcar el Podfile "dirty" y disparar un `pod install` vacío. No rompe la compilación, pero contradice el diseño de "cordova-ios 8 no toca CocoaPods" y dejaría rastros (`Podfile`, `Pods/`) en cada proyecto que use la ruta SPM. |
+| `cordova-ios@8.1.1`: el hook no emitió salida | Sí — `cordova prepare ios` no imprimió ninguna línea con `cordova-khipu` (`sin salida del hook: OK`). |
+
+**Riesgo 5 (viabilidad de cordova-ios 7 con el Xcode actual):** resuelto. `cordova-ios@7.1.1` compila limpio (`BUILD SUCCEEDED`) bajo Xcode 26.6 usando la ruta de CocoaPods, sin ningún error de SDK, toolchain o CocoaPods propios de la incompatibilidad que se temía; el único obstáculo real para llegar a ese resultado fue de entorno (selección de simulador y forma de instalar un `.tgz` local), no de compatibilidad Xcode 26 / cordova-ios 7. El soporte dual sigue siendo viable en cuanto a compilación. Quedan abiertos, sin embargo, dos hallazgos nuevos de esta verificación que no estaban contemplados en los riesgos 1-7 y que conviene resolver antes de cerrar el plan: (a) el pin de `KhipuClientIOS` en el Podfile no se aplica por el atributo `version` vs `spec` en `plugin.xml`, y (b) `cordova-ios@8.1.1` sigue generando un Podfile vacío y corriendo `pod install` por los `declarations`/`sources` del `<podspec>` que no respetan `nospm`.
