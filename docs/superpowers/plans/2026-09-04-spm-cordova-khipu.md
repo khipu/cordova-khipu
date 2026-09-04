@@ -1011,9 +1011,9 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
   "scripts": {
     "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
     "plugin:add": "node scripts/install-plugin.mjs",
-    "ios:pods": "npm run reset && cordova platform add ios@7.1.1 --nosave && npm run plugin:add && cordova run ios",
-    "ios:spm": "npm run reset && cordova platform add ios@8.1.1 --nosave && npm run plugin:add && cordova run ios",
-    "android": "npm run reset && cordova platform add android@15.1.0 --nosave && npm run plugin:add && cordova run android"
+    "ios:pods": "npm run reset && npm run plugin:add && cordova platform add ios@7.1.1 --nosave && cordova run ios",
+    "ios:spm": "npm run reset && npm run plugin:add && cordova platform add ios@8.1.1 --nosave && cordova run ios",
+    "android": "npm run reset && npm run plugin:add && cordova platform add android@15.1.0 --nosave && cordova run android"
   },
   "engines": {
     "node": "^20.17.0 || >=22.9.0"
@@ -1030,6 +1030,16 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 Notas sobre el diseño de los scripts:
 - `reset` borra `platforms/` y `plugins/` porque el gestor de paquetes de iOS lo decide el major de la plataforma, y no se puede cambiar en caliente.
 - `cordova.platforms` queda vacío a propósito: cada script agrega la que necesita.
+- **El plugin se instala ANTES de agregar la plataforma, y ese orden no es casual.** Instalar el
+  plugin dispara por dentro un `npm install` del tarball, y ese `npm install` reconcilia todo el
+  árbol de `node_modules`. Si la plataforma ya está agregada, `node_modules/cordova-ios` es lo
+  que npm encuentra sin declarar en ningún lado, y lo **poda**; entonces
+  `platforms/ios/cordova/Api.js` —que es literalmente `module.exports = require('cordova-ios')`—
+  falla con `Cannot find module 'cordova-ios'`. Haciéndolo al revés, el `npm install` ocurre
+  cuando todavía no hay nada que podar, y `cordova platform add` instala después el plugin que
+  ya está en `plugins/`. Que lo instale está garantizado por `installPluginsForNewPlatform()` de
+  `cordova-lib`, que toma los plugins del **contenido del directorio `plugins/`**
+  (`cordova_util.findPlugins`) y usa `package.json` solo para ordenarlos.
 - **Las plataformas no van en `devDependencies`.** Solo el CLI. Quién decide el major es el
   script, con `platform add ios@7.1.1` o `ios@8.1.1`; declarar además `cordova-ios` como
   dependencia crea una contradicción que npm resuelve en contra nuestra. Cualquier `npm install`
