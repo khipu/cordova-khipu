@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/khipu/cordova-khipu#readme",
   "scripts": {
+    "test": "node --test tests/scripts/",
     "release": "release-it",
     "prepare": "husky"
   },
