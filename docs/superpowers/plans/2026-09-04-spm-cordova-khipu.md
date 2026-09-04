@@ -44,6 +44,7 @@ Estos valores aplican a **todas** las tareas. Están copiados textuales del spec
 | `tests/scripts/configure-swift-ios.test.js` | Tests de los helpers del hook (`node --test`). |
 | `tests/scripts/check-native-versions.test.js` | Tests del comparador de versiones. |
 | `example/package.json` | Scripts `ios:pods` / `ios:spm` / `android`. |
+| `example/scripts/install-plugin.mjs` | Empaqueta el plugin y lo instala en el ejemplo desde el tarball, con los dos rodeos que exige `cordova-lib` 13. |
 | `example/config.xml` | Config de la app de ejemplo. Piso iOS 13. |
 | `example/.gitignore` | Ignora `platforms/`, `plugins/`, `node_modules/` y los tarballs. |
 | `example/www/index.html` | Shell del harness. |
@@ -994,7 +995,7 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 - Consumes: la decisión de la Task 4 sobre cómo instalar el plugin.
 - Produces: los scripts `npm run ios:pods`, `npm run ios:spm`, `npm run android` y `npm run reset` en `example/`. Las tareas 6 y 7 reemplazan el contenido de `example/www/`.
 
-> **Ajuste según la Task 4:** los scripts de abajo usan el método del tarball, que es el seguro. Si la Task 4 concluyó que `cordova plugin add ../` o `--link` funcionan sin corromper nada, simplificar `pack` y el `plugin add` correspondiente, y decirlo en `example/README.md` (Task 8).
+> **Resuelto por la Task 4.** El spike probó los tres métodos: `cordova plugin add ../` falla con `EINVAL: cp ... subdirectory of self`; `--link` compila pero deja dos identidades de `cordova-ios` y SwiftPM avisa que eso pasará a ser error; el tarball compila limpio. Se usa el tarball, con prefijo `file:` y ruta absoluta.
 
 - [ ] **Step 1: Crear `example/package.json`**
 
@@ -1008,11 +1009,13 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
   "license": "MIT",
   "scripts": {
     "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
-    "pack": "cd .. && npm pack --pack-destination ./example",
-    "plugin:add": "cordova plugin add ./cordova-khipu-*.tgz --nosave",
-    "ios:pods": "npm run reset && npm run pack && cordova platform add ios@7.1.1 && npm run plugin:add && cordova run ios",
-    "ios:spm": "npm run reset && npm run pack && cordova platform add ios@8.1.1 && npm run plugin:add && cordova run ios",
-    "android": "npm run reset && npm run pack && cordova platform add android@15.1.0 && npm run plugin:add && cordova run android"
+    "plugin:add": "node scripts/install-plugin.mjs",
+    "ios:pods": "npm run reset && cordova platform add ios@7.1.1 && npm run plugin:add && cordova run ios",
+    "ios:spm": "npm run reset && cordova platform add ios@8.1.1 && npm run plugin:add && cordova run ios",
+    "android": "npm run reset && cordova platform add android@15.1.0 && npm run plugin:add && cordova run android"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
   },
   "devDependencies": {
     "cordova": "^13.0.0",
@@ -1027,8 +1030,58 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 
 Notas sobre el diseño de los scripts:
 - `reset` borra `platforms/` y `plugins/` porque el gestor de paquetes de iOS lo decide el major de la plataforma, y no se puede cambiar en caliente.
-- `--nosave` evita que cada corrida escriba una ruta local en este `package.json`.
 - `cordova.platforms` queda vacío a propósito: cada script agrega la que necesita.
+- El `engines` declara el piso que exige `cordova-ios` 8.1.1; sirve de aviso, no de barrera.
+- La instalación del plugin vive en un script aparte porque tiene dos rodeos que necesitan explicación: ver el paso siguiente.
+
+- [ ] **Step 1b: Crear `example/scripts/install-plugin.mjs`**
+
+```js
+// Instala el plugin en la app de ejemplo desde un tarball de `npm pack`.
+//
+// Los dos rodeos de acá parecen innecesarios y no lo son. Salieron de probar los
+// tres métodos posibles contra un clon desechable (§15 del spec de diseño):
+//
+// 1. Tarball en vez de `cordova plugin add ../`. Esa forma falla con
+//    `EINVAL: cp ... subdirectory of self`, porque el destino (example/plugins/)
+//    es hijo del origen (el repo). Y `--link`, que sí funciona hoy, deja al
+//    plugin dependiendo de apache/cordova-ios por git en vez de la CordovaLib
+//    local del proyecto: SwiftPM lo tolera dedupeando, pero avisa "Conflicting
+//    identity for cordova-ios ... will be escalated to an error in future
+//    versions of SwiftPM". Instalar desde el tarball tiene además la ventaja de
+//    ejercitar exactamente el artefacto que recibe un comercio desde npm.
+//
+// 2. Prefijo `file:` y ruta absoluta. `cordova plugin add ./algo.tgz` falla por
+//    un bug de parseo de cordova-lib 13.0.0.
+
+import { execFileSync } from 'node:child_process';
+import { readdirSync, rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const example = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const repo = resolve(example, '..');
+
+const esTarball = (nombre) => nombre.startsWith('cordova-khipu-') && nombre.endsWith('.tgz');
+
+// Un tarball de una versión anterior haría que más abajo se elija el equivocado.
+for (const viejo of readdirSync(example).filter(esTarball)) {
+    rmSync(join(example, viejo));
+}
+
+execFileSync('npm', ['pack', '--pack-destination', example], { cwd: repo, stdio: 'inherit' });
+
+const tarball = readdirSync(example).find(esTarball);
+
+if (!tarball) {
+    throw new Error('npm pack no dejó ningún cordova-khipu-*.tgz en example/');
+}
+
+execFileSync('npx', ['cordova', 'plugin', 'add', `file:${join(example, tarball)}`, '--nosave'], {
+    cwd: example,
+    stdio: 'inherit'
+});
+```
 
 - [ ] **Step 2: Crear `example/config.xml`**
 
@@ -2036,11 +2089,20 @@ verificarlo: el repositorio no tiene CI por decisión de diseño.
 
 ## Cómo se instala el plugin
 
-El plugin se empaqueta con `npm pack` y se instala desde el tarball. No se usa
-`cordova plugin add ../` porque `copyPlugin()` de `cordova-lib` puede dejar
-`plugins/cordova-khipu` como un symlink al repositorio, y en ese caso
-`SwiftPackage.addPlugin()` de cordova-ios 8 reescribiría el `Package.swift`
-real del plugin al apuntarlo a la CordovaLib local.
+El plugin se empaqueta con `npm pack` y se instala desde el tarball, con
+`scripts/install-plugin.mjs`. Se probaron los tres métodos posibles contra un
+clon desechable del repositorio, y los otros dos se descartaron con evidencia:
+
+| Método | Qué pasa |
+| --- | --- |
+| `cordova plugin add ../` | Falla con `EINVAL: cp ... subdirectory of self`. El destino (`example/plugins/`) es hijo del origen (el repo). |
+| `cordova plugin add ../ --link` | Compila, pero deja al plugin dependiendo de `apache/cordova-ios` por git en vez de la CordovaLib local. SwiftPM lo tolera dedupeando y avisa: *"Conflicting identity for cordova-ios … will be escalated to an error in future versions of SwiftPM"*. |
+| **Tarball** | Compila limpio, sin advertencias de identidad. |
+
+Dos detalles del script que no son adorno: usa el prefijo `file:` con **ruta
+absoluta**, porque `cordova plugin add ./algo.tgz` falla por un bug de parseo de
+`cordova-lib` 13.0.0; y borra los tarballs viejos antes de empaquetar, para que
+no quede eligiendo el de una versión anterior.
 
 El efecto secundario es bueno: se instala exactamente el mismo artefacto que
 recibe un comercio desde npm, así que el campo `files` de `package.json` queda
