@@ -1,3 +1,10 @@
+import UIKit
+#if canImport(Cordova)
+// cordova-ios 8 expone CordovaLib como el módulo `Cordova` (viene de
+// CordovaLib/include/Cordova/). En cordova-ios 7 no hay módulo: CDVPlugin llega
+// por el bridging header del proyecto y este import no aplica.
+import Cordova
+#endif
 import KhipuClientIOS
 
 @objc(KhipuPlugin)
