@@ -22,6 +22,10 @@ Estos valores aplican a **todas** las tareas. Están copiados textuales del spec
 - **`<engines>`:** `cordova-ios >=7.0.0`, `cordova-android >=13.0.0`.
 - **Versión a publicar al final: `2.10.0`.** Hasta la Task 13 el `version` de `package.json` y `plugin.xml` se deja en `2.9.1`.
 - **Colores de marca Khipu:** púrpura `#8347AD`, cian `#3CB4E5`.
+- **Node 20.19.4** para todo lo que invoque cordova. `cordova-ios` 8.1.1 declara
+  `engines.node: "^20.17.0 || >=22.9.0"`, y la v20.12.2 que toma el shell por defecto en esta
+  máquina no lo cumple. Usar el prefijo de PATH:
+  `export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"`.
 - **No se agrega CI.** Está fuera de alcance por decisión explícita.
 - **No se publica a npm dentro de este plan.** La Task 13 deja todo listo; publicar requiere una confirmación aparte.
 - Todo comentario y texto de usuario va en español, con acentos correctos.
@@ -2773,6 +2777,23 @@ SOFTWARE.
 
 Si al llegar acá no hay respuesta: **sacar `"LICENSE"` del campo `files`**, seguir con el resto de la tarea, y reportar el pendiente al cerrar el plan. No bloquear las demás tareas por esto.
 
+- [ ] **Step 7b: Crear `.nvmrc`**
+
+Contenido, una sola línea:
+
+```
+v20.19.4
+```
+
+Hoy el repositorio no tiene `.nvmrc` y hereda el del directorio padre, que en la máquina de
+desarrollo apunta a `v20.12.2`. Eso **no cumple** el engine de `cordova-ios` 8.1.1
+(`^20.17.0 || >=22.9.0`), así que `cordova platform add ios@8` corre con una versión de Node
+que el propio cordova declara insuficiente. Fijarlo en el repo lo hace explícito y
+reproducible para cualquiera.
+
+Run: `cat .nvmrc`
+Expected: `v20.19.4`
+
 - [ ] **Step 8: Crear `CHANGELOG.md`**
 
 ```markdown
@@ -2831,7 +2852,7 @@ Reemplazar todo lo que va desde `## iOS pre setup` hasta `## Android setup` (inc
 | `cordova-ios` | 7.0.0 | 7.1.1 y 8.1.1 |
 | `cordova-android` | 13.0.0 | 15.1.0 |
 | iOS | 13.0 | |
-| Node | 20 | |
+| Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
 Estos mínimos están declarados en `<engines>`, así que `cordova plugin add`
 falla con un mensaje claro en vez de romper más adelante.
