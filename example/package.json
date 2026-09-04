@@ -16,9 +16,7 @@
     "node": "^20.17.0 || >=22.9.0"
   },
   "devDependencies": {
-    "cordova": "^13.0.0",
-    "cordova-android": "^15.1.0",
-    "cordova-ios": "^8.1.1"
+    "cordova": "^13.0.0"
   },
   "cordova": {
     "platforms": []
