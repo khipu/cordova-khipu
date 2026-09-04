@@ -131,11 +131,8 @@ se cubre con un check en el release. No justifica dos ramas.
     </feature>
   </config-file>
   <podspec>
-    <config>
-      <source url="https://github.com/CocoaPods/Specs.git"/>
-    </config>
-    <pods use-frameworks="true">
-      <pod name="KhipuClientIOS" version="2.16.5" swift-version="5.1" nospm="true"/>
+    <pods>
+      <pod name="KhipuClientIOS" spec="2.16.5" swift-version="5.1" nospm="true"/>
     </pods>
   </podspec>
   <source-file src="src/ios/KhipuPlugin.swift"/>
@@ -147,7 +144,9 @@ se cubre con un check en el release. No justifica dos ramas.
   `<source-file>` exactamente como hoy.
 - **cordova-ios 8** ve `package="swift"` → `isSwiftPackagePlugin()` es verdadero →
   `pluginHandlers.js` descarta los `<source-file>`, y `nospm="true"` hace que `Api.js`
-  descarte el pod. Queda SPM puro, **sin necesidad de CocoaPods instalado**.
+  descarte el pod. Queda SPM puro, **sin necesidad de CocoaPods instalado**: se escribe un
+  `Podfile` vacío como efecto colateral del constructor de la clase `Podfile` (ver §4.5), pero
+  `pod install` nunca corre y el binario `pod` nunca se invoca.
 
 Se agrega además un bloque `<engines>` para fallar temprano y con mensaje claro:
 
@@ -236,7 +235,7 @@ que `canImport` es falso y el archivo compila igual.
 
 ### 4.5 Fijación de `KhipuClientIOS`
 
-`exact: "2.16.5"` en SPM y `version="2.16.5"` en el pod, no rangos, para que un comercio que
+`exact: "2.16.5"` en SPM y `spec="2.16.5"` en el pod, no rangos, para que un comercio que
 instala por CocoaPods y otro que instala por SPM **de la misma versión del plugin** resuelvan
 el mismo grafo nativo. Es la misma decisión que tomaron `KhipuClientIOS` en su propio
 `Package.swift`, `flutter_khipu` y `capacitor-khipu`.

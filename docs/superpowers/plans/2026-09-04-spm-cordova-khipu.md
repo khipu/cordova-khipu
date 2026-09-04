@@ -15,7 +15,7 @@
 Estos valores aplican a **todas** las tareas. Están copiados textuales del spec.
 
 - El **package y el product de SPM deben llamarse exactamente `cordova-khipu`** (el id del plugin). `SwiftPackage._pluginReference()` de cordova-ios genera `.product(name: "cordova-khipu", package: "cordova-khipu")`; cualquier otro nombre rompe la resolución. El nombre del **target** sí es libre y es `CordovaKhipu`.
-- **`KhipuClientIOS` fijado en `2.16.5` exacto** en los dos manifests: `exact: "2.16.5"` en `Package.swift` y `version="2.16.5"` en el `<pod>` de `plugin.xml`. Nunca rangos.
+- **`KhipuClientIOS` fijado en `2.16.5` exacto** en los dos manifests: `exact: "2.16.5"` en `Package.swift` y **`spec="2.16.5"`** en el `<pod>` de `plugin.xml`. Nunca rangos, y nunca el atributo `version`: `Podfile.js` de cordova-ios solo lee `spec` y descarta `version` en silencio, dejando el pod sin pin.
 - **Piso de iOS 13.0** en los dos caminos.
 - **`khipu-client-android` queda en `2.27.0`**, que ya es la última.
 - **`@objc(KhipuPlugin)` no se toca.** `CDVViewController` resuelve la clase con `NSClassFromString("KhipuPlugin")` y su fallback usa `CFBundleExecutable`, que bajo SPM nunca coincide con el módulo. Sin ese atributo el plugin no se encuentra en runtime.
@@ -213,8 +213,12 @@ Cambios respecto del archivo anterior: se agregó `<engines>`, `package="swift"`
 
 - [ ] **Step 9: Verificar que `plugin.xml` sigue siendo XML válido**
 
-Run: `grep -c 'platform name="ios" package="swift"' plugin.xml && grep -c 'nospm="true"' plugin.xml && grep -c 'version="2.16.5"' plugin.xml`
-Expected: `1`, `1` y `1`.
+Run: `grep -c 'platform name="ios" package="swift"' plugin.xml && grep -c 'nospm="true"' plugin.xml`
+Expected: `1` y `1`.
+
+> **Superado por la Task 3b.** El `<podspec>` que escribe esta tarea todavía usa `version=`,
+> `<config><source>` y `use-frameworks="true"`. Los tres resultaron estar mal y los corrige la
+> Task 3b; se dejan acá tal como se ejecutaron, para que el historial se entienda.
 
 - [ ] **Step 10: Commit**
 
