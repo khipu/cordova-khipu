@@ -767,26 +767,65 @@ Expected: la línea dice **`pod 'KhipuClientIOS', '2.16.5'`**, con la versión. 
 arreglo decía `pod 'KhipuClientIOS'` a secas. Si sigue sin versión, el arreglo no funcionó:
 detente y reporta el contenido completo del Podfile.
 
-- [ ] **Step 5: Re-verificar cordova-ios 8 — ahora no debe haber Podfile**
+- [ ] **Step 5: Re-verificar cordova-ios 8 — sin `Pods/` y sin `pod install`**
 
 ```bash
 cd /tmp && rm -rf cdvpin8 && npx cordova@13 create cdvpin8 com.khipu.pin8 CdvPin8
 cd /tmp/cdvpin8
 npx cordova@13 platform add ios@8.1.1
 npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
-test ! -f platforms/ios/Podfile && echo "sin Podfile: OK" || { echo "TODAVÍA HAY PODFILE:"; cat platforms/ios/Podfile; }
 test ! -d platforms/ios/Pods && echo "sin Pods/: OK" || echo "TODAVÍA HAY Pods/"
 test -d platforms/ios/packages/cordova-khipu && echo "package SPM copiado: OK"
+grep -c "pod '" platforms/ios/Podfile 2>/dev/null || echo "Podfile sin pods: OK"
+cat platforms/ios/pods.json 2>/dev/null
 ```
-Expected: `sin Podfile: OK`, `sin Pods/: OK`, `package SPM copiado: OK`.
+Expected: `sin Pods/: OK`, `package SPM copiado: OK`, `Podfile sin pods: OK`, y un `pods.json`
+con `declarations`, `sources` y `libraries` vacíos.
 
-- [ ] **Step 6: Compilar ambos para confirmar que nada se rompió**
+**Va a existir un `platforms/ios/Podfile` vacío, y está bien.** Es inevitable: el constructor de
+la clase `Podfile` de cordova-ios escribe el archivo apenas se instancia, antes de evaluar
+contenido (`if (!fs.existsSync(this.path)) { this.clear(); this.write(); }`), y se instancia por
+el solo hecho de que el plugin declare un `<podspec>`. Como no se agrega nada, `isDirty()` queda
+en `false` y **`pod install` nunca corre**. Lo que el diseño promete es que no hace falta tener
+CocoaPods instalado, no que el archivo no exista. Esa promesa se verifica en el paso siguiente.
+
+- [ ] **Step 6: La prueba que de verdad importa — cordova-ios 8 sin CocoaPods en el PATH**
+
+Un `Podfile` vacío no cuesta nada; lo que costaría es que el camino SPM invocara el binario
+`pod`. Esto lo comprueba de forma directa:
+
+```bash
+cd /tmp && rm -rf cdvnopod && npx cordova@13 create cdvnopod com.khipu.nopod CdvNoPod
+cd /tmp/cdvnopod
+export PATH_SIN_POD=$(dirname $(which pod))
+env PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -F "$PATH_SIN_POD" | paste -sd: -) sh -c '
+  which pod && echo "ERROR: pod sigue en el PATH" && exit 1
+  npx cordova@13 platform add ios@8.1.1
+  npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
+  npx cordova@13 build ios --emulator 2>&1 | tail -20
+'
+```
+Expected: `which pod` no encuentra nada, y aun así `BUILD SUCCEEDED`.
+
+Si esto falla con algo como `CocoaPods was not found`, el arreglo no alcanzó y hay que
+reportarlo: es la promesa central del trabajo.
+
+- [ ] **Step 6b: Compilar ambos caminos normales para confirmar que nada se rompió**
 
 ```bash
 cd /tmp/cdvpin7 && npx cordova@13 build ios --emulator 2>&1 | tail -20
 cd /tmp/cdvpin8 && npx cordova@13 build ios --emulator 2>&1 | tail -20
 ```
 Expected: `BUILD SUCCEEDED` en los dos.
+
+Y como señal temprana sobre el enlace estático, en el proyecto de cordova-ios 7:
+
+```bash
+cd /tmp/cdvpin7
+find platforms/ios/Pods -name "*.bundle" -maxdepth 3 2>/dev/null
+```
+Expected: aparece `KhipuClientIOS.bundle`. Si no aparece por ningún lado, es señal de que sacar
+`use_frameworks!` rompió los recursos, y hay que reportarlo antes de seguir.
 
 - [ ] **Step 7: Registrar los resultados en el spec**
 
@@ -798,8 +837,9 @@ Agregar a la sección `## 15. Resultados de verificación` una subsección:
 | Verificación | Antes | Después |
 | --- | --- | --- |
 | Línea del pod en el Podfile de cordova-ios 7 | `<lo que decía>` | `<lo que dice ahora>` |
-| ¿Existe Podfile en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
 | ¿Existe `Pods/` en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
+| ¿Corrió `pod install` en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
+| Build de cordova-ios 8 **sin `pod` en el PATH** | `<no se probó>` | `<OK / detalle>` |
 | Build de cordova-ios 7 | `<OK / detalle>` | `<OK / detalle>` |
 | Build de cordova-ios 8 | `<OK / detalle>` | `<OK / detalle>` |
 ```

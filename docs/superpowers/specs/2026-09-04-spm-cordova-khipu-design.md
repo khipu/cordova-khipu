@@ -266,6 +266,13 @@ disparar `pod install`. No alcanza con dejarlo, porque en macOS `check_cocoapods
 si falta el binario `pod` (solo devuelve `ignore` fuera de macOS), así que un comercio en
 cordova-ios 8 sin CocoaPods vería fallar `cordova plugin add`.
 
+Queda un artefacto que no se puede evitar: **cordova-ios 8 escribe igual un `Podfile` vacío**.
+El constructor de su clase `Podfile` escribe el archivo apenas se instancia, antes de evaluar
+contenido, y se instancia por el solo hecho de que el plugin declare un `<podspec>`. Como no se
+le agrega nada, `isDirty()` queda en `false` y `pod install` nunca corre. La promesa del diseño
+es que **no hace falta CocoaPods instalado**, no que el archivo no exista, y se verifica
+compilando con el binario `pod` fuera del `PATH`.
+
 Sin `use_frameworks!` los pods se enlazan estáticos. Es seguro para `KhipuClientIOS`: su
 podspec usa `s.resource_bundles` —el mecanismo pensado para enlace estático— y su
 `BundleHelper` resuelve por `Bundle(for:).path(forResource:ofType:"bundle")`, que funciona en
