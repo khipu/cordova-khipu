@@ -209,8 +209,8 @@ Cambios respecto del archivo anterior: se agregó `<engines>`, `package="swift"`
 
 - [ ] **Step 9: Verificar que `plugin.xml` sigue siendo XML válido**
 
-Run: `node -e "require('xml2js').parseString(require('fs').readFileSync('plugin.xml','utf-8'), (e,r)=>{if(e)throw e; console.log('platform ios package =', r.plugin.platform.find(p=>p.\$.name==='ios').\$.package)})"`
-Expected: imprime `platform ios package = swift`
+Run: `grep -c 'platform name="ios" package="swift"' plugin.xml && grep -c 'nospm="true"' plugin.xml && grep -c 'version="2.16.5"' plugin.xml`
+Expected: `1`, `1` y `1`.
 
 - [ ] **Step 10: Commit**
 
@@ -546,16 +546,16 @@ Editar `/tmp/cdvtest7/config.xml` y agregar antes de `</widget>`:
     </platform>
 ```
 
-Run: `npx cordova plugin list`
+Run: `npx cordova@13 plugin list`
 Expected: `No plugins added. Use 'cordova plugin add <plugin>'.`
 
 - [ ] **Step 4: Instalar plataforma y plugin, y compilar**
 
 ```bash
 cd /tmp/cdvtest7
-npx cordova platform add ios@7.1.1
-npx cordova plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
-npx cordova build ios --emulator 2>&1 | tail -40
+npx cordova@13 platform add ios@7.1.1
+npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
+npx cordova@13 build ios --emulator 2>&1 | tail -40
 ```
 Expected: `BUILD SUCCEEDED`.
 
@@ -587,9 +587,9 @@ Expected: aparecen `SWIFT_VERSION = 5.0;` y `SWIFT_OBJC_BRIDGING_HEADER = "$(PRO
 cd /tmp && rm -rf cdvtest8
 npx cordova@13 create cdvtest8 com.khipu.test8 CdvTest8
 cd /tmp/cdvtest8
-npx cordova platform add ios@8.1.1
-npx cordova plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
-npx cordova build ios --emulator 2>&1 | tail -40
+npx cordova@13 platform add ios@8.1.1
+npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
+npx cordova@13 build ios --emulator 2>&1 | tail -40
 ```
 Expected: `BUILD SUCCEEDED`.
 
@@ -610,7 +610,7 @@ Expected:
 
 - [ ] **Step 9: Verificar que el hook no hizo nada en cordova-ios 8**
 
-Run: `cd /tmp/cdvtest8 && npx cordova prepare ios 2>&1 | grep -i "cordova-khipu" || echo "sin salida del hook: OK"`
+Run: `cd /tmp/cdvtest8 && npx cordova@13 prepare ios 2>&1 | grep -i "cordova-khipu" || echo "sin salida del hook: OK"`
 Expected: `sin salida del hook: OK`
 
 - [ ] **Step 10: Escribir los resultados en el spec**
@@ -676,14 +676,14 @@ git rev-parse --short HEAD
 cd /tmp/spike-khipu
 npx cordova@13 create example com.khipu.spike Spike
 cd /tmp/spike-khipu/example
-npx cordova platform add ios@8.1.1
+npx cordova@13 platform add ios@8.1.1
 ```
 
 - [ ] **Step 3: Probar el método 1 — ruta relativa**
 
 ```bash
 cd /tmp/spike-khipu/example
-npx cordova plugin add ../ --nosave 2>&1 | tail -20
+npx cordova@13 plugin add ../ --nosave 2>&1 | tail -20
 ls -la plugins/cordova-khipu | head -3
 ls -la platforms/ios/packages/ 2>/dev/null
 cd /tmp/spike-khipu && git status --porcelain
@@ -695,10 +695,10 @@ Anotar tres cosas: si el comando terminó bien, si `plugins/cordova-khipu` es un
 
 ```bash
 cd /tmp/spike-khipu/example
-npx cordova plugin rm cordova-khipu --nosave 2>/dev/null
+npx cordova@13 plugin rm cordova-khipu --nosave 2>/dev/null
 rm -rf platforms plugins
-npx cordova platform add ios@8.1.1
-npx cordova plugin add ../ --link --nosave 2>&1 | tail -20
+npx cordova@13 platform add ios@8.1.1
+npx cordova@13 plugin add ../ --link --nosave 2>&1 | tail -20
 ls -la platforms/ios/packages/ 2>/dev/null
 grep -n "cordova-ios" platforms/ios/packages/cordova-ios-plugins/Package.swift
 cd /tmp/spike-khipu && git status --porcelain
@@ -710,12 +710,12 @@ Con `--link`, `SwiftPackage.addPlugin` no copia ni reescribe: referencia el dire
 
 ```bash
 cd /tmp/spike-khipu/example
-npx cordova plugin rm cordova-khipu --nosave 2>/dev/null
+npx cordova@13 plugin rm cordova-khipu --nosave 2>/dev/null
 rm -rf platforms plugins
 cd /tmp/spike-khipu && npm pack --pack-destination ./example
 cd /tmp/spike-khipu/example
-npx cordova platform add ios@8.1.1
-npx cordova plugin add ./cordova-khipu-*.tgz --nosave 2>&1 | tail -20
+npx cordova@13 platform add ios@8.1.1
+npx cordova@13 plugin add ./cordova-khipu-*.tgz --nosave 2>&1 | tail -20
 ls -la platforms/ios/packages/
 grep -n "cordova-ios" platforms/ios/packages/cordova-khipu/Package.swift
 cd /tmp/spike-khipu && git status --porcelain
@@ -725,7 +725,7 @@ cd /tmp/spike-khipu && git status --porcelain
 
 ```bash
 cd /tmp/spike-khipu/example
-npx cordova build ios --emulator 2>&1 | tail -30
+npx cordova@13 build ios --emulator 2>&1 | tail -30
 ```
 Expected: `BUILD SUCCEEDED`.
 
@@ -1901,18 +1901,8 @@ Hoy el mapeo de opciones fuerza el cast con `as!` en unos veinte lugares: un com
 
 - [ ] **Step 1: Agregar el target de tests a `Package.swift`**
 
-Dentro del array `targets`, después del `.target(...)` existente, agregar:
-
-```swift
-        ,
-        .testTarget(
-            name: "CordovaKhipuTests",
-            dependencies: ["CordovaKhipu"],
-            path: "tests/ios"
-        )
-```
-
-El array queda así:
+Agregar el `.testTarget` al array `targets`. **Reemplazar el array completo** por
+esto, en vez de insertar líneas sueltas:
 
 ```swift
     targets: [
