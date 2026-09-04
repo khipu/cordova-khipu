@@ -704,14 +704,35 @@ por:
 
 ```xml
     <podspec>
-      <pods use-frameworks="true">
+      <pods>
         <pod name="KhipuClientIOS" spec="2.16.5" swift-version="5.1" nospm="true"/>
       </pods>
     </podspec>
 ```
 
-Dos cambios: `version=` pasa a `spec=`, que es el atributo que cordova-ios lee de verdad, y se
-elimina el `<config>` entero, cuyo `<source>` forzaba un Podfile en cordova-ios 8.
+Tres cambios:
+
+1. `version=` pasa a **`spec=`**, que es el atributo que cordova-ios lee de verdad.
+2. Se elimina el `<config>` entero, cuyo `<source>` marcaba el Podfile como sucio.
+3. Se elimina **`use-frameworks="true"`** del `<pods>`. `PluginInfo.getPodSpecs()` convierte los
+   atributos de `<pods>` en *declaraciones* del Podfile (`use_frameworks!`), y el bloque
+   `// declarations` de `Api.js` tampoco tiene guarda de `isSwiftPackagePlugin` — así que esa
+   sola declaración basta para marcar el Podfile como sucio y disparar `pod install`.
+
+Sobre el punto 3, que es el que cambia comportamiento en el camino viejo: sin `use_frameworks!`
+los pods se enlazan como librerías estáticas en vez de frameworks dinámicos. Es seguro para
+`KhipuClientIOS` porque su podspec declara `s.resource_bundles` —el mecanismo pensado
+justamente para enlace estático— y su `BundleHelper` resuelve con
+`Bundle(for: KhipuClientBundleHelper.self).path(forResource: "KhipuClientIOS", ofType: "bundle")`,
+que funciona en los dos modelos: con framework dinámico apunta al bundle del framework, y con
+librería estática la clase queda en el binario de la app, donde CocoaPods copia el resource
+bundle. **Aun así hay que confirmarlo en runtime**, no solo que compile: los recursos que
+fallan lo hacen al mostrarse, no al enlazar.
+
+Y no se puede simplemente dejarlo: en macOS, `check_cocoapods` de cordova-ios llama a
+`checkTool('pod', ...)`, que **rechaza** si el binario falta (solo devuelve `ignore` cuando el
+SO no es macOS). Con el Podfile sucio, un comercio en cordova-ios 8 sin CocoaPods instalado ve
+fallar `cordova plugin add`, que es exactamente lo que esta migración promete evitar.
 
 - [ ] **Step 3: Verificar el texto**
 
@@ -2013,6 +2034,10 @@ Es lo único que demuestra que el camino de cordova-ios 8 no necesita CocoaPods.
 - **`false` explícito.** Marcar `showFooter` con el interruptor apagado manda
   `"showFooter": false`, que no es lo mismo que no mandar la clave.
 - **Presets.** *Marca Khipu* usa púrpura `#8347AD` y cian `#3CB4E5`.
+- **Recursos en el camino CocoaPods.** El plugin ya no declara `use_frameworks!`, así que los
+  pods se enlazan estáticos. Corriendo `npm run ios:pods`, confirmar que la vista de Khipu
+  muestra **imágenes y tipografías**, no cuadros vacíos ni texto con la fuente del sistema. Un
+  recurso que no resuelve falla al mostrarse, no al compilar, así que el build verde no basta.
 - **Persistencia.** El `operationId` sobrevive a una recarga.
 - **Resultado.** Al terminar la operación aparecen los campos de `KhipuResult`
   y la tabla de eventos.

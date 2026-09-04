@@ -259,6 +259,19 @@ declarado, cordova-ios 8 marca el Podfile como sucio y corre `pod install` igual
 Declarar el trunk de CocoaPods era además redundante: es el source por defecto cuando no se
 declara ninguno.
 
+**Y `use-frameworks="true"` también se elimina.** `getPodSpecs()` convierte los atributos de
+`<pods>` en *declaraciones* del Podfile (`use_frameworks!`), y el bloque `// declarations` de
+`Api.js` tampoco tiene guarda de `isSwiftPackagePlugin`: esa sola declaración basta para
+disparar `pod install`. No alcanza con dejarlo, porque en macOS `check_cocoapods` **rechaza**
+si falta el binario `pod` (solo devuelve `ignore` fuera de macOS), así que un comercio en
+cordova-ios 8 sin CocoaPods vería fallar `cordova plugin add`.
+
+Sin `use_frameworks!` los pods se enlazan estáticos. Es seguro para `KhipuClientIOS`: su
+podspec usa `s.resource_bundles` —el mecanismo pensado para enlace estático— y su
+`BundleHelper` resuelve por `Bundle(for:).path(forResource:ofType:"bundle")`, que funciona en
+los dos modelos. Queda como **riesgo a confirmar en runtime** con la app de ejemplo en el
+camino CocoaPods: un recurso que no resuelve falla al mostrarse, no al compilar.
+
 Contrapartida aceptada: si la app del comercio declara además `KhipuClientIOS` en otra
 versión, SPM falla con un conflicto duro en vez de negociar.
 
