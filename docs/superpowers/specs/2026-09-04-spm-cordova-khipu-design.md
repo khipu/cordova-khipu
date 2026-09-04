@@ -517,10 +517,14 @@ El escenario de SPM hay que correrlo con CocoaPods fuera del `PATH` al menos una
    `.process("Assets")`, que genera un resource bundle resuelto vía `Bundle.module`. El spec
    de `flutter_khipu` lo validó en una app Flutter (fuentes, PNG y HTML cargando bien), pero
    en Cordova solo se comprueba corriendo la app en simulador o dispositivo.
-4. **`khipu-client-android` 2.27.0 con Kotlin 2.1.21**, el default de cordova-android 15. No
-   se pudo verificar; `khipu-client-android` usa Jetpack Compose, cuyo compilador va atado a
-   la versión de Kotlin. Es el mismo riesgo abierto que anotó el spec de `capacitor-khipu`.
-   Hay que confirmarlo con el equipo del SDK de Android.
+4. **`khipu-client-android` 2.27.0 con Kotlin 2.1.21**, el default de cordova-android 15.
+   `khipu-client-android` usa Jetpack Compose, cuyo compilador va atado a la versión de
+   Kotlin. Es el mismo riesgo abierto que anotó el spec de `capacitor-khipu`, y **no hay
+   evidencia de que funcione**: `flutter_khipu` consume ese mismo 2.27.0 pero fija
+   `ext.kotlin_version = "1.9.0"` en su `android/build.gradle` y su README le pide al comercio
+   Kotlin 1.9.0 o superior. O sea que "funciona en Flutter" es evidencia para 1.9.0, dos
+   majors por debajo, y para nada más. La Task 11 del plan es el primer ejercicio real de esa
+   combinación; si falla, hay que escalarlo al equipo del SDK de Android antes de publicar.
 5. **Viabilidad real de cordova-ios 7 con el Xcode actual.** `check_reqs.js` declara pisos,
    no techos: cordova-ios 7 pide Xcode >= 11 y cordova-ios 8 pide >= 15. Pero 7.1.1 es de
    julio de 2024, anterior a Xcode 16, y Apache no la ha tocado desde entonces. Si el camino

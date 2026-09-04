@@ -2478,8 +2478,19 @@ dependencies {
 
 - [ ] **Step 3: Compilar el ejemplo en Android**
 
+Este paso es además el primer ejercicio real de `khipu-client-android` 2.27.0 con Kotlin
+2.1.21, el default de cordova-android 15 — el riesgo 4 del spec. No hay precedente:
+`flutter_khipu` usa ese mismo 2.27.0 pero fijando `ext.kotlin_version = "1.9.0"`, dos majors
+más abajo. `khipu-client-android` usa Jetpack Compose, cuyo compilador va atado a la versión
+de Kotlin.
+
 Run: `cd example && npm run android`
 Expected: la app arranca en el emulador y muestra `deviceready OK · window.Khipu es object`.
+
+Si falla con un error del compilador de Compose o un choque de versiones de Kotlin,
+**detenerse y reportar**: no es algo que se arregle desde este plugin, hay que escalarlo al
+equipo del SDK de Android. Como dato para ese reporte, anotar la versión de Kotlin efectiva
+con `grep KOTLIN_VERSION example/platforms/android/cdv-gradle-config.json`.
 
 - [ ] **Step 4: Si el build falla por recursos duplicados, reponer los excludes con la sintaxis de AGP 8**
 
