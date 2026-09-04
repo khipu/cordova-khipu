@@ -603,3 +603,73 @@ Build version 17F113
 | `cordova-ios@8.1.1`: el hook no emitió salida | Sí — `cordova prepare ios` no imprimió ninguna línea con `cordova-khipu` (`sin salida del hook: OK`). |
 
 **Riesgo 5 (viabilidad de cordova-ios 7 con el Xcode actual):** resuelto. `cordova-ios@7.1.1` compila limpio (`BUILD SUCCEEDED`) bajo Xcode 26.6 usando la ruta de CocoaPods, sin ningún error de SDK, toolchain o CocoaPods propios de la incompatibilidad que se temía; el único obstáculo real para llegar a ese resultado fue de entorno (selección de simulador y forma de instalar un `.tgz` local), no de compatibilidad Xcode 26 / cordova-ios 7. El soporte dual sigue siendo viable en cuanto a compilación. Quedan abiertos, sin embargo, dos hallazgos nuevos de esta verificación que no estaban contemplados en los riesgos 1-7 y que conviene resolver antes de cerrar el plan: (a) el pin de `KhipuClientIOS` en el Podfile no se aplica por el atributo `version` vs `spec` en `plugin.xml`, y (b) `cordova-ios@8.1.1` sigue generando un Podfile vacío y corriendo `pod install` por los `declarations`/`sources` del `<podspec>` que no respetan `nospm`.
+
+### Corrección del pin del pod y del Podfile fantasma (Task 3b del plan)
+
+Ejecutado el 2026-09-04, sobre el mismo entorno (Xcode 26.6, Build version 17F113). El bloque
+`<podspec>` de `plugin.xml` pasó de:
+
+```xml
+<podspec>
+  <config>
+    <source url="https://github.com/CocoaPods/Specs.git"/>
+  </config>
+  <pods use-frameworks="true">
+    <pod name="KhipuClientIOS" version="2.16.5" swift-version="5.1" nospm="true"/>
+  </pods>
+</podspec>
+```
+
+a:
+
+```xml
+<podspec>
+  <pods>
+    <pod name="KhipuClientIOS" spec="2.16.5" swift-version="5.1" nospm="true"/>
+  </pods>
+</podspec>
+```
+
+Tres cambios: `version=` pasa a `spec=` (el único atributo que `cordova-common`/`cordova-ios`
+leen para pinnear la versión de un pod); se elimina `<config><source>` (redundante — el trunk de
+CocoaPods es el source por defecto cuando no se declara ninguno); y se elimina
+`use-frameworks="true"` de `<pods>`.
+
+Este último cambio no es cosmético. `cordova-ios/lib/Api.js#addPodSpecs` procesa el bloque
+`declarations` de un `<podspec>` (el que alimenta `use-frameworks="true"`) sin ninguna guarda de
+`isSwiftPackagePlugin`, igual que el bloque `sources` que ya se había identificado — a
+diferencia de `libraries` (el `<pod>` concreto), que sí respeta `nospm`. Con
+`use-frameworks="true"` presente, `use_frameworks!` cuenta como una declaración del Podfile y
+alcanza por sí sola para marcarlo "sucio" y disparar `pod install`, aunque el pod real quede
+excluido. Sin ese atributo, `declarations`, `sources` y `libraries` quedan los tres vacíos
+(`pods.json: {"declarations": {}, "sources": {}, "libraries": {}}`) y `pod install` no se
+ejecuta en cordova-ios 8.
+
+Queda un matiz frente al criterio de aceptación original ("no debe existir Podfile en
+absoluto"): el constructor de la clase `Podfile` de cordova-ios (`lib/Podfile.js`) escribe un
+Podfile placeholder en disco apenas se instancia, si el archivo no existe todavía — efecto
+colateral de que el plugin declare aunque sea un `<podspec>` vacío, sin relación alguna con
+`nospm`/`isSwiftPackagePlugin`/`use-frameworks`. Por eso sigue apareciendo un Podfile vacío
+(`target 'App' do ... end`, sin ningún `pod`) en `platforms/ios/` bajo cordova-ios 8. Se ajustó
+el criterio: la propiedad que de verdad promete el diseño es "no hace falta tener CocoaPods
+instalado", no "nunca existe un archivo llamado Podfile" en disco — y esa propiedad sí se
+cumple, porque sin `pod install` no se necesita el binario `pod`. Se verificó compilando un
+proyecto cordova-ios 8 con `pod` removido del `PATH` por completo (ver tabla).
+
+| Verificación | Antes | Después |
+| --- | --- | --- |
+| Línea del pod en el Podfile de cordova-ios 7 | `pod 'KhipuClientIOS'` (sin versión) | `pod 'KhipuClientIOS', '2.16.5'` |
+| ¿Existe `Pods/` en cordova-ios 8? | Sí | No |
+| ¿Corrió `pod install` en cordova-ios 8? | Sí (`[!] The Podfile does not contain any dependencies.`) | No — `pods.json` con `declarations`, `sources` y `libraries` los tres vacíos |
+| Build de cordova-ios 7 | OK — `** BUILD SUCCEEDED **` | OK — `** BUILD SUCCEEDED **` |
+| Build de cordova-ios 8 | OK — `** BUILD SUCCEEDED **` | OK — `** BUILD SUCCEEDED **` |
+| Build de cordova-ios 8 con el binario `pod` fuera del `PATH` | No se había probado en esta forma | OK — `** BUILD SUCCEEDED **`, con `which pod` sin resultado durante todo el flujo (`create`, `platform add`, `plugin add` y `build`) |
+
+Verificación adicional del enlace estático: al quitar `use_frameworks!`, `KhipuClientIOS` pasa a
+enlazarse como librería estática en vez de framework dinámico en cordova-ios 7. El recurso
+`KhipuClientIOS.bundle` aparece en el producto de build
+(`platforms/ios/build/Debug-iphonesimulator/CdvPin7.app/KhipuClientIOS.bundle`, con
+`logo-khipu-color.png` y `khipuClient.html` adentro), junto a `libKhipuClientIOS.a` — consistente
+con enlace estático y con que `BundleHelper` (que resuelve con `Bundle(for:
+KhipuClientBundleHelper.self).path(forResource: "KhipuClientIOS", ofType: "bundle")`) siga
+encontrando el bundle sin cambios de código.
