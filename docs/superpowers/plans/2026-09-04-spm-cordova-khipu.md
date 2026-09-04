@@ -2212,6 +2212,8 @@ Ninguna es del plugin, pero cuestan tiempo si no se saben:
 - **`adb install` puede fallar por falta de espacio** en la partición `/data` del emulador, sin
   que el build de Gradle tenga nada que ver. Se resuelve arrancando el AVD con
   `-wipe-data -partition-size 8192`.
+- **`[ios-sim] Simulator already running`** si quedó un simulador abierto de una corrida
+  anterior. Se resuelve con `xcrun simctl shutdown all` antes de reintentar.
 
 ## Limitaciones
 
