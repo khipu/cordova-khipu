@@ -13,14 +13,14 @@ const { execFileSync } = require('node:child_process');
 const DEFAULT_SWIFT_VERSION = '5.0';
 
 module.exports = function (context) {
-    const projectRoot = context.opts.projectRoot;
-    const platformPath = path.join(projectRoot, 'platforms', 'ios');
-
-    if (!fs.existsSync(platformPath)) {
-        return;
-    }
-
     try {
+        const projectRoot = context.opts.projectRoot;
+        const platformPath = path.join(projectRoot, 'platforms', 'ios');
+
+        if (!fs.existsSync(platformPath)) {
+            return;
+        }
+
         if (getCordovaIosMajor(platformPath) >= 8) {
             return;
         }

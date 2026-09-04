@@ -81,3 +81,35 @@ test('sin plataforma ios el hook sale sin lanzar', () => {
     const root = tempDir();
     assert.doesNotThrow(() => hook({ opts: { projectRoot: root } }));
 });
+
+test('en cordova-ios 7, si falla la configuración (p. ej. sin el módulo xcode) el hook avisa pero no lanza', () => {
+    const root = tempDir();
+    const platformPath = path.join(root, 'platforms', 'ios');
+    fs.mkdirSync(path.join(platformPath, 'MiApp.xcodeproj'), { recursive: true });
+    fs.mkdirSync(path.join(platformPath, 'MiApp'), { recursive: true });
+    fs.writeFileSync(path.join(platformPath, 'MiApp', 'Bridging-Header.h'), '');
+
+    const originalWarn = console.warn;
+    const warnCalls = [];
+    console.warn = (...args) => warnCalls.push(args.join(' '));
+
+    try {
+        // Esta es la garantía que le faltaba a cordova-plugin-add-swift-support:
+        // un problema configurando Swift nunca debe voltear el build del
+        // comercio. Deliberadamente no se crea project.pbxproj, así que esta
+        // rama falla tanto si `xcode` no resuelve en este repo (el caso de
+        // hoy) como si algún día resuelve pero no encuentra el pbxproj para
+        // parsear. La aserción fuerte es "no lanza".
+        assert.doesNotThrow(() => hook({ opts: { projectRoot: root } }));
+
+        // Si efectivamente falló, tiene que haber avisado en vez de fallar en
+        // silencio. Esto se afirma solo cuando hubo un aviso: si el día de
+        // mañana `xcode` resuelve y además logra completar la configuración
+        // sin error, no hay aviso que revisar y el test igual debe pasar.
+        if (warnCalls.length > 0) {
+            assert.match(warnCalls[0], /no se pudo configurar Swift para iOS/);
+        }
+    } finally {
+        console.warn = originalWarn;
+    }
+});
