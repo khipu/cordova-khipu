@@ -672,3 +672,48 @@ enlazarse como librería estática en vez de framework dinámico en cordova-ios 
 con enlace estático y con que `BundleHelper` (que resuelve con `Bundle(for:
 KhipuClientBundleHelper.self).path(forResource: "KhipuClientIOS", ofType: "bundle")`) siga
 encontrando el bundle sin cambios de código.
+
+### Fase 2 — instalación del plugin local en el ejemplo (Task 4 del plan)
+
+Ejecutado el 2026-09-04 sobre un clon desechable en `/tmp/spike-khipu` (nunca sobre el repo de
+trabajo), commit `761e528`, con `npx cordova@13` (cordova-lib 13.0.0) y `cordova-ios@8.1.1`.
+
+| Método | `plugins/cordova-khipu` | ¿Modificó el `Package.swift` del repo? | ¿Compiló? |
+| --- | --- | --- | --- |
+| `cordova plugin add ../` | no se creó — el comando falla antes con `Invalid src or dest: cp returned EINVAL (cannot copy .../node_modules/cordova-khipu to a subdirectory of self .../example)` | no | no — falla antes de llegar a `SwiftPackage.addPlugin()` |
+| `cordova plugin add ../ --link` | symlink | no (conserva la URL de git a `apache/cordova-ios`) | sí, pero SwiftPM emite `Conflicting identity for cordova-ios: ... both point to the same package identity 'cordova-ios'. This will be escalated to an error in future versions of SwiftPM`, y dedupea silenciosamente a la copia local |
+| `npm pack` + `cordova plugin add file:` seguido de la ruta absoluta al `.tgz` | directorio real | no (la copia en `platforms/ios/packages/cordova-khipu/Package.swift` queda reescrita a `path: "../cordova-ios"`) | sí, limpio, sin advertencias de SwiftPM |
+
+Notas sobre cada fila:
+
+- **Método 1** no corrompe el repo, pero tampoco completa la instalación: falla en la
+  resolución de la dependencia local por `npm`, antes de que `cordova-lib` o
+  `SwiftPackage.addPlugin()` intervengan, precisamente porque el destino (`example/plugins/`)
+  queda anidado dentro del origen (`../`, la raíz del repo) — la misma topología que motiva
+  este spike, solo que aquí se manifiesta como un fallo duro en vez de una corrupción
+  silenciosa.
+- **Método 2** no corrompe el `Package.swift` del plugin (queda con
+  `.package(url: "https://github.com/apache/cordova-ios.git", from: "8.0.0")` intacto, porque
+  `--link` no copia ni reescribe), pero por eso mismo el `Package.swift` del plugin sigue
+  dependiendo de `apache/cordova-ios` por git en vez de la `CordovaLib` local del proyecto. El
+  build de hoy compila porque SwiftPM dedupea ambas identidades en una sola (gana la copia
+  local), pero anuncia explícitamente que ese comportamiento se va a convertir en error en una
+  versión futura de SwiftPM.
+- **Método 3**, ejecutado literalmente como en el brief (`cordova plugin add ./cordova-khipu-*.tgz`),
+  falla con un 404 de npm (`npm view ./cordova-khipu-2.9.1.tgz --json`): cordova-lib 13.0.0 solo
+  evita consultar el registro si el target es una URL, un directorio, o trae versión explícita;
+  un `.tgz` relativo sin `@version` no cumple ninguna condición y termina tratado como nombre de
+  paquete de npm. Usando en cambio el prefijo `file:` seguido de la ruta absoluta al `.tgz` (que sí es reconocido como URL), la
+  instalación funciona: `plugins/cordova-khipu` queda como directorio real (copiado del tarball,
+  no symlink al repo) y `platforms/ios/packages/cordova-khipu/Package.swift` queda con la
+  dependencia a `cordova-ios` reescrita a la ruta local del proyecto, sin conflicto de
+  identidad y sin advertencias en el build.
+
+**Decisión:** `npm pack` + `cordova plugin add` con el prefijo `file:` y la ruta absoluta al `.tgz`, porque es el único
+método que no corrompe el repo, deja una única identidad de paquete `cordova-ios` sin conflicto
+(a diferencia de `--link`, cuyo build de hoy pasa solo gracias a un comportamiento de SwiftPM ya
+marcado como deprecado), y compila limpio sin advertencias. La Task 5 debe invocar
+`cordova plugin add` con el prefijo `file:` y ruta absoluta al `.tgz` — la ruta relativa desnuda
+falla por una limitación de parseo de cordova-lib 13.0.0 ajena a SPM.
+
+Esto resuelve el riesgo 1 del §13.
