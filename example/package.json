@@ -1,0 +1,29 @@
+{
+  "name": "cordova-khipu-example",
+  "displayName": "Khipu Example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App de ejemplo del plugin cordova-khipu",
+  "license": "MIT",
+  "scripts": {
+    "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
+    "plugin:add": "node scripts/install-plugin.mjs",
+    "ios:pods": "npm run reset && cordova platform add ios@7.1.1 && npm run plugin:add && cordova run ios",
+    "ios:spm": "npm run reset && cordova platform add ios@8.1.1 && npm run plugin:add && cordova run ios",
+    "android": "npm run reset && cordova platform add android@15.1.0 && npm run plugin:add && cordova run android"
+  },
+  "engines": {
+    "node": "^20.17.0 || >=22.9.0"
+  },
+  "devDependencies": {
+    "cordova": "^13.0.0",
+    "cordova-android": "^15.1.0",
+    "cordova-ios": "^7.1.1"
+  },
+  "cordova": {
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.khipu.cordova.example" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Khipu Example</name>
+    <description>App de ejemplo del plugin cordova-khipu</description>
+    <author email="developers@khipu.com" href="https://khipu.com">Khipu</author>
+    <content src="index.html" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <preference name="DisallowOverscroll" value="true" />
+    <platform name="ios">
+        <preference name="deployment-target" value="13.0" />
+    </platform>
+</widget>

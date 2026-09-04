@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Khipu Example</title>
+  </head>
+  <body>
+    <h1>cordova-khipu</h1>
+    <p id="estado">Esperando <code>deviceready</code>…</p>
+    <script src="cordova.js"></script>
+    <script>
+      document.addEventListener('deviceready', function () {
+        document.getElementById('estado').textContent =
+          'deviceready OK · window.Khipu es ' + typeof window.Khipu;
+      });
+    </script>
+  </body>
+</html>

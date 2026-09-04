@@ -24,6 +24,16 @@
     "url": "https://github.com/khipu/cordova-khipu/issues"
   },
   "homepage": "https://github.com/khipu/cordova-khipu#readme",
+  "files": [
+    "plugin.xml",
+    "Package.swift",
+    "www/",
+    "src/",
+    "tests/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test tests/scripts/",
     "release": "release-it",
