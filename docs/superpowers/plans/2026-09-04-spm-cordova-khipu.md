@@ -1011,9 +1011,9 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
   "scripts": {
     "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
     "plugin:add": "node scripts/install-plugin.mjs",
-    "ios:pods": "npm run reset && cordova platform add ios@7.1.1 && npm run plugin:add && cordova run ios",
-    "ios:spm": "npm run reset && cordova platform add ios@8.1.1 && npm run plugin:add && cordova run ios",
-    "android": "npm run reset && cordova platform add android@15.1.0 && npm run plugin:add && cordova run android"
+    "ios:pods": "npm run reset && cordova platform add ios@7.1.1 --nosave && npm run plugin:add && cordova run ios",
+    "ios:spm": "npm run reset && cordova platform add ios@8.1.1 --nosave && npm run plugin:add && cordova run ios",
+    "android": "npm run reset && cordova platform add android@15.1.0 --nosave && npm run plugin:add && cordova run android"
   },
   "engines": {
     "node": "^20.17.0 || >=22.9.0"
@@ -1032,6 +1032,12 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 Notas sobre el diseño de los scripts:
 - `reset` borra `platforms/` y `plugins/` porque el gestor de paquetes de iOS lo decide el major de la plataforma, y no se puede cambiar en caliente.
 - `cordova.platforms` queda vacío a propósito: cada script agrega la que necesita.
+- **`--nosave` en los tres `cordova platform add`, y no solo en el `plugin add`.** Sin él,
+  cordova reescribe este `package.json` en cada corrida: `cordova.platforms` se llena y
+  `devDependencies.cordova-ios` queda con el major de la última corrida. Como los scripts se
+  corren en secuencia para verificar los tres escenarios, el archivo terminaría declarando el
+  camino que se probó último, que es justo el dato que uno quiere fijo. Sin esto, `reset` no es
+  un reset de verdad: borra `platforms/` y `plugins/` pero deja el `package.json` sucio.
 - El `engines` declara el piso que exige `cordova-ios` 8.1.1; sirve de aviso, no de barrera.
 - La instalación del plugin vive en un script aparte porque tiene dos rodeos que necesitan explicación: ver el paso siguiente.
 
