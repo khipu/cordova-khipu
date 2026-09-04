@@ -244,6 +244,21 @@ el mismo grafo nativo. Es la misma decisión que tomaron `KhipuClientIOS` en su 
 El bump desde `2.16.2` es obligatorio: esa versión no tiene `Package.swift` y por lo tanto no
 se puede consumir por SPM.
 
+**El atributo es `spec`, no `version`.** Se descubrió compilando (Task 3 del plan): `Podfile.js`
+de cordova-ios solo lee `json.spec` para emitir la restricción de versión
+(`if ('spec' in json && json.spec.length)`, línea 300); un atributo `version` se ignora en
+silencio. El `plugin.xml` publicado en `cordova-khipu` 2.9.1 dice `version="2.16.2"`, así que
+**el plugin nunca fijó la versión del pod**: genera `pod 'KhipuClientIOS'` sin restricción y cada
+comercio del camino CocoaPods recibe lo que CocoaPods resuelva. Es un defecto preexistente que
+esta migración destapa y corrige.
+
+**El bloque `<config><source>` se elimina.** El `// sources` de `Api.js` **no** está protegido por
+`isSwiftPackagePlugin`, a diferencia del `// libraries` que está justo debajo. Con un `<source>`
+declarado, cordova-ios 8 marca el Podfile como sucio y corre `pod install` igual, aunque
+`nospm="true"` haya descartado el pod — lo que rompe la premisa de "SPM puro, sin CocoaPods".
+Declarar el trunk de CocoaPods era además redundante: es el source por defecto cuando no se
+declara ninguno.
+
 Contrapartida aceptada: si la app del comercio declara además `KhipuClientIOS` en otra
 versión, SPM falla con un conflicto duro en vez de negociar.
 

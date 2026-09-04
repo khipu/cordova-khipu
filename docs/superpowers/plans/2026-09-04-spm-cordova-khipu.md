@@ -654,6 +654,157 @@ git commit -m "docs: registrar la verificación de cordova-ios 7 y 8"
 
 ---
 
+### Task 3b: Corregir el pin del pod y el Podfile fantasma
+
+Dos defectos que encontró la Task 3 compilando de verdad. Los dos invalidan afirmaciones del
+spec, así que se arreglan antes de seguir.
+
+**a) El pin de versión del pod nunca se aplicó.** `Podfile.js` de cordova-ios solo emite la
+restricción de versión si el JSON del pod trae la clave `spec` (`if ('spec' in json &&
+json.spec.length)`, línea 300). El atributo `version` se ignora en silencio. El `plugin.xml`
+publicado en `cordova-khipu` 2.9.1 usa `version="2.16.2"`, o sea que **el plugin nunca fijó la
+versión del pod**: genera `pod 'KhipuClientIOS'` sin restricción. Es un defecto preexistente.
+
+**b) Se crea un Podfile aunque el pod esté descartado.** El bloque `// sources` de `Api.js` no
+está protegido por `isSwiftPackagePlugin`, a diferencia del `// libraries` que le sigue. Con un
+`<config><source>` declarado, cordova-ios 8 marca el Podfile como sucio y corre `pod install`
+igual, rompiendo la premisa de "SPM puro, sin CocoaPods instalado". Declarar el trunk de
+CocoaPods era redundante: es el source por defecto cuando no hay ninguno.
+
+**Files:**
+- Modify: `plugin.xml`
+- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (sección §15)
+
+**Interfaces:**
+- Consumes: el `plugin.xml` de las Tasks 1 y 2.
+- Produces: un `<podspec>` sin `<config>` y con `spec="2.16.5"`. La Task 12 lo verifica con
+  `check-native-versions.js`, que busca `spec=` y falla ante `version=`.
+
+- [ ] **Step 1: Confirmar el estado actual**
+
+Run: `grep -n "podspec\|<config>\|<source url\|<pod " plugin.xml`
+Expected: aparecen el `<config>`, el `<source url=...>` y un `<pod ... version="2.16.5" ...>`.
+
+- [ ] **Step 2: Corregir el bloque `<podspec>`**
+
+Reemplazar el bloque completo:
+
+```xml
+    <podspec>
+      <config>
+        <source url="https://github.com/CocoaPods/Specs.git"/>
+      </config>
+      <pods use-frameworks="true">
+        <pod name="KhipuClientIOS" version="2.16.5" swift-version="5.1" nospm="true"/>
+      </pods>
+    </podspec>
+```
+
+por:
+
+```xml
+    <podspec>
+      <pods use-frameworks="true">
+        <pod name="KhipuClientIOS" spec="2.16.5" swift-version="5.1" nospm="true"/>
+      </pods>
+    </podspec>
+```
+
+Dos cambios: `version=` pasa a `spec=`, que es el atributo que cordova-ios lee de verdad, y se
+elimina el `<config>` entero, cuyo `<source>` forzaba un Podfile en cordova-ios 8.
+
+- [ ] **Step 3: Verificar el texto**
+
+Run: `grep -c 'spec="2.16.5"' plugin.xml && grep -c "<config>" plugin.xml`
+Expected: `1` y luego `0`.
+
+- [ ] **Step 4: Re-verificar cordova-ios 7 — el pod ahora sí queda pinneado**
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"
+node -v   # debe decir v20.19.4
+npm pack --pack-destination /tmp
+cd /tmp && rm -rf cdvpin7 && npx cordova@13 create cdvpin7 com.khipu.pin7 CdvPin7
+cd /tmp/cdvpin7
+```
+
+Editar `/tmp/cdvpin7/config.xml` y agregar antes de `</widget>`:
+
+```xml
+    <platform name="ios">
+        <preference name="deployment-target" value="13.0" />
+    </platform>
+```
+
+```bash
+cd /tmp/cdvpin7
+npx cordova@13 platform add ios@7.1.1
+npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
+grep -n "KhipuClientIOS" platforms/ios/Podfile
+```
+Expected: la línea dice **`pod 'KhipuClientIOS', '2.16.5'`**, con la versión. Antes de este
+arreglo decía `pod 'KhipuClientIOS'` a secas. Si sigue sin versión, el arreglo no funcionó:
+detente y reporta el contenido completo del Podfile.
+
+- [ ] **Step 5: Re-verificar cordova-ios 8 — ahora no debe haber Podfile**
+
+```bash
+cd /tmp && rm -rf cdvpin8 && npx cordova@13 create cdvpin8 com.khipu.pin8 CdvPin8
+cd /tmp/cdvpin8
+npx cordova@13 platform add ios@8.1.1
+npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
+test ! -f platforms/ios/Podfile && echo "sin Podfile: OK" || { echo "TODAVÍA HAY PODFILE:"; cat platforms/ios/Podfile; }
+test ! -d platforms/ios/Pods && echo "sin Pods/: OK" || echo "TODAVÍA HAY Pods/"
+test -d platforms/ios/packages/cordova-khipu && echo "package SPM copiado: OK"
+```
+Expected: `sin Podfile: OK`, `sin Pods/: OK`, `package SPM copiado: OK`.
+
+- [ ] **Step 6: Compilar ambos para confirmar que nada se rompió**
+
+```bash
+cd /tmp/cdvpin7 && npx cordova@13 build ios --emulator 2>&1 | tail -20
+cd /tmp/cdvpin8 && npx cordova@13 build ios --emulator 2>&1 | tail -20
+```
+Expected: `BUILD SUCCEEDED` en los dos.
+
+- [ ] **Step 7: Registrar los resultados en el spec**
+
+Agregar a la sección `## 15. Resultados de verificación` una subsección:
+
+```markdown
+### Corrección del pin del pod y del Podfile fantasma (Task 3b del plan)
+
+| Verificación | Antes | Después |
+| --- | --- | --- |
+| Línea del pod en el Podfile de cordova-ios 7 | `<lo que decía>` | `<lo que dice ahora>` |
+| ¿Existe Podfile en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
+| ¿Existe `Pods/` en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
+| Build de cordova-ios 7 | `<OK / detalle>` | `<OK / detalle>` |
+| Build de cordova-ios 8 | `<OK / detalle>` | `<OK / detalle>` |
+```
+
+Reemplazar cada `<...>` por el valor real. La columna "Antes" sale del reporte de la Task 3.
+
+- [ ] **Step 8: Limpiar y commitear**
+
+```bash
+rm -rf /tmp/cdvpin7 /tmp/cdvpin8 /tmp/cordova-khipu-2.9.1.tgz
+cd /Users/edavis/git/cordova-khipu
+git add plugin.xml docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md
+git commit -m "fix(ios): fijar de verdad la versión del pod y no generar Podfile bajo SPM
+
+cordova-ios solo lee el atributo `spec` del <pod>; `version` se ignora en
+silencio, así que el plugin publicado nunca fijó la versión de
+KhipuClientIOS y cada comercio recibía la que CocoaPods resolviera.
+
+Y el bloque // sources de Api.js no está protegido por
+isSwiftPackagePlugin, así que declarar un <source> forzaba un Podfile y
+un pod install en cordova-ios 8, rompiendo la premisa de SPM puro. El
+trunk de CocoaPods es el source por defecto: declararlo era redundante."
+```
+
+---
+
 ### Task 4: Spike — cómo instala el ejemplo el plugin local
 
 El riesgo es concreto: si `cordova plugin add ../` deja un symlink al repo, `SwiftPackage.addPlugin()` reescribiría el `Package.swift` real del plugin. Por eso el spike corre sobre un **clon desechable**, nunca sobre el repo de trabajo.
@@ -2560,8 +2711,10 @@ const { compare } = require('../../scripts/check-native-versions.js');
 const PACKAGE_SWIFT = version =>
     `.package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "${version}")`;
 
+// El atributo que cordova-ios lee es `spec`, no `version`: Podfile.js solo emite la
+// restricción si encuentra `spec`. Un `version=` se ignora en silencio y el pod queda sin pin.
 const PLUGIN_XML = version =>
-    `<pod name="KhipuClientIOS" version="${version}" swift-version="5.1" nospm="true"/>`;
+    `<pod name="KhipuClientIOS" spec="${version}" swift-version="5.1" nospm="true"/>`;
 
 test('acepta versiones iguales', () => {
     const resultado = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.5'));
@@ -2595,9 +2748,20 @@ test('rechaza si falta el pod en plugin.xml', () => {
 test('tolera que los atributos del pod vengan en otro orden', () => {
     const resultado = compare(
         PACKAGE_SWIFT('2.16.5'),
-        '<pod version="2.16.5" name="KhipuClientIOS" nospm="true"/>');
+        '<pod spec="2.16.5" name="KhipuClientIOS" nospm="true"/>');
 
     assert.strictEqual(resultado.ok, true);
+});
+
+// Regresión del bug que encontró la Task 3: con `version=` el pod queda sin pin y cada
+// comercio recibe la versión que CocoaPods resuelva. El check tiene que gritar, no pasar.
+test('rechaza version= en vez de spec=, que cordova-ios ignora', () => {
+    const resultado = compare(
+        PACKAGE_SWIFT('2.16.5'),
+        '<pod name="KhipuClientIOS" version="2.16.5" nospm="true"/>');
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /plugin\.xml/);
 });
 ```
 
@@ -2635,12 +2799,15 @@ function compare (packageSwift, pluginXml) {
     // no depender del orden de los atributos: update-plugin-version.js
     // reescribe plugin.xml con el Builder de xml2js en cada release.
     const podTag = pluginXml.match(/<pod\b[^>]*name="KhipuClientIOS"[^>]*>/);
-    const pod = podTag && podTag[0].match(/version="([^"]+)"/);
+    // `spec`, no `version`: Podfile.js de cordova-ios solo emite la restricción de versión si
+    // encuentra `spec`. Un `version=` se ignora en silencio y el pod queda sin pin, que es
+    // exactamente el bug que tenía el plugin publicado.
+    const pod = podTag && podTag[0].match(/spec="([^"]+)"/);
 
     if (!pod) {
         return {
             ok: false,
-            message: 'no se encontró la versión de KhipuClientIOS en plugin.xml'
+            message: 'no se encontró `spec` de KhipuClientIOS en plugin.xml (¿quedó como `version=`, que cordova-ios ignora?)'
         };
     }
 
@@ -2682,7 +2849,7 @@ if (require.main === module) {
 - [ ] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `npm test`
-Expected: PASS, 13 tests (8 del hook + 5 de este script), 0 fallas.
+Expected: PASS, 15 tests (9 del hook + 6 de este script), 0 fallas.
 
 - [ ] **Step 5: Verificar el script contra los archivos reales**
 
