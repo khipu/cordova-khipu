@@ -235,10 +235,22 @@ que `canImport` es falso y el archivo compila igual.
 
 ### 4.5 Fijación de `KhipuClientIOS`
 
-`exact: "2.16.5"` en SPM y `spec="2.16.5"` en el pod, no rangos, para que un comercio que
-instala por CocoaPods y otro que instala por SPM **de la misma versión del plugin** resuelvan
-el mismo grafo nativo. Es la misma decisión que tomaron `KhipuClientIOS` en su propio
+`exact: "2.16.5"` en SPM y `spec="2.16.5"` en el pod, no rangos, para acercar todo lo posible el
+grafo nativo que resuelve un comercio por CocoaPods al que resuelve otro por SPM **de la misma
+versión del plugin**. Es la misma decisión que tomaron `KhipuClientIOS` en su propio
 `Package.swift`, `flutter_khipu` y `capacitor-khipu`.
+
+**El pin exacto no hace idénticos los dos grafos, y conviene no prometerlo.** Garantiza la
+versión de `KhipuClientIOS` en sí, y desde 2.16.5 también la de sus tres dependencias directas
+de producción, que su `Package.swift` fija con `.exact` igual que su podspec: `socket.io-client-swift`
+16.1.1, `KhenshinProtocolSwift` 1.0.60 y `KhenshinSecureMessage` 1.4.1. Lo que queda abierto es
+**Starscream**: el podspec lo declara directo y fijo en `4.0.8`, pero `Package.swift` no lo
+declara en absoluto — bajo SPM llega transitivamente a través de `socket.io-client-swift`, cuyo
+propio manifiesto lo admite en un rango (según verificó el spec de `flutter_khipu`,
+`.upToNextMajor(from: "4.0.8")`, o sea cualquier `4.x`). Cerrarlo exigiría que `KhipuClientIOS`
+declarara `Starscream` como dependencia directa en su `Package.swift`, lo que es decisión de ese
+repositorio y no de este. Es una limitación conocida y acotada, no un pendiente de esta
+migración.
 
 El bump desde `2.16.2` es obligatorio: esa versión no tiene `Package.swift` y por lo tanto no
 se puede consumir por SPM.
