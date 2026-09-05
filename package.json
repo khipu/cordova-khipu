@@ -76,7 +76,7 @@
     },
     "hooks": {
       "before:init": "npm run verify:versions && npm test",
-      "after:bump": "node scripts/update-plugin-version.js && git add plugin.xml && git commit -m 'chore: sync version to plugin.xml'"
+      "after:bump": "node scripts/update-plugin-version.js && git add plugin.xml && (git diff --cached --quiet || git commit -m 'chore: sync version to plugin.xml')"
     }
   }
 }
