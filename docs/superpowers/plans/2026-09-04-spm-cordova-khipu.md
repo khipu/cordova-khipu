@@ -2181,7 +2181,7 @@ caliente.
 Al menos una vez, correr `npm run ios:spm` con CocoaPods fuera del `PATH`:
 
 ```bash
-PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -i cocoapods | paste -sd: -) npm run ios:spm
+PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) npm run ios:spm
 ```
 
 Es lo único que demuestra que el camino de cordova-ios 8 no necesita CocoaPods.
@@ -3307,12 +3307,15 @@ npm run android    # verificar el harness completo en el emulador
 ```
 Expected: los tres arrancan y el harness funciona.
 
-Y la corrida que de verdad prueba que SPM no necesita CocoaPods, que el spec §12
-pide hacer al menos una vez:
+Y la corrida que de verdad prueba que SPM no necesita CocoaPods, que el spec §12 pide hacer al
+menos una vez. **No se filtra por la palabra "cocoapods"**: el binario `pod` puede vivir en
+`~/.rbenv/shims`, en el RubyGems del sistema o donde lo deje Homebrew, y ninguna de esas rutas
+contiene esa palabra — el filtro no sacaría nada y la prueba pasaría sin haber quitado nada. Se
+ubica el directorio real con `command -v`:
 
 ```bash
 cd example
-PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -i cocoapods | paste -sd: -) npm run ios:spm
+PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) npm run ios:spm
 ```
 Expected: `BUILD SUCCEEDED` y la app corriendo. Si falla con `pod: command not
 found`, es que algo del camino de cordova-ios 8 todavía llama a CocoaPods:
