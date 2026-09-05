@@ -2397,12 +2397,17 @@ final class KhipuOptionsMapperTests: XCTestCase {
 - [ ] **Step 3: Correr los tests y verificar que fallan**
 
 Run: `xcodebuild -list`
-Expected: aparece el scheme `cordova-khipu-Package`. Anotar el nombre exacto.
+Expected: aparecen los schemes `cordova-khipu` y `KhipuClientIOS`. El de los tests es **`cordova-khipu`**,
+no `cordova-khipu-Package`: Xcode genera ese sufijo solo en algunas configuraciones y acá no
+aplica. Anotar lo que reporte y usar eso.
 
-Run: `xcodebuild test -scheme cordova-khipu-Package -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
 Expected: FAIL con `cannot find 'KhipuOptionsMapper' in scope`.
 
-Si no hay un simulador llamado `iPhone 16`, listar los disponibles con `xcrun simctl list devices available` y usar uno de esos.
+El `OS=18.5` no es decorativo: sin él, `xcodebuild` toma el runtime más nuevo instalado (26.5),
+donde no existe ningún dispositivo llamado "iPhone 16" y la corrida falla por el destino, no por
+los tests. Listar los disponibles con `xcrun simctl list devices available` y usar un par
+nombre/OS que exista de verdad en la máquina.
 
 - [ ] **Step 4: Escribir el mapper**
 
@@ -2536,7 +2541,7 @@ enum KhipuOptionsMapper {
 
 - [ ] **Step 5: Correr los tests y verificar que pasan**
 
-Run: `xcodebuild test -scheme cordova-khipu-Package -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
 Expected: PASS, 9 tests, 0 fallas.
 
 - [ ] **Step 6: Usar el mapper desde `KhipuPlugin.swift`**
@@ -2570,7 +2575,7 @@ Es necesario para cordova-ios 7, que compila archivo por archivo. cordova-ios 8 
 Run: `xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build`
 Expected: PASS
 
-Run: `xcodebuild test -scheme cordova-khipu-Package -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
 Expected: PASS, 9 tests.
 
 - [ ] **Step 9: Verificar en la app de ejemplo que un tipo equivocado ya no crashea**
@@ -2729,7 +2734,7 @@ Expected: `las tres eliminadas: OK`
 Run: `xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build`
 Expected: PASS
 
-Run: `xcodebuild test -scheme cordova-khipu-Package -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
 Expected: PASS, 9 tests.
 
 - [ ] **Step 6: Probe temporal para ver qué controller se resuelve**
@@ -3295,7 +3300,7 @@ Expected: `enlaces OK`
 npm test
 npm run verify:versions
 xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build
-xcodebuild test -scheme cordova-khipu-Package -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
 ```
 Expected: los cuatro pasan.
 

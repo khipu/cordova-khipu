@@ -546,7 +546,7 @@ Sin CI, la verificación es una matriz manual documentada en `example/README.md`
 | cordova-ios 7 + CocoaPods | `cd example && npm run ios:pods` |
 | cordova-ios 8 + SPM, sin CocoaPods instalado | `cd example && npm run ios:spm` |
 | cordova-android 15 | `cd example && npm run android` |
-| Tests de iOS | `xcodebuild test -scheme cordova-khipu-Package -destination 'platform=iOS Simulator,name=iPhone 16'` |
+| Tests de iOS | `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'` |
 
 El escenario de SPM hay que correrlo con CocoaPods fuera del `PATH` al menos una vez: es lo
 único que prueba de verdad que el camino no lo necesita.
