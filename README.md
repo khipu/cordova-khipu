@@ -41,7 +41,13 @@ Lo único que hay que configurar es el deployment target, porque el default de
     </platform>
 ```
 
-`cordova-ios` 8 ya usa 13.0 por defecto, así que ahí es opcional.
+`cordova-ios` 8 ya usa 13.0 por defecto, así que en ese caso **conviene no
+declararlo**: el plugin todavía carga un `<podspec>` (lo necesita el camino de
+cordova-ios 7), y `cordova-ios` crea igual un `Podfile` vacío al instalar el
+plugin. Si `config.xml` trae `deployment-target`, cordova sincroniza ese
+Podfile con `pod install` en cada `prepare` — aunque esté vacío — y eso exige
+tener CocoaPods instalado, anulando la ventaja de no necesitarlo bajo SPM.
+Dejar que `cordova-ios` 8 use su propio default evita ese `pod install`.
 
 ### Versión de Swift
 

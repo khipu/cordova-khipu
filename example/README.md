@@ -48,19 +48,35 @@ caliente.
 
 ### La corrida que de verdad prueba SPM
 
-Al menos una vez, correr `npm run ios:spm` con CocoaPods fuera del `PATH`. No
-hay una ruta fija que excluir: CocoaPods se instala en lugares distintos según
-el método (Homebrew, RubyGems del sistema, rbenv, rvm), así que el comando
-ubica el directorio real de `pod` con `command -v` y recién ahí lo saca del
-`PATH`:
+Este escenario **no se puede correr desde esta app de ejemplo**. El
+`config.xml` de acá declara `<preference name="deployment-target"
+value="13.0" />` para que funcione el camino de cordova-ios 7 (que sí lo
+necesita), pero esa misma preferencia hace que cordova-ios, en el camino de
+SPM, sincronice con `pod install` el `Podfile` vacío que crea igual al
+instalar el plugin (el motivo completo está en el README principal, sección
+"Setup de iOS"). Con esa preferencia puesta, `npm run ios:spm` va a pedir
+CocoaPods aunque no vaya a usar ningún pod.
+
+La comprobación real se hace aparte, contra un proyecto Cordova limpio que
+**no** declare `deployment-target` (dejando que cordova-ios 8 use su default
+de 13.0):
 
 ```bash
-PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) npm run ios:spm
+cordova create khipu-spm-check com.example.khipuspmcheck "Khipu SPM check"
+cd khipu-spm-check
+cordova plugin add file:/ruta/absoluta/a/cordova-khipu-*.tgz --nosave
+cordova platform add ios@8.1.1 --nosave
+PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) cordova run ios
 ```
 
-Antes de lanzar el build, confirmar que el recorte funcionó con
-`PATH=<el mismo PATH recortado> which pod`: no debería encontrar nada. Es lo
-único que demuestra que el camino de cordova-ios 8 no necesita CocoaPods.
+No hay una ruta fija de `pod` que excluir: CocoaPods se instala en lugares
+distintos según el método (Homebrew, RubyGems del sistema, rbenv, rvm), así
+que el comando ubica el directorio real con `command -v` y recién ahí lo saca
+del `PATH`. Antes de lanzar el build, confirmar que el recorte funcionó con
+`PATH=<el mismo PATH recortado> which pod`: no debería encontrar nada.
+
+Así se verificó en la práctica: `BUILD SUCCEEDED`, la app corriendo, y cero
+menciones de CocoaPods en todo el log.
 
 ## Qué revisar en el harness
 
