@@ -239,6 +239,11 @@ main {
   word-break: break-word;
 }
 
+.resultado__ausente {
+  color: var(--texto-tenue);
+  font-style: italic;
+}
+
 .resultado--ok {
   border-left: 3px solid var(--ok);
   padding-left: 0.6rem;

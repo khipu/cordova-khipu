@@ -441,6 +441,29 @@ function lanzar () {
   );
 }
 
+// Distingue tres formas de "sin valor" que se ven iguales si uno no las separa,
+// y que en la práctica no lo son.
+//
+// `continueUrl` llega `null` en una operación cancelada, pero `exitUrl` llega
+// como **cadena vacía** — verificado en una operación real. Un comercio que
+// escriba `if (result.exitUrl === null)` no la va a atrapar; tiene que chequear
+// por falsy. Mostrarlas distinto es lo que hace visible esa diferencia.
+//
+// Y una celda en blanco es indistinguible de un fallo de renderizado, así que
+// ninguno de los casos se deja vacío.
+function pintarValor (elemento, crudo) {
+  if (crudo === null || crudo === undefined) {
+    elemento.textContent = '—';
+  } else if (crudo === '') {
+    elemento.textContent = '"" (cadena vacía)';
+  } else {
+    elemento.textContent = String(crudo);
+    return;
+  }
+
+  elemento.className = 'resultado__ausente';
+}
+
 function mostrarError (mensaje) {
   var contenedor = document.getElementById('resultado');
   contenedor.className = 'resultado resultado--error';
@@ -462,9 +485,7 @@ function mostrarResultado (resultado, clase) {
       nombre.textContent = clave;
 
       var valor = document.createElement('dd');
-      valor.textContent = resultado[clave] === null || resultado[clave] === undefined
-        ? '—'
-        : String(resultado[clave]);
+      pintarValor(valor, resultado[clave]);
 
       fila.appendChild(nombre);
       fila.appendChild(valor);
@@ -486,7 +507,7 @@ function mostrarResultado (resultado, clase) {
     var fila = document.createElement('tr');
     [evento.name, evento.type, evento.timestamp].forEach(function (celda) {
       var td = document.createElement('td');
-      td.textContent = celda === null || celda === undefined ? '—' : String(celda);
+      pintarValor(td, celda);
       fila.appendChild(td);
     });
     cuerpo.appendChild(fila);

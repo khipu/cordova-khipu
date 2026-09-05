@@ -185,10 +185,30 @@ The `data` and `error` object passed to the callback functions are of the type `
 | **`events`**        | <code>KhipuEvent[]</code>                               |
 
 Los tres campos anulables lo son en el SDK, no por casualidad: en
-`KhipuClientIOS` están declarados `String?` mientras que `operationId`,
-`exitTitle`, `exitMessage` y `result` no lo están. `exitUrl` en particular llega
-vacío en operaciones reales, así que **no asumas que trae algo**: si tu código lo
-tipa como no nulable, está mal.
+`KhipuClientIOS` están declarados `String?`, mientras que `operationId`,
+`exitTitle`, `exitMessage` y `result` no lo están.
+
+**Ojo con cómo llegan vacíos, porque no todos llegan igual.** En una operación
+cancelada de verdad observamos esto:
+
+| Campo | Valor recibido |
+| --- | --- |
+| `continueUrl` | `null` |
+| `exitUrl` | `""` — cadena vacía, **no** `null` |
+
+O sea que este chequeo, que parece razonable, **no atrapa el `exitUrl` vacío**:
+
+```javascript
+if (result.exitUrl === null) { /* nunca entra */ }
+```
+
+Y este sí:
+
+```javascript
+if (!result.exitUrl) { /* entra con "" y con null */ }
+```
+
+Chequea siempre por *falsy* y no por `=== null`.
 
 
 #### KhipuEvent
