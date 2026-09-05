@@ -74,7 +74,7 @@ test('rechaza si el <pod> no tiene ni spec ni version', () => {
 test('rechaza si hay más de un <pod name="KhipuClientIOS">, aunque las versiones coincidan', () => {
     const resultado = compare(
         PACKAGE_SWIFT('2.16.5'),
-        PLUGIN_XML('2.16.5') + PLUGIN_XML('9.9.9'));
+        PLUGIN_XML('2.16.5') + PLUGIN_XML('2.16.5'));
 
     assert.strictEqual(resultado.ok, false);
     assert.match(resultado.message, /2/);
