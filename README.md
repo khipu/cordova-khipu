@@ -123,7 +123,7 @@ The second parameter is a callback funcion that will be invoked if the authoriza
           options: {
               title: '<Title to display in the payment process>', // Title for the top bar during the payment process.
               titleImageUrl: '<Image to display centered in the topbar>', // Url of the image to display in the top bar.
-              locale: 'es_CL', // Regional settings for the interface language. The standard format combines an ISO 639-1 language code and an ISO 3166 country code. For example, "es_CL" for Spanish (Chile).
+              locale: 'es_CL', // Regional settings for the interface language. The standard format combines an ISO 639-1 language code and an ISO 3166 country code. For example, "es_CL" for Spanish (Chile). Conviene enviarlo siempre: si se omite, el idioma difiere entre plataformas (ver la nota debajo del ejemplo).
               theme: 'light', // The theme of the interface, can be 'dark', 'light' or 'system'
               showFooter: true, // If true, a message is displayed at the bottom with the Khipu logo.
               showMerchantLogo: true, // If true, the merchant's logo is displayed in the top bar.
@@ -155,6 +155,20 @@ The second parameter is a callback funcion that will be invoked if the authoriza
   )
 ```
 
+### Envía `locale` siempre, aunque parezca redundante
+
+Si omites `locale`, **el idioma no es el mismo en las dos plataformas**. Lo
+verificamos en los SDK nativos: `KhipuClientIOS` lo fija en `es_CL` por omisión
+(`KhipuOptions.swift`, `var _locale: String = "es_CL"`), mientras que
+`khipu-client-android` lo deja sin definir —el constructor de su `Builder` pasa
+`null` y la cadena `es_CL` no aparece en ninguna clase del `.aar`— y la
+resolución termina más abajo, siguiendo la configuración del dispositivo.
+
+En la práctica: la misma operación, con el mismo payload y sin `locale`, sale en
+español en iOS y en el idioma del teléfono en Android. No es un defecto del
+plugin sino una diferencia entre los SDK nativos, pero te toca a ti. Para un
+idioma determinista, mándalo explícito.
+
 The `data` and `error` object passed to the callback functions are of the type `KhipuResult`
 
 #### KhipuResult
@@ -164,11 +178,17 @@ The `data` and `error` object passed to the callback functions are of the type `
 | **`operationId`**   | <code>string</code>                                     |
 | **`exitTitle`**     | <code>string</code>                                     |
 | **`exitMessage`**   | <code>string</code>                                     |
-| **`exitUrl`**       | <code>string</code>                                     |
+| **`exitUrl`**       | <code>string \| null</code>                             |
 | **`result`**        | <code>'OK' \| 'ERROR' \| 'WARNING' \| 'CONTINUE'</code> |
-| **`failureReason`** | <code>string</code>                                     |
-| **`continueUrl`**   | <code>string</code>                                     |
+| **`failureReason`** | <code>string \| null</code>                             |
+| **`continueUrl`**   | <code>string \| null</code>                             |
 | **`events`**        | <code>KhipuEvent[]</code>                               |
+
+Los tres campos anulables lo son en el SDK, no por casualidad: en
+`KhipuClientIOS` están declarados `String?` mientras que `operationId`,
+`exitTitle`, `exitMessage` y `result` no lo están. `exitUrl` en particular llega
+vacío en operaciones reales, así que **no asumas que trae algo**: si tu código lo
+tipa como no nulable, está mal.
 
 
 #### KhipuEvent
