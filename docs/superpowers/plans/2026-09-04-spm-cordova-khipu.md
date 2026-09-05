@@ -1231,7 +1231,7 @@ plataforma porque es el major el que decide el gestor de paquetes."
 - Consumes: el esqueleto de la Task 5.
 - Produces: los ids del DOM que consume `harness.js` en la Task 7: `#estado`, `#operationId`, `#campos-texto`, `#campos-switch`, `#campos-color`, `#incluir-colors`, `#presets`, `#preview`, `#lanzar`, `#resultado`.
 
-Los campos se generan desde JavaScript en vez de escribirse a mano: son 12 colores más 5 interruptores más 5 textos, y repetirlos en HTML sería 22 bloques casi idénticos.
+Los campos se generan desde JavaScript en vez de escribirse a mano: son 12 colores, 5 interruptores, 3 campos de texto y un selector de tema, o sea 21 controles que en HTML serían otros tantos bloques casi idénticos. Esos 21 cubren exactamente las 10 claves que el plugin expone (`title`, `titleImageUrl`, `locale`, `theme`, los cinco booleanos y `colors` con sus 12 campos), verificado contra `KhipuPlugin.swift` y `KhipuPlugin.java`.
 
 - [ ] **Step 1: Reemplazar `example/www/index.html`**
 
