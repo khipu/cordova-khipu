@@ -648,6 +648,46 @@ menos una vez: es lo único que prueba de verdad que el camino no lo necesita.
 
 ## 15. Resultados de verificación
 
+### cordova-android 13 y 14 (verificado el 2026-09-05)
+
+El `<engines>` declaraba `cordova-android >=13.0.0` con evidencia solo de la 15.1.0. La sesión
+que migró `capacitor-khipu` reportó dos motivos para dudar, y ninguno se materializa acá:
+
+| cordova-android | AGP | Kotlin | Gradle | Resultado |
+| --- | --- | --- | --- | --- |
+| 13.0.0 | 8.3.0 | 1.9.24 | 8.7 | `BUILD SUCCESSFUL` |
+| 14.0.0 | 8.7.3 | 1.9.24 | 8.13 | `BUILD SUCCESSFUL` |
+| 15.1.0 | 8.10.1 | 2.1.21 | 8.14.2 | `BUILD SUCCESSFUL` |
+
+**Motivo 1 — la variante `jvmstubs` de Compose.** `khipu-client-android` arrastra
+`androidx.compose.ui:ui`, que es multiplataforma; alguien tiene que pedir el atributo
+`org.jetbrains.kotlin.platform.type` o Gradle resuelve la variante equivocada y falla con
+cientos de `Duplicate class`. AGP lo pide por su cuenta desde 8.7, y cordova-android 13 trae
+8.3.0. **No nos toca porque nuestro propio hook fuerza `IS_GRADLE_PLUGIN_KOTLIN_ENABLED = true`,
+y es el plugin de Kotlin el que termina pidiendo el atributo.** Verificado con
+`gradle :app:dependencies`: la variante resuelta es `ui-android` en las tres versiones, nunca
+`jvmstubs`, y `checkDebugDuplicateClasses` pasa.
+
+**Motivo 2 — la metadata de Kotlin 2.0 del SDK contra un compilador 1.9.** Acá hay una trampa
+metodológica que conviene dejar escrita: **un build verde de un proyecto Cordova normal no prueba
+nada sobre esto**, porque `KhipuPlugin.java` es Java puro y `compileDebugKotlin` corre como
+`NO-SOURCE`, sin leer metadata de nadie. Para medirlo de verdad hubo que agregar un `.kt`
+temporal que reprodujera las mismas llamadas del plugin (`KhipuOptions.Builder()` y
+`getKhipuLauncherIntent(...)`), forzando al compilador de Kotlin a leer la metadata del SDK. Con
+Kotlin 1.9.24 compiló sin errores ni advertencias en 13 y 14.
+
+La razón de fondo: el plugin toca un API angosto —lanza `KhipuActivity` por `Intent` y
+deserializa `KhipuResult`—, nunca los composables internos del SDK. La incompatibilidad que
+reportó `capacitor-khipu` es real para el SDK en general, pero no se manifiesta con este patrón
+de integración. **Es una prueba representativa del uso real, no un escaneo exhaustivo de cada
+símbolo.**
+
+**Vía de rescate, por si algún día hace falta:** agregar
+`<preference name="GradlePluginKotlinVersion" value="2.0.21" />` al `config.xml` de la app
+actualiza `KOTLIN_VERSION` en `cdv-gradle-config.json` y el build sigue pasando. Verificado que
+el mecanismo funciona; hoy no es necesario.
+
+
 ### Fase 1 — los dos majors de iOS (Task 3 del plan)
 
 Ejecutado el 2026-09-04 con:

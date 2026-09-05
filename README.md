@@ -9,7 +9,7 @@ Cordova plugin for Khipu
 | --- | --- | --- |
 | `cordova` (CLI) | 13.0.0 | 13.0.0 |
 | `cordova-ios` | 7.0.0 | 7.1.1 y 8.1.1 |
-| `cordova-android` | 13.0.0 | 15.1.0 |
+| `cordova-android` | 13.0.0 | 13.0.0, 14.0.0 y 15.1.0 |
 | iOS | 13.0 | |
 | Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
