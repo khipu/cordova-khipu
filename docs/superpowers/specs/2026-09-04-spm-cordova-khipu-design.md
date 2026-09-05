@@ -563,7 +563,13 @@ El escenario de SPM hay que correrlo con CocoaPods fuera del `PATH` al menos una
    `.process("Assets")`, que genera un resource bundle resuelto vía `Bundle.module`. El spec
    de `flutter_khipu` lo validó en una app Flutter (fuentes, PNG y HTML cargando bien), pero
    en Cordova solo se comprueba corriendo la app en simulador o dispositivo.
-4. **`khipu-client-android` 2.27.0 con Kotlin 2.1.21**, el default de cordova-android 15.
+4. ~~**`khipu-client-android` 2.27.0 con Kotlin 2.1.21**~~ — **RESUELTO el 2026-09-04.** La Task 11
+   del plan lo ejercitó de verdad: la app de ejemplo compiló (`BUILD SUCCESSFUL`) y corrió en el
+   emulador con Kotlin 2.1.21, Gradle 8.14.2, AGP 8.10.1, SDK 36 y minSdk 24, sin ningún error
+   del compilador de Compose ni choque de versiones. No hay que escalar nada al equipo del SDK
+   de Android. El texto original del riesgo, para referencia:
+
+   **`khipu-client-android` 2.27.0 con Kotlin 2.1.21**, el default de cordova-android 15.
    `khipu-client-android` usa Jetpack Compose, cuyo compilador va atado a la versión de
    Kotlin. Es el mismo riesgo abierto que anotó el spec de `capacitor-khipu`, y **no hay
    evidencia de que funcione**: `flutter_khipu` consume ese mismo 2.27.0 pero fija
