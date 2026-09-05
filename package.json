@@ -19,7 +19,7 @@
     "cordova-ios"
   ],
   "author": "khipu",
-  "license": "LGPL-3.0-only",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/khipu/cordova-khipu/issues"
   },
