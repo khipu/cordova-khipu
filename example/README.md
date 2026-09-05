@@ -103,6 +103,20 @@ menciones de CocoaPods en todo el log.
   aparecen los campos de `KhipuResult`; la tabla de eventos solo aparece si la operación devolvió
   eventos (`harness.js` no la dibuja cuando `events` viene vacío).
 
+## Por qué se instala el plugin antes de agregar la plataforma
+
+Los tres scripts hacen `reset` → `plugin:add` → `platform add` → `run`, y ese
+orden no es casual: al revés, el `npm install` que dispara la instalación del
+plugin **poda `node_modules/cordova-android`** por considerarlo ajeno al árbol
+declarado, y `platforms/android/cordova/Api.js` —que es literalmente
+`module.exports = require('cordova-android')`— falla con `Cannot find module`.
+
+**Esto es específico de este ejemplo, no algo que le pase a un comercio.** Pasa
+porque los scripts usan `--nosave` para poder alternar entre majors de
+`cordova-ios` sin ensuciar el `package.json`; al no quedar declarada, npm la
+considera extraña y la elimina. Una app normal, que agrega la plataforma sin
+`--nosave`, la deja anotada en su `package.json` y npm no la toca.
+
 ## Fricciones conocidas del entorno
 
 Ninguna es del plugin, pero cuestan tiempo si no se saben:

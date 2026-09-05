@@ -33,8 +33,25 @@ no declara `engines`.
 ## Instalación
 
 ```bash
+cordova platform add ios       # o android
 cordova plugin add cordova-khipu
 ```
+
+**En iOS el orden importa, y si lo inviertes el error no te va a decir por qué.**
+Declara el `deployment-target` en `config.xml` **antes** de agregar la
+plataforma — ver [Setup de iOS](#setup-de-ios). Si agregas la plataforma
+primero y editas `config.xml` después, en `cordova-ios` 7 el
+`cordova plugin add` falla con esto:
+
+```
+[!] CocoaPods could not find compatible versions for pod "KhipuClientIOS":
+    ... required a higher minimum deployment target
+```
+
+La causa no es la que sugiere el mensaje: el `Podfile` que cordova genera
+todavía tiene el default de `cordova-ios` 7 (11.0) y no se resincronizó con tu
+`config.xml`. Si ya te pasó, un `cordova prepare ios` antes de reintentar el
+`plugin add` lo resuelve.
 
 ## Setup de iOS
 
@@ -46,13 +63,20 @@ versión de `cordova-ios`**, no una opción:
 | `cordova-ios` 8 y superior | Swift Package Manager | nada extra |
 | `cordova-ios` 7 | CocoaPods | CocoaPods 1.7 o superior |
 
-El piso de CocoaPods 1.7 no es arbitrario: el plugin ya no declara un
-`<config><source>` en su `<podspec>` (ver Setup de iOS más abajo) y depende
-de que CocoaPods use por defecto el CDN del trunk en vez del spec repo clásico,
-que es el comportamiento desde esa versión.
+El piso de CocoaPods 1.7 no es arbitrario: el `<podspec>` del plugin ya no
+declara un `<config><source>`, así que depende de que CocoaPods use por defecto
+el CDN del trunk en vez del spec repo clásico — el comportamiento desde esa
+versión.
 
-Lo único que hay que configurar es el deployment target, porque el default de
-`cordova-ios` 7 es 11.0 y Khipu necesita 13.0. En `config.xml`:
+### El deployment target, y cuándo declararlo
+
+Khipu necesita **iOS 13.0**. Qué hacer depende de tu versión de `cordova-ios`, y
+son cuatro casos:
+
+**En `cordova-ios` 7 no hay decisión que tomar.** No existe SPM: el plugin usa
+CocoaPods siempre, declares o no la preferencia. Y sí tienes que declararla,
+porque el default de `cordova-ios` 7 es 11.0, por debajo de lo que Khipu exige.
+Ponla en `config.xml` **antes** de agregar la plataforma:
 
 ```xml
     <platform name="ios">
@@ -60,17 +84,20 @@ Lo único que hay que configurar es el deployment target, porque el default de
     </platform>
 ```
 
-`cordova-ios` 8 ya usa 13.0 por defecto, así que en ese caso **conviene no
-declararlo**: el plugin todavía carga un `<podspec>` (lo necesita el camino de
-cordova-ios 7), y `cordova-ios` crea igual un `Podfile` vacío al instalar el
-plugin. Si `config.xml` trae **cualquier valor** de `deployment-target` —13.0,
-14.0, el que sea—, cordova sincroniza ese Podfile con `pod install` en cada
-`prepare` — aunque esté vacío — y eso exige tener CocoaPods instalado,
-anulando la ventaja de no necesitarlo bajo SPM. No es solo un problema de
-valores bajos: si tu app necesita fijar un deployment target más alto en
-cordova-ios 8, vas a pagar el mismo costo. Dejar que `cordova-ios` 8 use su
-propio default (no declarar la preferencia) es lo único que evita ese
-`pod install`.
+Los otros tres casos son de `cordova-ios` 8:
+
+1. **Si te alcanza con iOS 13, no la declares.** El default ya es 13.0 y el
+   plugin se queda en SPM, sin tocar CocoaPods.
+2. **Si la declaras con cualquier valor, incluido 13.0, vas a necesitar
+   CocoaPods.** El plugin sigue cargando un `<podspec>` —lo necesita el camino
+   de `cordova-ios` 7—, así que cordova crea igual un `Podfile` vacío al
+   instalar el plugin. Cuando `config.xml` trae un `deployment-target`, cordova
+   sincroniza ese Podfile corriendo `pod install` en cada `prepare`, aunque no
+   tenga ninguna dependencia adentro.
+3. **Si necesitas un piso mayor a 13.0, la preferencia es la única vía**, y
+   tener CocoaPods es el costo. No es un error tuyo ni algo que se pueda
+   esquivar: es la consecuencia de que el plugin soporte los dos gestores desde
+   un mismo `plugin.xml`.
 
 ### Versión de Swift
 
@@ -88,18 +115,36 @@ necesitas otra, declárala y el plugin la respeta:
 No requiere pasos adicionales: el plugin habilita el plugin de Kotlin de Gradle
 por su cuenta.
 
-Estas son las versiones que trae `cordova-android` 15.1.0 por defecto, con las
-que el plugin está probado:
+**No hace falta que fijes versiones de Kotlin, Gradle ni AGP.** Los defaults de
+cada `cordova-android` funcionan tal cual, y son bastante distintos entre sí.
+Estos son los que trae cada versión, y con los tres se verificó que el plugin
+compila y corre una operación real:
 
-| | Valor |
-| --- | --- |
-| Kotlin | 2.1.21 |
-| Gradle | 8.14.2 |
-| Android Gradle Plugin | 8.10.1 |
-| `compileSdk` / `targetSdk` | 36 |
-| `minSdk` | 24 |
+| | cordova-android 13.0.0 | 14.0.0 | 15.1.0 |
+| --- | --- | --- | --- |
+| Kotlin | 1.9.24 | 1.9.24 | 2.1.21 |
+| Gradle | 8.7 | 8.13 | 8.14.2 |
+| Android Gradle Plugin | 8.3.0 | 8.7.3 | 8.10.1 |
+| `compileSdk` / `targetSdk` | 34 | 35 | 36 |
+| Java | 21 | 21 | 21 |
 
-Si tu app las sobreescribe, mantenlas en esos valores o superiores.
+Si vas a sobreescribir alguna, no la bajes por debajo de la columna que
+corresponde a **tu** versión de `cordova-android`. Fijar valores de una versión
+distinta es peor que no fijar nada: por ejemplo, imponer Kotlin 1.9 en un
+proyecto con `cordova-android` 15 lo baja dos majors respecto de su default.
+
+### Acceso de red en CI
+
+El plugin agrega un repositorio Maven propio de Khipu además de Google y Maven
+Central:
+
+```
+https://dev.khipu.com/nexus/content/repositories/khenshin
+```
+
+En una máquina de desarrollo no vas a notarlo, pero si tu CI corre detrás de un
+proxy o con una lista de hosts permitidos, ese dominio tiene que estar
+habilitado o el build falla al resolver dependencias.
 
 ## App de ejemplo
 
