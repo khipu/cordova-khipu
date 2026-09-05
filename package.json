@@ -37,6 +37,7 @@
   "scripts": {
     "test": "node --test tests/scripts/",
     "verify:versions": "node scripts/check-native-versions.js",
+    "prepublishOnly": "npm run verify:versions && npm test",
     "release": "release-it",
     "prepare": "husky"
   },

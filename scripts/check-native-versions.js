@@ -16,19 +16,39 @@ function compare (packageSwift, pluginXml) {
         };
     }
 
-    // Se aísla la etiqueta <pod> primero y después se extrae la versión, para
+    // Se aíslan las etiquetas <pod> primero y después se extrae la versión, para
     // no depender del orden de los atributos: update-plugin-version.js
     // reescribe plugin.xml con el Builder de xml2js en cada release.
-    const podTag = pluginXml.match(/<pod\b[^>]*name="KhipuClientIOS"[^>]*>/);
+    const podTags = [...pluginXml.matchAll(/<pod\b[^>]*name="KhipuClientIOS"[^>]*>/g)];
+
+    if (podTags.length === 0) {
+        return {
+            ok: false,
+            message: 'no se encontró ninguna etiqueta <pod name="KhipuClientIOS"> en plugin.xml'
+        };
+    }
+
+    // Dos <pod> del mismo nombre instalarían versiones distintas de CocoaPods
+    // según cuál gane, y eso ya es un problema en sí mismo (un merge o un
+    // copy-paste que dejó un duplicado). Se falla por cardinalidad antes de
+    // mirar `spec`, para no dar por buena una coincidencia parcial ni un falso
+    // bloqueo si el duplicado que falta `spec` no es el primero.
+    if (podTags.length > 1) {
+        return {
+            ok: false,
+            message: `se encontraron ${podTags.length} etiquetas <pod name="KhipuClientIOS"> en plugin.xml; debería haber una sola`
+        };
+    }
+
     // `spec`, no `version`: Podfile.js de cordova-ios solo emite la restricción de versión si
     // encuentra `spec`. Un `version=` se ignora en silencio y el pod queda sin pin, que es
     // exactamente el bug que tenía el plugin publicado.
-    const pod = podTag && podTag[0].match(/spec="([^"]+)"/);
+    const pod = podTags[0][0].match(/spec="([^"]+)"/);
 
     if (!pod) {
         return {
             ok: false,
-            message: 'no se encontró `spec` de KhipuClientIOS en plugin.xml (¿quedó como `version=`, que cordova-ios ignora?)'
+            message: 'el <pod name="KhipuClientIOS"> de plugin.xml no tiene `spec` (¿quedó como `version=`, que cordova-ios ignora?)'
         };
     }
 

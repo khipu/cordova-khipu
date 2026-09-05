@@ -58,3 +58,36 @@ test('rechaza version= en vez de spec=, que cordova-ios ignora', () => {
     assert.strictEqual(resultado.ok, false);
     assert.match(resultado.message, /plugin\.xml/);
 });
+
+test('rechaza si el <pod> no tiene ni spec ni version', () => {
+    const resultado = compare(
+        PACKAGE_SWIFT('2.16.5'),
+        '<pod name="KhipuClientIOS" nospm="true"/>');
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /plugin\.xml/);
+});
+
+// Regresión del fix de la revisión: dos <pod name="KhipuClientIOS"> instalarían
+// versiones distintas de CocoaPods según cuál gane. El check tiene que fallar por
+// cardinalidad, no dar por buena una coincidencia parcial con el primero que encuentre.
+test('rechaza si hay más de un <pod name="KhipuClientIOS">, aunque las versiones coincidan', () => {
+    const resultado = compare(
+        PACKAGE_SWIFT('2.16.5'),
+        PLUGIN_XML('2.16.5') + PLUGIN_XML('9.9.9'));
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /2/);
+});
+
+// Caso simétrico: si el <pod> sin `spec` es el primero, el check no debe dar un falso
+// bloqueo por eso solo para aprobar tácitamente el segundo. Falla por cardinalidad antes
+// de mirar `spec`, así que el mensaje tiene que hablar de la duplicación, no de `spec`.
+test('rechaza dos <pod> aunque el primero no tenga spec y el segundo sí', () => {
+    const resultado = compare(
+        PACKAGE_SWIFT('2.16.5'),
+        '<pod name="KhipuClientIOS" nospm="true"/>' + PLUGIN_XML('2.16.5'));
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /2/);
+});
