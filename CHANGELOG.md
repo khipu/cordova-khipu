@@ -1,5 +1,9 @@
 # Changelog
 
+## <small>2.10.1 (2026-09-05)</small>
+
+* docs: corregir lo que encontraron las apps desde cero ([6db0c58](https://github.com/khipu/cordova-khipu/commit/6db0c58))
+
 ## 2.10.0 (2026-09-05)
 
 * chore: acotar lo que se publica y verificar la sincronía de versiones ([0d91787](https://github.com/khipu/cordova-khipu/commit/0d91787))
