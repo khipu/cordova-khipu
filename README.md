@@ -3,76 +3,80 @@
 Cordova plugin for Khipu
 
 
-## iOS pre setup
+## Requisitos
 
+| | Mínimo | Probado con |
+| --- | --- | --- |
+| `cordova` (CLI) | 13.0.0 | 13.0.0 |
+| `cordova-ios` | 7.0.0 | 7.1.1 y 8.1.1 |
+| `cordova-android` | 13.0.0 | 15.1.0 |
+| iOS | 13.0 | |
+| Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
-The default deployment target of a cordova app is 11, which is too low for Khipu, please set the ios deployment target to, at least, 12.
+Estos mínimos están declarados en `<engines>`, así que `cordova plugin add`
+falla con un mensaje claro en vez de romper más adelante.
 
-In order to do that make sure the `config.xml` of your app to have a `platform` section for `ios` with the desired `deployment-target`.
-
-```xml
-    <platform name="ios">
-        <preference name="deployment-target" value="12.0" />
-    </platform>
-```
-
-## Android pre setup
-
-If you are using cordova 11, you may need to upgrade `Kotlin`, the android SDK and the Gradle stack. In order to do that you can add the following configuration to the `config.xml` file:
-
-```xml
-    <platform name="android">
-        <preference name="GradlePluginKotlinVersion" value="1.9.10" />
-        <preference name="GradleVersion" value="8.7" />
-        <preference name="AndroidGradlePluginVersion" value="8.3.0" />
-        <preference name="android-targetSdkVersion" value="34" />
-        <preference name="android-compileSdkVersion" value="34" />
-    </platform>
-```
-
-## Install
+## Instalación
 
 ```bash
 cordova plugin add cordova-khipu
 ```
 
-## iOS setup
+## Setup de iOS
 
-No need for aditional steps
+El plugin soporta los dos gestores de paquetes, y **el que se use lo decide la
+versión de `cordova-ios`**, no una opción:
 
-## Android setup
+| Versión | Gestor | Qué necesitas instalado |
+| --- | --- | --- |
+| `cordova-ios` 8 y superior | Swift Package Manager | nada extra |
+| `cordova-ios` 7 | CocoaPods | CocoaPods |
 
-If you are using cordova 11 you may need to do the following steps
+Lo único que hay que configurar es el deployment target, porque el default de
+`cordova-ios` 7 es 11.0 y Khipu necesita 13.0. En `config.xml`:
 
-### Avoid Using the `kotlin-android-extensions` Plugin
-
-Kotlin 1.9.0 no longer requires or supports the `kotlin-android-extensions` plugin. If you encounter the error `The 'kotlin-android-extensions' Gradle plugin is no longer supported`, remove or comment out the following line in your `platform/android/app/build.gradle` file:
-
-```groovy
-apply plugin: 'kotlin-android-extensions'
+```xml
+    <platform name="ios">
+        <preference name="deployment-target" value="13.0" />
+    </platform>
 ```
 
-### Configure the App's `namespace`
+`cordova-ios` 8 ya usa 13.0 por defecto, así que ahí es opcional.
 
-In modern versions of the Android Gradle plugin, the `namespace` property is configured in Gradle files instead of the `AndroidManifest.xml`.
+### Versión de Swift
 
-Ensure that the following exists in the `platform/android/app/build.gradle` file under the `android` section:
+El plugin configura `SWIFT_VERSION` por su cuenta cuando hace falta. Si
+necesitas otra, declárala y el plugin la respeta:
 
-```groovy
-android {
-    namespace '<the main package of the application>'
-    ...
+```xml
+    <platform name="ios">
+        <preference name="SwiftVersion" value="5.9" />
+    </platform>
 ```
 
-The app's main package can be obtained from the `package` property in the `manifest` element in the `AndroidManifest.xml` file.
+## Setup de Android
 
-And in the `platform/android/CordovaLib/build.gradle` file:
+No requiere pasos adicionales: el plugin habilita el plugin de Kotlin de Gradle
+por su cuenta.
 
-```groovy
-android {
-    namespace 'org.apache.cordova'
-    ...
-```
+Estas son las versiones que trae `cordova-android` 15.1.0 por defecto, con las
+que el plugin está probado:
+
+| | Valor |
+| --- | --- |
+| Kotlin | 2.1.21 |
+| Gradle | 8.14.2 |
+| Android Gradle Plugin | 8.10.1 |
+| `compileSdk` / `targetSdk` | 36 |
+| `minSdk` | 24 |
+
+Si tu app las sobreescribe, mantenlas en esos valores o superiores.
+
+## App de ejemplo
+
+En [`example/`](example/) hay una app que ejercita todas las opciones del
+plugin con un harness de prueba, y que corre en los tres escenarios soportados.
+Ver [`example/README.md`](example/README.md).
 
 ## Usage
 
