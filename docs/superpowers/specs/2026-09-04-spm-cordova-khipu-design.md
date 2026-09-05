@@ -144,9 +144,9 @@ se cubre con un check en el release. No justifica dos ramas.
   `<source-file>` exactamente como hoy.
 - **cordova-ios 8** ve `package="swift"` → `isSwiftPackagePlugin()` es verdadero →
   `pluginHandlers.js` descarta los `<source-file>`, y `nospm="true"` hace que `Api.js`
-  descarte el pod. Queda SPM puro, **sin necesidad de CocoaPods instalado**: se escribe un
-  `Podfile` vacío como efecto colateral del constructor de la clase `Podfile` (ver §4.5), pero
-  `pod install` nunca corre y el binario `pod` nunca se invoca.
+  descarte el pod. Queda SPM puro, **y sin necesidad de CocoaPods instalado siempre que la app
+  no declare `<preference name="deployment-target">`** — ver la condición en §4.7, que es un
+  hallazgo tardío y no una nota al pie.
 
 Se agrega además un bloque `<engines>` para fallar temprano y con mensaje claro:
 
@@ -301,6 +301,45 @@ hoy; se actualiza a 13.0, un solo número que documentar.
 
 Para cordova-ios 7, cuyo template arranca en 11.0, el README mantiene la instrucción de
 poner `<preference name="deployment-target" value="13.0"/>` en el `config.xml` de la app.
+
+### 4.7 La condición que tiene "sin CocoaPods", y por qué no se puede eliminar
+
+Descubierto en la verificación final (Task 13 del plan) y confirmado leyendo `lib/prepare.js` de
+cordova-ios 8.1.1, líneas 346-357:
+
+```js
+const podPath = path.join(locations.root, Podfile.FILENAME);
+if (deploymentTarget && fs.existsSync(podPath)) {
+    const podfileFile = new Podfile(podPath, project_name, deploymentTarget);
+    podfileFile.write();
+    return podfileFile.install(check_reqs.check_cocoapods);
+}
+```
+
+La cadena, paso a paso:
+
+1. El plugin declara un `<podspec>` porque cordova-ios 7 lo necesita.
+2. El constructor de la clase `Podfile` escribe un archivo vacío apenas se instancia, antes de
+   evaluar contenido — inevitable con cualquier `<podspec>` (§4.5).
+3. Si la app declara `<preference name="deployment-target">`, `prepare.js` ve que ese Podfile
+   existe y corre `pod install` **para sincronizarle el deployment target**, aunque no tenga
+   ninguna dependencia.
+4. `check_cocoapods` rechaza en macOS si falta el binario `pod`, así que el build falla.
+
+**Enunciado preciso:** en cordova-ios 8, el camino SPM no necesita CocoaPods **mientras la app
+no declare `deployment-target`**. Como el default de cordova-ios 8 ya es 13.0, que es lo que
+Khipu exige, un comercio en esa versión no tiene motivo para declararlo — y el README se lo dice.
+
+**Por qué no se arregla desde el plugin.** Se evaluaron las dos salidas y ninguna sirve. Borrar
+el Podfile desde nuestro hook llegaría tarde: el hook corre `after_prepare` y `pod install`
+ocurre *durante* prepare. Y quitar el `<podspec>` rompería cordova-ios 7, que es la mitad del
+soporte dual. Es el costo de sostener los dos gestores desde un solo `plugin.xml`, y corresponde
+documentarlo con precisión, no esconderlo.
+
+**Consecuencia para la app de ejemplo:** su `config.xml` declara `deployment-target` porque lo
+necesita el camino de cordova-ios 7, cuyo default es 11.0. Por eso el escenario "sin CocoaPods"
+no se puede correr desde `example/` y se verifica aparte, con un proyecto Cordova limpio sin esa
+preferencia.
 
 ## 5. Reemplazo de `cordova-plugin-add-swift-support`
 
