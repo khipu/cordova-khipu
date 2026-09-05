@@ -39,35 +39,61 @@ public class KhipuPlugin: CDVPlugin {
 
     func startKhipuOperation(operationId: String, options: KhipuOptions, completion: @escaping ([String: Any]?, String?) -> Void) {
         DispatchQueue.main.async {
-            guard let presenter = UIApplication.shared.windows.filter({ $0.isKeyWindow }).first?.rootViewController else {
-                completion(nil, "No rootViewController found")
+            guard let presenter = self.presenter() else {
+                completion(nil, "No view controller available to present from")
                 return
             }
-            presenter.presentedViewController?.dismiss(animated: false)
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                KhipuLauncher.launch(presenter: presenter,
-                                     operationId: operationId,
-                                     options: options) { result in
-                    completion([
-                        "operationId": result.operationId,
-                        "result": result.result,
-                        "exitTitle": result.exitTitle,
-                        "exitMessage": result.exitMessage,
-                        "exitUrl": result.exitUrl as Any,
-                        "failureReason": result.failureReason as Any,
-                        "continueUrl": result.continueUrl as Any,
-                        "events": result.events.map { event in
-                            return [
-                                "name": event.name,
-                                "type": event.type,
-                                "timestamp": event.timestamp
-                            ]
-                        }
-                    ], nil)
-                }
+            KhipuLauncher.launch(presenter: presenter,
+                                 operationId: operationId,
+                                 options: options) { result in
+                completion([
+                    "operationId": result.operationId,
+                    "result": result.result,
+                    "exitTitle": result.exitTitle,
+                    "exitMessage": result.exitMessage,
+                    "exitUrl": result.exitUrl as Any,
+                    "failureReason": result.failureReason as Any,
+                    "continueUrl": result.continueUrl as Any,
+                    "events": result.events.map { event in
+                        return [
+                            "name": event.name,
+                            "type": event.type,
+                            "timestamp": event.timestamp
+                        ]
+                    }
+                ], nil)
             }
         }
+    }
+
+    /// El controller sobre el que presentar la vista de Khipu.
+    ///
+    /// Se parte de `self.viewController`, que es el que Cordova asocia al
+    /// webview desde el que llegó la llamada. Es mejor punto de partida que
+    /// `UIApplication.shared.windows`: esa API está deprecada desde iOS 15
+    /// —sin que el compilador avise a un piso de iOS 13— y devuelve ventanas
+    /// de todas las escenas conectadas, incluida alguna que no esté en
+    /// pantalla.
+    ///
+    /// Después se baja por la cadena de presentados. UIKit rechaza presentar
+    /// sobre un controller que ya está presentando algo, así que un comercio
+    /// que llame al plugin con su propio modal arriba no vería nada. Antes esto
+    /// se resolvía haciendo `dismiss` de lo que hubiera, es decir cerrándole el
+    /// modal al comercio, y esperando un segundo fijo a que terminara; bajar
+    /// por la cadena no destruye nada y no necesita esperar.
+    ///
+    /// Se deja privado al plugin en vez de como extensión de `UIViewController`:
+    /// el plugin se enlaza estáticamente dentro de la app del comercio, donde
+    /// una extensión con un nombre así puede chocar con la suya.
+    private func presenter() -> UIViewController? {
+        var controller: UIViewController? = self.viewController
+
+        while let presentado = controller?.presentedViewController {
+            controller = presentado
+        }
+
+        return controller
     }
 
     func handleError(command: CDVInvokedUrlCommand, message: String) {
