@@ -50,8 +50,20 @@ function getCordovaIosMajor (platformPath) {
         // Sin el script de version, cae al heurístico de abajo.
     }
 
-    // cordova-ios 8 renombró el proyecto a App.xcodeproj de forma fija.
-    return fs.existsSync(path.join(platformPath, 'App.xcodeproj')) ? 8 : 7;
+    // cordova-ios 8 renombró el proyecto a App.xcodeproj de forma fija: su presencia es señal
+    // positiva de 8.
+    if (fs.existsSync(path.join(platformPath, 'App.xcodeproj'))) {
+        return 8;
+    }
+
+    // Que exista un .xcodeproj con OTRO nombre sí es señal positiva de cordova-ios 7 (solo
+    // cordova-ios 8 fuerza App.xcodeproj), pero que no exista ninguno no prueba nada: antes
+    // ese caso caía igual a 7, que es el camino que escribe en el pbxproj. Ahora cae a 8, que
+    // es el que no hace nada. Fallar hacia el lado inerte.
+    const hayOtroXcodeproj = fs.existsSync(platformPath) &&
+        fs.readdirSync(platformPath).some(entry => entry.endsWith('.xcodeproj'));
+
+    return hayOtroXcodeproj ? 7 : 8;
 }
 
 function configureLegacyProject (projectRoot, platformPath) {

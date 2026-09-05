@@ -14,12 +14,21 @@ Cordova plugin for Khipu
 | Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
 De esta tabla, solo `cordova-ios` y `cordova-android` están declarados en el
-`<engines>` de `plugin.xml`: si la plataforma instalada no cumple el mínimo,
-`cordova plugin add` falla con un mensaje claro en vez de romper más adelante.
-Las otras tres filas (`cordova` CLI, iOS, Node) son compatibilidad probada y
-recomendada, no una barrera automática — el chequeo de engines de Cordova ni
-siquiera reconoce un tipo `node`, y el `package.json` del plugin no declara
-`engines`.
+`<engines>` de `plugin.xml`. Ojo con lo que eso hace: si la plataforma
+instalada no cumple el mínimo, `cordova plugin add` **no falla**. Cordova
+avisa y omite el plugin para esa plataforma —un `warn` del tipo `Plugin
+doesn't support this project's cordova-ios version` seguido de `Skipping
+'cordova-khipu' for ios`— y la instalación igual termina bien, con código de
+salida 0 (verificado en `checkEngines()` y en el `catch` que la rodea,
+`cordova-lib/src/plugman/install.js`). Un comercio en una versión de
+`cordova-ios` por debajo del mínimo ve una instalación en verde, el plugin
+queda anotado en su `package.json`, no se instala nada nativo, y recién
+descubre el problema en runtime con `window.Khipu === undefined`. Lo que
+protege al comercio es leer ese warning, no un error que Cordova nunca
+lanza. Las otras tres filas (`cordova` CLI, iOS, Node) son compatibilidad
+probada y recomendada, no una barrera automática — el chequeo de engines de
+Cordova ni siquiera reconoce un tipo `node`, y el `package.json` del plugin
+no declara `engines`.
 
 ## Instalación
 
@@ -35,7 +44,12 @@ versión de `cordova-ios`**, no una opción:
 | Versión | Gestor | Qué necesitas instalado |
 | --- | --- | --- |
 | `cordova-ios` 8 y superior | Swift Package Manager | nada extra |
-| `cordova-ios` 7 | CocoaPods | CocoaPods |
+| `cordova-ios` 7 | CocoaPods | CocoaPods 1.7 o superior |
+
+El piso de CocoaPods 1.7 no es arbitrario: el plugin ya no declara un
+`<config><source>` en su `<podspec>` (ver Setup de iOS más abajo) y depende
+de que CocoaPods use por defecto el CDN del trunk en vez del spec repo clásico,
+que es el comportamiento desde esa versión.
 
 Lo único que hay que configurar es el deployment target, porque el default de
 `cordova-ios` 7 es 11.0 y Khipu necesita 13.0. En `config.xml`:

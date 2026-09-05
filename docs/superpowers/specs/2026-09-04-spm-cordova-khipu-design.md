@@ -44,7 +44,7 @@ memoria ni de documentación.
 | Cómo se declara un plugin SPM | atributo `package="swift"` en `<platform name="ios">` + `Package.swift` en la raíz del plugin | `lib/SwiftPackage.js` → `isSwiftPackagePlugin()` evalúa `!!platform.package`; `getPlatforms()` de `cordova-common` devuelve todos los atributos del `<platform>` |
 | Nombres obligatorios del package | package y product deben llamarse **`cordova-khipu`** (el id del plugin) | `SwiftPackage._pluginReference()` genera `.product(name: "${plugin.id}", package: "${plugin.id}")` |
 | Qué hace cordova-ios 8 al instalar un plugin SPM | copia el plugin completo a `platforms/ios/packages/<id>/` y **reescribe el `Package.swift` copiado** para apuntar a la CordovaLib local | `SwiftPackage.addPlugin()`, regex `package\(.+cordova-ios.+\)` |
-| Qué ignora cordova-ios 8 en un plugin SPM | `<source-file>`, `<header-file>`, `<resource-file>`, `<framework>`, `<lib-file>` | `lib/plugman/pluginHandlers.js`, seis `if (isSwiftPackagePlugin(plugin)) return;` |
+| Qué ignora cordova-ios 8 en un plugin SPM | `<source-file>`, `<header-file>`, `<resource-file>`, `<framework>`, `<asset>` | `lib/plugman/pluginHandlers.js`, diez `if (isSwiftPackagePlugin(plugin)) return;` (install/uninstall de cada uno de los cinco tags). `<lib-file>` **no** está entre ellas: es un no-op incondicional para iOS, con o sin SPM. |
 | Convivencia podspec + SPM | el `<pod>` acepta `nospm="true"` para que cordova-ios 8 lo descarte | `lib/Api.js:397` (`!isSPM \|\| (isSPM && !_isTrue(podJson.nospm))`) + `getPodSpecs()` de `cordova-common`, que expone todos los atributos del `<pod>` |
 | Módulo `Cordova` bajo SPM | existe en cordova-ios 8: `CordovaLib/include/Cordova/CDV.h` genera el módulo | árbol del tarball de `cordova-ios@8.1.1` |
 | Módulo `Cordova` en cordova-ios 7 | **no existe**: ningún `.modulemap` en el paquete; `CDVPlugin` llega por bridging header | `find` sobre el tarball de `cordova-ios@7.1.1` |
@@ -148,7 +148,14 @@ se cubre con un check en el release. No justifica dos ramas.
   no declare `<preference name="deployment-target">`** — ver la condición en §4.7, que es un
   hallazgo tardío y no una nota al pie.
 
-Se agrega además un bloque `<engines>` para fallar temprano y con mensaje claro:
+Se agrega además un bloque `<engines>`. **No hace que `cordova plugin add` falle** cuando la
+plataforma instalada no cumple el mínimo: `checkEngines()` emite un `warn` y rechaza con
+`Object.assign(new Error(), { skip: true })`; el `catch` que envuelve la instalación ve ese
+`skip`, emite `Skipping 'cordova-khipu' for <platform>` y no relanza, así que la promesa se
+resuelve y el comando sale con código 0 igual (`cordova-lib/src/plugman/install.js`, líneas
+100-113 y 345-352). Lo que gana el `<engines>` es un mensaje explícito en la salida —el
+`warn` de más arriba, seguido del `Skipping`— para la plataforma que quede afuera, no una
+instalación que se detenga:
 
 ```xml
 <engines>
@@ -583,12 +590,13 @@ Sin CI, la verificación es una matriz manual documentada en `example/README.md`
 | Escenario | Comando |
 | --- | --- |
 | cordova-ios 7 + CocoaPods | `cd example && npm run ios:pods` |
-| cordova-ios 8 + SPM, sin CocoaPods instalado | `cd example && npm run ios:spm` |
+| cordova-ios 8 + SPM | `cd example && npm run ios:spm` |
+| cordova-ios 8 + SPM, sin CocoaPods instalado | **no** se puede correr desde `example/`: su `config.xml` declara `deployment-target` para el camino de cordova-ios 7, y esa misma preferencia hace que cordova-ios 8 sincronice el Podfile con `pod install` (§4.7). Se verifica aparte, contra un proyecto Cordova limpio sin esa preferencia — el procedimiento completo está en `example/README.md`. |
 | cordova-android 15 | `cd example && npm run android` |
 | Tests de iOS | `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'` |
 
-El escenario de SPM hay que correrlo con CocoaPods fuera del `PATH` al menos una vez: es lo
-único que prueba de verdad que el camino no lo necesita.
+El escenario "sin CocoaPods instalado" hay que correrlo con CocoaPods fuera del `PATH` al
+menos una vez: es lo único que prueba de verdad que el camino no lo necesita.
 
 ## 13. Riesgos
 

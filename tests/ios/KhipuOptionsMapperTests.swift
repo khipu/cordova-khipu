@@ -109,4 +109,31 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertEqual(decodificado["darkPrimary"] as? String, "#3CB4E5")
         XCTAssertNil(decodificado["lightBackground"])
     }
+
+    /// El test anterior solo ejercita dos de los doce `if let` de `makeColors`. Un setter
+    /// cruzado en cualquiera de los otros diez —por ejemplo `darkOnBackground` llamando a
+    /// `darkBackground`— pasaría esa prueba igual, porque `lightPrimary` y `darkPrimary` no
+    /// comparten setter con nadie. Acá las doce claves reciben un valor distinto entre sí, para
+    /// que un cruce se note: si dos claves compartieran setter, sus valores decodificados
+    /// quedarían intercambiados o duplicados en vez de cada uno con el suyo.
+    func testLosDoceColoresLleganAlSetterCorrecto() throws {
+        var colores: [String: String] = [:]
+        for (indice, clave) in KhipuOptionsMapper.colorKeys.enumerated() {
+            colores[clave] = String(format: "#%06X", indice)
+        }
+
+        let colors = KhipuOptionsMapper.makeColors(from: colores)
+
+        let datos = try JSONEncoder().encode(colors)
+        let decodificado = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: datos) as? [String: Any])
+
+        XCTAssertEqual(decodificado.count, KhipuOptionsMapper.colorKeys.count)
+        for clave in KhipuOptionsMapper.colorKeys {
+            XCTAssertEqual(
+                decodificado[clave] as? String,
+                colores[clave],
+                "\(clave) no llegó al SDK con su propio valor")
+        }
+    }
 }

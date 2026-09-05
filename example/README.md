@@ -10,6 +10,10 @@ verificarlo: el repositorio no tiene CI por decisión de diseño.
 - Xcode 15 o superior, con un simulador de iOS instalado
 - CocoaPods, **solo** para el escenario de cordova-ios 7
 - Android SDK con un emulador o un dispositivo conectado
+- `npm install` corrido **en la raíz del repo y en `example/`**, en ese orden, antes del primer
+  comando de esta guía: `scripts/install-plugin.mjs` empaqueta el plugin con `npm pack` en la
+  raíz, lo que dispara su `prepare: husky`, y el binario `cordova` que usan los scripts de
+  `npm run ios:pods` / `ios:spm` / `android` sale de `example/node_modules`.
 
 ## Cómo se instala el plugin
 

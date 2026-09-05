@@ -1,12 +1,23 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-// La versión de KhipuClientIOS vive en dos manifests porque el plugin soporta
-// CocoaPods (cordova-ios 7) y SPM (cordova-ios 8) a la vez. Sin CI, esto es lo
-// único que impide publicar una versión donde los dos caminos instalen SDKs
-// distintos.
+// El soporte dual de iOS (CocoaPods en cordova-ios 7, SPM en cordova-ios 8) depende de que
+// varias cosas de plugin.xml y Package.swift se mantengan sincronizadas. Sin CI, esto es lo
+// único que impide publicar una versión que rompa esa sincronía: la versión de KhipuClientIOS
+// entre los dos manifiestos, que `nospm="true"` siga en el <pod> (si se cae, cordova-ios 8
+// vuelve a instalar el pod además de SPM), que `package="swift"` siga en
+// <platform name="ios"> (sin él, cordova-ios 8 deja de usar SPM), y que cada archivo .swift de
+// src/ios/ tenga su <source-file>: SPM toma el directorio entero, pero CocoaPods toma la lista
+// explícita, así que un archivo nuevo compila bajo cordova-ios 8 y falta en silencio bajo el 7.
 
-function compare (packageSwift, pluginXml) {
+function escapeRegExp (value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// `iosSourceFiles` se recibe como parámetro en vez de leerse del disco acá adentro, para que
+// esta función siga siendo pura y testeable sin tocar el filesystem. `main()` la llena listando
+// src/ios/.
+function compare (packageSwift, pluginXml, iosSourceFiles = []) {
     const spm = packageSwift.match(/KhipuClientIOS\.git"\s*,\s*exact:\s*"([^"]+)"/);
 
     if (!spm) {
@@ -59,6 +70,41 @@ function compare (packageSwift, pluginXml) {
         };
     }
 
+    // Sin `nospm="true"`, cordova-ios 8 vuelve a instalar el pod además de SPM: el camino SPM
+    // empieza a exigir CocoaPods y el SDK queda enlazado dos veces.
+    if (!/\bnospm\s*=\s*"true"/.test(podTags[0][0])) {
+        return {
+            ok: false,
+            message: 'el <pod name="KhipuClientIOS"> de plugin.xml perdió `nospm="true"`: cordova-ios 8 volvería a instalar el pod además de SPM'
+        };
+    }
+
+    // Se aísla la etiqueta <platform name="ios"> igual que se aisló <pod>, tolerante al orden
+    // de atributos por la misma razón: update-plugin-version.js reescribe plugin.xml en cada
+    // release.
+    const iosPlatformTags = [...pluginXml.matchAll(/<platform\b[^>]*\bname="ios"[^>]*>/g)];
+
+    if (iosPlatformTags.length === 0 || !/\bpackage\s*=\s*"swift"/.test(iosPlatformTags[0][0])) {
+        return {
+            ok: false,
+            message: 'no se encontró `package="swift"` en <platform name="ios"> de plugin.xml: sin él, cordova-ios 8 deja de usar Swift Package Manager'
+        };
+    }
+
+    // SPM toma el directorio src/ios/ completo (`path: "src/ios"` en Package.swift), pero
+    // CocoaPods (cordova-ios 7) solo instala lo que declara un <source-file> explícito: un
+    // archivo .swift nuevo compila bajo cordova-ios 8 y falta en silencio bajo el 7.
+    for (const archivo of iosSourceFiles) {
+        const regex = new RegExp(`<source-file\\b[^>]*\\bsrc="src/ios/${escapeRegExp(archivo)}"`);
+
+        if (!regex.test(pluginXml)) {
+            return {
+                ok: false,
+                message: `src/ios/${archivo} no tiene su <source-file> en plugin.xml: SPM lo compila igual (toma todo el directorio), pero cordova-ios 7 vía CocoaPods lo va a ignorar en silencio`
+            };
+        }
+    }
+
     return {
         ok: true,
         message: `KhipuClientIOS ${spm[1]} sincronizado entre Package.swift y plugin.xml`
@@ -67,9 +113,13 @@ function compare (packageSwift, pluginXml) {
 
 function main () {
     const root = path.resolve(__dirname, '..');
+    const iosSourceFiles = fs
+        .readdirSync(path.join(root, 'src', 'ios'))
+        .filter(entry => entry.endsWith('.swift'));
     const resultado = compare(
         fs.readFileSync(path.join(root, 'Package.swift'), 'utf-8'),
-        fs.readFileSync(path.join(root, 'plugin.xml'), 'utf-8')
+        fs.readFileSync(path.join(root, 'plugin.xml'), 'utf-8'),
+        iosSourceFiles
     );
 
     if (!resultado.ok) {

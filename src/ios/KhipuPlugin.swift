@@ -12,8 +12,8 @@ public class KhipuPlugin: CDVPlugin {
 
     @objc(startOperation:)
     func startOperation(command: CDVInvokedUrlCommand) {
-        guard let call = command.arguments[0] as? [String: Any],
-              let operationId = call["operationId"] as? String, !call.isEmpty else {
+        guard let call = command.arguments.first as? [String: Any],
+              let operationId = call["operationId"] as? String else {
             handleError(command: command, message: "operationId must be provided and must be a string.")
             return
         }

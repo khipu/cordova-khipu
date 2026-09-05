@@ -3,7 +3,8 @@
  *
  * El punto central es el tri-estado por campo: cada opción tiene una casilla
  * "incluir" además de su control. El plugin distingue "clave ausente" de
- * `false` — ver `options!["showFooter"] != nil` en KhipuPlugin.swift y
+ * `false` — ver `options["showFooter"] as? Bool` en
+ * KhipuOptionsMapper.parse (src/ios/KhipuOptionsMapper.swift) y
  * `options.has("showFooter")` en KhipuPlugin.java — y el SDK nativo aplica sus
  * propios valores por omisión. Si el harness mandara siempre los booleanos,
  * sería imposible probar el comportamiento que ve un comercio que no configura

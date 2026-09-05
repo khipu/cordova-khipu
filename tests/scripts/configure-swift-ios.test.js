@@ -26,6 +26,14 @@ test('detecta cordova-ios 7 cuando el proyecto tiene otro nombre', () => {
     assert.strictEqual(hook.getCordovaIosMajor(platformPath), 7);
 });
 
+test('sin ningún .xcodeproj ni script de version, cae al lado inerte (8)', () => {
+    const root = tempDir();
+    const platformPath = path.join(root, 'platforms', 'ios');
+    fs.mkdirSync(platformPath, { recursive: true });
+
+    assert.strictEqual(hook.getCordovaIosMajor(platformPath), 8);
+});
+
 test('el script cordova/version manda por sobre el heurístico', () => {
     const root = tempDir();
     const platformPath = path.join(root, 'platforms', 'ios');
