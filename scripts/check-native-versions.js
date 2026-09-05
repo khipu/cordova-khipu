@@ -111,26 +111,75 @@ function compare (packageSwift, pluginXml, iosSourceFiles = []) {
     };
 }
 
+// La versión del plugin también vive en dos archivos, y el release la sincroniza con un hook.
+// Si ese hook falla o el release se interrumpe entre el bump y la sincronía, los dos quedan
+// descoordinados: le pasó al 2.10.0, que abortó con plugin.xml en 2.10.0 y package.json en
+// 2.9.1. Nada lo detectaba, porque `compare()` mira la versión de KhipuClientIOS y no la del
+// plugin. Va aparte y no como un parámetro más de `compare()` a propósito: un parámetro
+// opcional es un chequeo que se puede dejar de pasar sin que nadie se entere.
+function compararVersionDelPlugin (versionEnPackageJson, pluginXml) {
+    if (!versionEnPackageJson) {
+        return {
+            ok: false,
+            message: 'no se pudo leer la versión del plugin desde package.json'
+        };
+    }
+
+    // Se aísla la etiqueta <plugin> antes de buscar `version`, porque ese atributo también
+    // aparece en la declaración XML (`<?xml version="1.0"?>`) y en cada <engine>.
+    const pluginTag = pluginXml.match(/<plugin\b[^>]*>/);
+    const enPluginXml = pluginTag && pluginTag[0].match(/\bversion="([^"]+)"/);
+
+    if (!enPluginXml) {
+        return {
+            ok: false,
+            message: 'el <plugin> de plugin.xml no declara `version`'
+        };
+    }
+
+    if (enPluginXml[1] !== versionEnPackageJson) {
+        return {
+            ok: false,
+            message: `la versión del plugin difiere: package.json dice ${versionEnPackageJson} y plugin.xml dice ${enPluginXml[1]}`
+        };
+    }
+
+    return {
+        ok: true,
+        message: `versión del plugin ${versionEnPackageJson} sincronizada entre package.json y plugin.xml`
+    };
+}
+
 function main () {
     const root = path.resolve(__dirname, '..');
     const iosSourceFiles = fs
         .readdirSync(path.join(root, 'src', 'ios'))
         .filter(entry => entry.endsWith('.swift'));
-    const resultado = compare(
-        fs.readFileSync(path.join(root, 'Package.swift'), 'utf-8'),
-        fs.readFileSync(path.join(root, 'plugin.xml'), 'utf-8'),
-        iosSourceFiles
-    );
+    const pluginXml = fs.readFileSync(path.join(root, 'plugin.xml'), 'utf-8');
+    const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
 
-    if (!resultado.ok) {
-        console.error(`check-native-versions: ${resultado.message}`);
+    const resultados = [
+        compare(
+            fs.readFileSync(path.join(root, 'Package.swift'), 'utf-8'),
+            pluginXml,
+            iosSourceFiles
+        ),
+        compararVersionDelPlugin(packageJson.version, pluginXml)
+    ];
+
+    const falla = resultados.find(resultado => !resultado.ok);
+
+    if (falla) {
+        console.error(`check-native-versions: ${falla.message}`);
         process.exit(1);
     }
 
-    console.log(`check-native-versions: ${resultado.message}.`);
+    for (const resultado of resultados) {
+        console.log(`check-native-versions: ${resultado.message}.`);
+    }
 }
 
-module.exports = { compare };
+module.exports = { compare, compararVersionDelPlugin };
 
 if (require.main === module) {
     main();

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { compare } = require('../../scripts/check-native-versions.js');
+const { compare, compararVersionDelPlugin } = require('../../scripts/check-native-versions.js');
 
 const PACKAGE_SWIFT = version =>
     `.package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "${version}")`;
@@ -148,4 +148,56 @@ test('rechaza un .swift de src/ios/ sin su <source-file> en plugin.xml', () => {
 
     assert.strictEqual(resultado.ok, false);
     assert.match(resultado.message, /KhipuArchivoNuevo\.swift/);
+});
+
+// La versión del plugin vive en dos archivos, igual que la de KhipuClientIOS. Un release
+// interrumpido a mitad puede dejarlos descoordinados —le pasó al 2.10.0, que abortó con
+// plugin.xml en 2.10.0 y package.json en 2.9.1— y nada lo detectaba.
+
+const PLUGIN_TAG = version =>
+    `<plugin id="cordova-khipu" version="${version}" xmlns="http://apache.org/cordova/ns/plugins/1.0">`;
+
+test('acepta que la versión del plugin coincida entre package.json y plugin.xml', () => {
+    const resultado = compararVersionDelPlugin('2.10.1', PLUGIN_TAG('2.10.1'));
+
+    assert.strictEqual(resultado.ok, true);
+    assert.match(resultado.message, /2\.10\.1/);
+});
+
+test('rechaza si la versión del plugin difiere entre los dos archivos', () => {
+    const resultado = compararVersionDelPlugin('2.9.1', PLUGIN_TAG('2.10.0'));
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /2\.9\.1/);
+    assert.match(resultado.message, /2\.10\.0/);
+});
+
+test('rechaza si el <plugin> de plugin.xml no declara version', () => {
+    const resultado = compararVersionDelPlugin(
+        '2.10.1',
+        '<plugin id="cordova-khipu" xmlns="http://apache.org/cordova/ns/plugins/1.0">');
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /plugin\.xml/);
+});
+
+test('rechaza si no se recibió la versión de package.json', () => {
+    const resultado = compararVersionDelPlugin(undefined, PLUGIN_TAG('2.10.1'));
+
+    assert.strictEqual(resultado.ok, false);
+    assert.match(resultado.message, /package\.json/);
+});
+
+// El atributo `version` también aparece en la declaración XML y en los <engine>, así que el
+// chequeo tiene que leer el del <plugin> y no el primero que encuentre.
+test('no se confunde con el version de la declaración XML ni con el de los <engine>', () => {
+    const xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        PLUGIN_TAG('2.10.1'),
+        '  <engine name="cordova-ios" version=">=7.0.0"/>',
+        '</plugin>'
+    ].join('\n');
+
+    assert.strictEqual(compararVersionDelPlugin('2.10.1', xml).ok, true);
+    assert.strictEqual(compararVersionDelPlugin('1.0', xml).ok, false);
 });
