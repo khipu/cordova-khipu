@@ -13,8 +13,13 @@ Cordova plugin for Khipu
 | iOS | 13.0 | |
 | Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
-Estos mínimos están declarados en `<engines>`, así que `cordova plugin add`
-falla con un mensaje claro en vez de romper más adelante.
+De esta tabla, solo `cordova-ios` y `cordova-android` están declarados en el
+`<engines>` de `plugin.xml`: si la plataforma instalada no cumple el mínimo,
+`cordova plugin add` falla con un mensaje claro en vez de romper más adelante.
+Las otras tres filas (`cordova` CLI, iOS, Node) son compatibilidad probada y
+recomendada, no una barrera automática — el chequeo de engines de Cordova ni
+siquiera reconoce un tipo `node`, y el `package.json` del plugin no declara
+`engines`.
 
 ## Instalación
 
@@ -44,10 +49,14 @@ Lo único que hay que configurar es el deployment target, porque el default de
 `cordova-ios` 8 ya usa 13.0 por defecto, así que en ese caso **conviene no
 declararlo**: el plugin todavía carga un `<podspec>` (lo necesita el camino de
 cordova-ios 7), y `cordova-ios` crea igual un `Podfile` vacío al instalar el
-plugin. Si `config.xml` trae `deployment-target`, cordova sincroniza ese
-Podfile con `pod install` en cada `prepare` — aunque esté vacío — y eso exige
-tener CocoaPods instalado, anulando la ventaja de no necesitarlo bajo SPM.
-Dejar que `cordova-ios` 8 use su propio default evita ese `pod install`.
+plugin. Si `config.xml` trae **cualquier valor** de `deployment-target` —13.0,
+14.0, el que sea—, cordova sincroniza ese Podfile con `pod install` en cada
+`prepare` — aunque esté vacío — y eso exige tener CocoaPods instalado,
+anulando la ventaja de no necesitarlo bajo SPM. No es solo un problema de
+valores bajos: si tu app necesita fijar un deployment target más alto en
+cordova-ios 8, vas a pagar el mismo costo. Dejar que `cordova-ios` 8 use su
+propio default (no declarar la preferencia) es lo único que evita ese
+`pod install`.
 
 ### Versión de Swift
 

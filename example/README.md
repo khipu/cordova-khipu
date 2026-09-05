@@ -39,7 +39,7 @@ Correr los tres antes de publicar una versión.
 | Escenario | Comando | Qué prueba |
 | --- | --- | --- |
 | cordova-ios 7 + CocoaPods | `npm run ios:pods` | `<podspec>` + `<source-file>` y el hook `configure-swift-ios.js` |
-| cordova-ios 8 + SPM | `npm run ios:spm` | `Package.swift`, sin CocoaPods |
+| cordova-ios 8 + SPM | `npm run ios:spm` | `Package.swift`; ningún pod se linkea (Podfile vacío) — desde este ejemplo el comando igual invoca `pod install`, ver más abajo |
 | cordova-android 15 | `npm run android` | `khipu.gradle` y el hook `enable-gradle-kotlin-plugin.js` |
 
 Cada script borra `platforms/` y `plugins/` antes de empezar: el gestor de
