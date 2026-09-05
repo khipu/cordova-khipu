@@ -107,6 +107,11 @@ document.addEventListener('DOMContentLoaded', function () {
   construirCampos();
   construirPresets();
   restaurar();
+  // Incondicional: en una instalación limpia (sin nada en localStorage)
+  // `restaurar()` vuelve temprano y nunca llegaría a ocultar
+  // `#campos-color`, dejando el bloque de colores visible aunque
+  // `#incluir-colors` esté sin marcar.
+  sincronizarOpacidad();
   escuchar();
   refrescarPreview();
 });
@@ -385,8 +390,6 @@ function restaurar () {
   aplicarGuardado(controles.texto, estado.texto, 'value');
   aplicarGuardado(controles.interruptores, estado.interruptores, 'checked');
   aplicarGuardado(controles.colores, estado.colores, 'value');
-
-  sincronizarOpacidad();
 }
 
 function aplicarGuardado (grupo, guardado, propiedad) {
