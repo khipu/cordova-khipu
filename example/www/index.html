@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Khipu Example</title>
+    <link rel="stylesheet" href="css/harness.css" />
+  </head>
+  <body>
+    <header>
+      <h1>cordova-khipu</h1>
+      <p id="estado" class="estado estado--esperando">Esperando <code>deviceready</code>…</p>
+    </header>
+
+    <main>
+      <section class="tarjeta">
+        <h2>Operación</h2>
+        <label class="campo campo--obligatorio">
+          <span class="campo__nombre">operationId</span>
+          <input id="operationId" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="9sy0aufujsgq" />
+        </label>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Presets</h2>
+        <div id="presets" class="presets"></div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Opciones de texto</h2>
+        <p class="nota">
+          La casilla <strong>incluir</strong> decide si la clave viaja en el
+          payload. Sin marcar, el SDK aplica su propio valor por omisión, que no
+          es lo mismo que mandar un valor vacío.
+        </p>
+        <div id="campos-texto"></div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Interruptores</h2>
+        <div id="campos-switch"></div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Colores</h2>
+        <label class="campo campo--maestro">
+          <input id="incluir-colors" type="checkbox" />
+          <span class="campo__nombre">incluir el objeto <code>colors</code></span>
+        </label>
+        <div id="campos-color"></div>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Payload</h2>
+        <pre id="preview" class="preview"></pre>
+        <button id="lanzar" type="button" class="boton" disabled>
+          Iniciar operación
+        </button>
+      </section>
+
+      <section class="tarjeta">
+        <h2>Resultado</h2>
+        <div id="resultado" class="resultado">Todavía no se ha ejecutado nada.</div>
+      </section>
+    </main>
+
+    <script src="cordova.js"></script>
+    <script src="js/harness.js"></script>
+  </body>
+</html>

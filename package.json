@@ -24,7 +24,20 @@
     "url": "https://github.com/khipu/cordova-khipu/issues"
   },
   "homepage": "https://github.com/khipu/cordova-khipu#readme",
+  "files": [
+    "plugin.xml",
+    "Package.swift",
+    "www/",
+    "src/",
+    "tests/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "test": "node --test tests/scripts/",
+    "verify:versions": "node scripts/check-native-versions.js",
+    "prepublishOnly": "npm run verify:versions && npm test",
     "release": "release-it",
     "prepare": "husky"
   },
@@ -57,10 +70,12 @@
     },
     "plugins": {
       "@release-it/conventional-changelog": {
-        "preset": "angular"
+        "preset": "angular",
+        "infile": "CHANGELOG.md"
       }
     },
     "hooks": {
+      "before:init": "npm run verify:versions && npm test",
       "after:bump": "node scripts/update-plugin-version.js && git add plugin.xml && git commit -m 'chore: sync version to plugin.xml'"
     }
   }
