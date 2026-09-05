@@ -30,6 +30,7 @@
       </pods>
     </podspec>
     <source-file src="src/ios/KhipuPlugin.swift"/>
+    <source-file src="src/ios/KhipuOptionsMapper.swift"/>
     <hook type="after_prepare" src="scripts/configure-swift-ios.js"/>
   </platform>
   <hook type="after_prepare" src="scripts/enable-gradle-kotlin-plugin.js"/>

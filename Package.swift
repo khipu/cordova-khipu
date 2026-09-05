@@ -32,6 +32,11 @@ let package = Package(
                 .product(name: "KhipuClientIOS", package: "KhipuClientIOS")
             ],
             path: "src/ios"
+        ),
+        .testTarget(
+            name: "CordovaKhipuTests",
+            dependencies: ["CordovaKhipu"],
+            path: "tests/ios"
         )
     ]
 )
