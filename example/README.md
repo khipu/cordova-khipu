@@ -5,7 +5,8 @@ verificarlo: el repositorio no tiene CI por decisión de diseño.
 
 ## Requisitos
 
-- Node 20 o superior
+- Node `^20.17.0` o `>=22.9.0` (el rango real de `engines` en `example/package.json`; deja fuera
+  20.0–20.16 y toda la serie 21.x)
 - Xcode 15 o superior, con un simulador de iOS instalado
 - CocoaPods, **solo** para el escenario de cordova-ios 7
 - Android SDK con un emulador o un dispositivo conectado
@@ -57,7 +58,7 @@ ubica el directorio real de `pod` con `command -v` y recién ahí lo saca del
 PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) npm run ios:spm
 ```
 
-Antes de lanzar el build, confirmá que el recorte funcionó con
+Antes de lanzar el build, confirmar que el recorte funcionó con
 `PATH=<el mismo PATH recortado> which pod`: no debería encontrar nada. Es lo
 único que demuestra que el camino de cordova-ios 8 no necesita CocoaPods.
 
@@ -71,13 +72,16 @@ Antes de lanzar el build, confirmá que el recorte funcionó con
 - **Presets.** *Marca Khipu* usa púrpura `#8347AD` y cian `#3CB4E5`.
 - **Recursos en el camino CocoaPods.** El plugin ya no declara `use_frameworks!`, así que los
   pods se enlazan estáticos. Esto está verificado a nivel de build —`KhipuClientIOS.bundle`
-  aparece copiado dentro del `.app`— pero no en runtime. Corriendo `npm run ios:pods`, mirá con
-  ojos que la vista de Khipu muestre **imágenes y tipografías**, no cuadros vacíos ni texto con
-  la fuente del sistema. Un recurso que no resuelve falla al mostrarse, no al compilar, así que
-  el build verde no basta.
+  aparece copiado dentro del `.app`— pero no en runtime. Corriendo `npm run ios:pods`, verificar
+  que la vista de Khipu muestre imágenes y tipografías reales, no cuadros vacíos. Un recurso que
+  no resuelve falla al mostrarse, no al compilar, así que el build verde no basta.
 - **Persistencia.** El `operationId` sobrevive a una recarga.
-- **Resultado.** Al terminar la operación aparecen los campos de `KhipuResult`
-  y la tabla de eventos.
+- **Resultado — no verificado con un `operationId` real.** Lo único que se probó hasta ahora fue
+  un id inventado (dispara la pantalla nativa de error del SDK) y una inyección sintética
+  directamente en `mostrarResultado()`, sin pasar por el SDK. Falta correr el camino feliz con un
+  `operationId` de un ambiente de pruebas de Khipu y confirmar que, al terminar la operación,
+  aparecen los campos de `KhipuResult`; la tabla de eventos solo aparece si la operación devolvió
+  eventos (`harness.js` no la dibuja cuando `events` viene vacío).
 
 ## Fricciones conocidas del entorno
 
