@@ -22,7 +22,7 @@ and we do not. This work closes it.
 Scope:
 
 1. Five Android defects, four of which change what the merchant receives, plus the
-   `khipu-client-android` bump to 2.28.0 that closes a process-killing crash (§16).
+   `khipu-client-android` bump to 2.28.1 that closes a process-killing crash (§16).
 2. A verification layer that makes the two halves provably agree: a key-drift guard, a
    Gradle test bed for Android, and CI — which this repo has never had.
 3. The published JavaScript surface: TypeScript declarations and an optional promise.
@@ -36,8 +36,8 @@ inventing a second one, and says so.
 ## 2. Facts verified on 2026-09-09
 
 Everything in this table was checked by reading source, not from memory or
-documentation. The Android SDK was read at tag `2.27.0`, which is the version
-`src/android/khipu.gradle:11` pins.
+documentation. The Android SDK was read at tag `2.27.0` — what the plugin pinned when
+this work started — and at `2.28.1`, which is what it pins now.
 
 | Fact | Value | How it was verified |
 | --- | --- | --- |
@@ -60,6 +60,10 @@ documentation. The Android SDK was read at tag `2.27.0`, which is the version
 | What this repo has | No `.github/` at all. `npm test` runs `node --test tests/scripts/` only, so the Swift tests never run in `prepublishOnly`, and no Java is ever compiled by any check | `package.json` scripts, `ls -a` of the repo root |
 | Protocol library on each platform | `khipu-client-android` **2.27.0** — what the plugin pinned before this work — pulls `com.khipu.khenshin:protocol` **1.0.59**; **2.28.0** pulls **1.0.60**; iOS resolves `KhenshinProtocolSwift` **1.0.60** | the published `khipu-client-android-2.27.0.pom` and `-2.28.0.pom` from the Khipu Nexus; `Package.resolved` |
 | `FailureReasonType` constants | **14 in Java 1.0.59** (no `USER_DISCONNECTED`), **15 in Java 1.0.60**, **15 in Swift 1.0.60** | `javap -p` on `FailureReasonType.class` from `protocol-1.0.59.jar` and `protocol-1.0.60.jar`; `KhenshinProtocol.swift:1553-1569` |
+| The guard release | **2.28.1**, published, and it carries the guard: `SocketMessageGuardKt.runGuarded(String, KhipuViewModel, Function0<Unit>)` exists and `KhipuSocketIOClient` has a private `onMessage`. That class also holds a `terminalMessageTypes` set | `maven-metadata.xml` from the Khipu Nexus, then `javap -p` on both classes from `classes.jar` inside the published `.aar` |
+| When the SDK asks for location | Only when the server sends a `GEOLOCATION_REQUEST`; the request is made by the person, from `GeolocationWarningView`, for `ACCESS_COARSE_LOCATION` and `ACCESS_FINE_LOCATION` | `KhipuSocketIOClient.kt:200-210`, `GeolocationWarningView.kt:63-66` |
+| What happens if the person denies it | The payment continues: the production call site passes `geolocationMandatory = false` | `KhipuActivity.kt:388` |
+| What is reported without the permission | Only whether the device has a gps or network location provider, from `LocationManager.allProviders`, which needs no permission and obtains no location | `KhipuSocketIOClient.kt:407-411` |
 | Whether 2.28.0 is published | Yes: its `.pom` and `.aar` both return HTTP 200 from the Khipu Nexus, and so does 2.27.0's as a control | `curl -o /dev/null -w '%{http_code}'` against each artifact URL |
 | What Java does with an unknown value | `forValue` is a chain of `String.equals` whose fallthrough is `throw new IOException("Cannot deserialize FailureReasonType")` | `javap -c -p` on the same class |
 | Where that lands on Android | `socket.on(OPERATION_FAILURE)` calls `Converter.OperationFailureFromJsonString` with **no** `try/catch`, on socket.io's EventThread | `KhipuSocketIOClient.kt:211-223`, identical at tags 2.27.0 and 2.28.0 |
@@ -215,13 +219,33 @@ right thing to write regardless of either cause.
 
 Per §2, the SDK's manifest requests `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`
 in addition to `INTERNET`, and the manifest merger injects all three into any app that
-installs this plugin. A merchant currently has no way to learn that from us: their app
-starts asking for location because of a payment plugin, and nothing in our README
-mentions it.
+installs this plugin. A merchant currently has no way to learn that from us, and nothing
+in our README mentions it.
 
-Phase 3 adds a README section stating which permissions arrive through the plugin and
-that they come from the SDK's manifest rather than from anything the merchant has to
-declare. It should also tell a merchant who does not need location how to drop it. The
+**What the permissions actually do**, which changes how this has to be written. The
+purpose is banks that ask to geolocate the payer during the payment — product intent,
+confirmed by this repository's owner. The behaviour, verified in the SDK's source and
+recorded in §2:
+
+| | |
+| --- | --- |
+| At start | Nothing is requested. The screen renders only when the server sends a `GEOLOCATION_REQUEST`, so if no bank asks, nobody is asked |
+| When it is requested | By the person, from `GeolocationWarningView`, for both coarse and fine |
+| If the person denies | The payment continues — the production call site passes `geolocationMandatory = false` |
+| With no permission granted | The only thing reported is whether the device has a gps or network provider, read from `LocationManager.allProviders`; no permission needed and no location obtained |
+
+So the honest sentence is not "your app starts asking for location". It is: the permissions
+are declared in your app, and they are exercised only inside a payment, only when a bank
+asks, only with the payer's consent, and denying them does not block the payment. The
+first version would have alarmed merchants about something that does not happen by
+default; writing nothing leaves them unable to declare what their app can collect.
+
+Phase 3 adds a README section stating which permissions arrive through the plugin, that
+they come from the SDK's manifest rather than from anything the merchant has to declare,
+and what actually triggers them. The canonical version of that explanation is going to
+live on docs.khipu.com, on the Android light-client page, so the README should link there
+rather than keep a second copy that drifts — but that page is not published yet, so the
+plan writes the summary now and adds the link when it exists. It should also tell a merchant who does not need location how to drop it. The
 mechanism is the manifest merger's `tools:node="remove"`, but the recipe is **not** the
 one a React Native or native merchant would use: a Cordova merchant does not hand-edit
 `AndroidManifest.xml`, since Cordova generates it, so it has to go through `<edit-config>`
@@ -391,7 +415,7 @@ from 2.11.0 onward. Past entries stay as they are.
 | Phase | Contents | Expected state |
 | --- | --- | --- |
 | 0 | CI (`node`, `ios`, `android`, `example`), `tests/android/` with its wrapper, and the example's Android build wired into CI | Green against today's code, with nothing fixed yet |
-| 1 | The five Android defects, test-first: phantom `colors`, type coercion, result shape, callback ordering plus the in-flight guard, and `resultCode` branching. Plus the SDK bump to 2.28.0 (§16), verified by resolving it in the example's Android build | New tests fail before, pass after |
+| 1 | The five Android defects, test-first: phantom `colors`, type coercion, result shape, callback ordering plus the in-flight guard, and `resultCode` branching. Plus the SDK bump to 2.28.1 (§16), verified by resolving it in the example's Android build | New tests fail before, pass after |
 | 2 | One key list per language, iOS symmetry (`private`, `NSNull`), surgical `update-plugin-version`, `enable-gradle-kotlin-plugin` plus its test, `check-native-versions` extension, dead XML deleted | No behaviour change |
 | 3 | `types/index.d.ts`, optional promise, `verify:keys` (its five surfaces exist only now), README and CHANGELOG contract note, the injected-permissions section (§4.6), final English sweep | Contract documented and tied together |
 | 4 | Release 2.11.0 | `npm run verify` green |
@@ -413,7 +437,7 @@ result instead of an `"Activity cancelled or failed"` string; and a wrong-typed 
 now discarded rather than coerced to `false`. Each with the one-line migration for a
 merchant who depended on the old behaviour.
 
-It also gets a plain entry for the `khipu-client-android` bump from 2.27.0 to 2.28.0,
+It also gets a plain entry for the `khipu-client-android` bump from 2.27.0 to 2.28.1,
 stating what it fixes: a `failureReason` of `USER_DISCONNECTED` used to kill the app
 process on Android (§16). That one needs no migration — merchants only have to update —
 but it is the most consequential line in the release, so it goes first.
@@ -448,11 +472,11 @@ Reported by the `react-native-khipu` session, which hit it once by accident, and
 here against the artifacts (§2). It matters because it defeats every callback-lifecycle
 guarantee this spec makes: the process dies, so nothing downstream of it runs.
 
-**This work fixes the live half** by moving `src/android/khipu.gradle` from
-`khipu-client-android` 2.27.0 to **2.28.0**, whose published POM declares protocol 1.0.60
-— the release whose Java enum has all fifteen constants, `USER_DISCONNECTED` included.
-That closes the skew against iOS. What it does not close is described at the end of this
-section.
+**This work fixes it** by moving `src/android/khipu.gradle` from `khipu-client-android`
+2.27.0 to **2.28.1**, which closes both halves of the problem. 2.28.0 already carried
+protocol 1.0.60 — the release whose Java enum has all fifteen constants,
+`USER_DISCONNECTED` included — which ends the skew against iOS. 2.28.1 adds the guard that
+keeps any *other* unknown value from reaching the EventThread at all.
 
 When an `OPERATION_FAILURE` event carries a `failureReason` the client's enum does not
 know, `FailureReasonType.forValue` throws `IOException("Cannot deserialize
@@ -496,7 +520,7 @@ wrong: iOS's enum has `USER_DISCONNECTED`, so iOS decodes that value correctly. 
 
 1. **The live defect was Android-only.** Its cause was the 1.0.59-against-1.0.60 skew,
    and its symptom was that an ordinary outcome killed the merchant's app. Fixed here by
-   the bump to 2.28.0.
+   the bump to 2.28.1.
 2. **The iOS fragility is latent.** The `do { } catch { print(...) }` degrades badly for a
    future value its own enum does not know either. Real, worth fixing, but not what fired
    and not the same cause — that one is about how the clients handle unknown values in
@@ -505,15 +529,14 @@ wrong: iOS's enum has `USER_DISCONNECTED`, so iOS decodes that value correctly. 
 §4.5's README guidance — confirm status server-side — still applies to both platforms,
 because the iOS path to a lost callback exists even though nothing triggers it today.
 
-**The residue, which stays with the SDK team.** The bump removes the value that is known
-to trigger the crash; it does not make the crash impossible. At tag 2.28.0 the
-`OPERATION_FAILURE` listener still calls the converter with no `try/catch`
-(`KhipuSocketIOClient.kt:211-223`, unchanged from 2.27.0), so any future `failureReason`
-that protocol 1.0.60 does not know still throws on socket.io's `EventThread` and still
-kills the process. And per §2 this is not one listener's oversight: of roughly twenty
-listeners in that file exactly one, `OPERATION_REQUEST`, has a `try/catch`, while twelve
-others call a converter unprotected. Any of those messages carrying an unknown enum value
-has the same ending.
+**Why the pin had to go past 2.28.0.** A protocol bump alone removes the value known to
+trigger the crash; it does not make the crash impossible. At tag 2.28.0 the
+`OPERATION_FAILURE` listener still called the converter with no `try/catch`
+(`KhipuSocketIOClient.kt:211-223`, unchanged from 2.27.0), so any *other* unknown value
+would still throw on socket.io's `EventThread` and still kill the process. And it was not
+one listener's oversight: of roughly twenty listeners in that file exactly one,
+`OPERATION_REQUEST`, had a `try/catch`, while twelve others called a converter
+unprotected. 2.28.1 is what fixes that class of failure rather than one instance of it.
 
 So there are two asks for the SDK team, with different sizes: wrap the listeners so an
 unknown value degrades instead of killing the process, and decide how the generated
@@ -524,15 +547,16 @@ work.
 **Both are tracked as IKW-1232**, which is the single ticket the four bridge repositories
 reference rather than one each: https://khipucom.atlassian.net/browse/IKW-1232
 
-**And the first ask is already done.** The `khipu-client-android` session reports the fix
-merged: all 23 listeners now run through a guard that catches `Throwable`, logs it, and
-does not propagate, so nothing reaches the EventThread. It publishes as 2.28.1, or 2.29.0
-if a `feat:` lands in the same batch. Raising the pin to it is Task 17 of the
-implementation plan, gated on the artifact existing — and on verifying the artifact
-carries the guard by the right marker, because the obvious one lies: the `Exception table`
-count in `KhipuSocketIOClient` is 1 in 2.27.0, 1 in 2.28.0, and still 1 with the fix,
-since the new `try/catch` compiles into a separate class. The markers are the existence of
-`SocketMessageGuardKt.runGuarded` and of a private `onMessage` on the client.
+**And the first ask is done and shipped.** All 23 listeners now run through a guard that
+catches `Throwable`, logs it, and does not propagate, so nothing reaches the EventThread.
+It published as **2.28.1**, and `src/android/khipu.gradle` pins it.
+
+Verified here on the published artifact rather than taken from the version number, because
+the obvious check lies: the `Exception table` count in `KhipuSocketIOClient` is 1 in
+2.27.0, 1 in 2.28.0, and **still 1** with the fix, since the new `try/catch` compiles into
+a separate class. The markers that do move are the existence of
+`SocketMessageGuardKt.runGuarded` and of a private `onMessage` on the client; both are
+present in 2.28.1's `classes.jar` and neither exists in 2.28.0.
 
 The guard introduces a contract this plugin has to honour, and already does. A terminal
 message that cannot be deserialized now ends the operation instead of killing the process,
@@ -558,3 +582,9 @@ with nobody left to notice. It stops being a bug with a symptom and becomes a tr
 for the next consumer. That is an argument for fixing it in the SDK rather than treating it
 as resolved because its callers stepped around it — the `khipu-client-android` session is
 making that case, and the decision sits with the repository owner, not with this spec.
+
+**Update:** that argument became **IKW-1233**. `asJson()` moves to
+`GsonBuilder().serializeNulls()`, so `exitUrl`, `continueUrl` and `failureReason` will
+arrive present-and-null instead of absent, matching iOS. Fixed in a branch and **not
+released** — it is not in 2.28.1. It changes nothing here, because §4.2 builds the object
+itself, but it means the two layers will agree rather than compensate for each other.

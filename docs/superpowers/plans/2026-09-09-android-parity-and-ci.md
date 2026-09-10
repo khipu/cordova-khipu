@@ -15,7 +15,7 @@
 - **Language: English only.** Code, comments, test names, identifiers, README, and new CHANGELOG entries. Translate every file you touch as part of the same edit. Preserve the *reasoning* in existing Spanish comments — this is a translation, not a rewrite; a comment that loses its "why" is a regression.
 - **Commit messages: English**, Conventional Commits (a husky `commit-msg` hook runs commitlint and will reject anything else).
 - **Target version: 2.11.0**, treated as a bug fix. Do not bump `package.json` by hand; the release does it (Task 18).
-- **Android SDK pin: `com.khipu:khipu-client-android:2.28.0`** in `src/android/khipu.gradle`. Already committed in `f0a4135`. Never lower it: 2.27.0 pins khenshin protocol 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value (spec §16).
+- **Android SDK pin: `com.khipu:khipu-client-android:2.28.1`** in `src/android/khipu.gradle`, already committed. Never lower it, for two independent reasons: anything below 2.28.0 pins khenshin protocol 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value; and 2.28.1 is the release that guards all 23 socket listeners so no deserialization failure reaches the EventThread at all (spec §16).
 - **iOS SDK pin: `KhipuClientIOS` `2.16.5`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this.
 - **`plugin.xml` invariants** that `check-native-versions.js` guards and you must not break: `nospm="true"` on the `<pod>`, `package="swift"` on `<platform name="ios">`, and one `<source-file>` per `.swift` file in `src/ios/`.
 - **Absent is not false.** Everywhere an option is read, "the JavaScript did not send this key" must stay distinct from "it sent `false`". The native SDKs apply their own defaults and the plugin must let them.
@@ -154,7 +154,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.khipu:khipu-client-android:2.28.0'
+    implementation 'com.khipu:khipu-client-android:2.28.1'
 
     testImplementation 'junit:junit:4.13.2'
     // org.json inside android.jar is a set of stubs whose every method throws
@@ -237,7 +237,7 @@ import java.util.Arrays;
  * Android framework, every mapper test would fail at once with a confusing error. This
  * test fails first, with an obvious one.
  *
- * The second is the reason src/android/khipu.gradle says 2.28.0 and not 2.27.0. Protocol
+ * The second is the reason src/android/khipu.gradle says 2.28.1 and not 2.27.0. Protocol
  * 1.0.59 has fourteen FailureReasonType constants and no USER_DISCONNECTED; its
  * forValue() throws IOException on any value it does not know, and the SDK's
  * OPERATION_FAILURE listener calls the converter with no try/catch on socket.io's
@@ -270,7 +270,7 @@ public class SdkContractTest {
         assertNotNull("the protocol jar is not on the test classpath", constants);
         assertEquals(15, constants.length);
         assertTrue(
-                "protocol 1.0.59 is on the classpath; the SDK pin must be 2.28.0 or newer",
+                "protocol 1.0.59 is on the classpath; the SDK pin must be 2.28.1 or newer",
                 Arrays.stream(constants).anyMatch(c -> c.toString().equals("USER_DISCONNECTED"))
         );
     }
@@ -283,9 +283,9 @@ public class SdkContractTest {
 cd tests/android && ./gradlew test
 ```
 
-Expected: both tests PASS. `theProtocolEnumKnowsUserDisconnected` is the executable form of the claim in the previous commit, so a pass here is the first real confirmation that 2.28.0 resolves from the Nexus.
+Expected: both tests PASS. `theProtocolEnumKnowsUserDisconnected` is the executable form of the claim in the previous commit, so a pass here is the first real confirmation that 2.28.1 resolves from the Nexus.
 
-If it fails with `Could not resolve com.khipu:khipu-client-android:2.28.0`, the Nexus host is unreachable from this machine — that is the risk in spec §14 and it blocks this task, not later ones. Report it rather than working around it.
+If it fails with `Could not resolve com.khipu:khipu-client-android:2.28.1`, the Nexus host is unreachable from this machine — that is the risk in spec §14 and it blocks this task, not later ones. Report it rather than working around it.
 
 - [ ] **Step 8: Prove the exclusion works**
 
@@ -310,7 +310,7 @@ the only file that needs Cordova on the classpath — and runs JUnit on the JVM.
 
 SdkContractTest turns two claims into assertions: that the SDK's builders work
 off-device, and that the pinned protocol knows USER_DISCONNECTED, which is why
-the pin is 2.28.0."
+the pin is 2.28.1."
 ```
 
 ---
@@ -1437,7 +1437,7 @@ public class KhipuPlugin extends CordovaPlugin {
      * outcome for the merchant — the user walked away — arrived in two different shapes
      * depending on whether Android killed the activity, which is an invisible timing
      * detail deciding the response format. Verified in KhipuActivity.kt:119 and :320 at
-     * tag 2.28.0.
+     * tag 2.28.1.
      */
     private void deliver(ActivityResult activityResult) {
         CallbackContext callbackContext = pendingCall.getAndSet(null);
@@ -1494,7 +1494,7 @@ The Gradle bed excludes this file on purpose, so the compiler that matters is th
 cd example && npm install && npm run plugin:add && npx cordova platform add android@15.1.0 --nosave && npx cordova build android --debug
 ```
 
-Expected: `BUILD SUCCESSFUL`. If `getKhipuLauncherIntent` or `KHIPU_RESULT_EXTRA` cannot be resolved, the SDK's Kotlin file-facade class name changed between 2.27.0 and 2.28.0 — check `com.khipu.client.KhipuKt` in the AAR before adjusting the import.
+Expected: `BUILD SUCCESSFUL`. If `getKhipuLauncherIntent` or `KHIPU_RESULT_EXTRA` cannot be resolved, the SDK's Kotlin file-facade class name changed between 2.27.0 and 2.28.1 — check `com.khipu.client.KhipuKt` in the AAR before adjusting the import.
 
 - [ ] **Step 3: Confirm the mapper tests still pass**
 
@@ -2143,7 +2143,7 @@ Append to `tests/scripts/check-native-versions.test.js`:
 
 ```javascript
 test('accepts a pinned Android SDK', () => {
-    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.0'\n}\n";
+    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.1'\n}\n";
 
     const result = compareAndroidPin(gradle);
 
@@ -2193,7 +2193,7 @@ In `scripts/check-native-versions.js`, rename `compararVersionDelPlugin` to `com
 // throw is uncaught and kills the merchant's app process. 2.28.0 pins 1.0.60, which has
 // the fifteenth constant. tests/android/ asserts the same floor at runtime; this catches
 // it at publish time, before anyone runs a test.
-const ANDROID_SDK_FLOOR = '2.28.0';
+const ANDROID_SDK_FLOOR = '2.28.1';
 
 function compareAndroidPin (khipuGradle) {
     const pin = khipuGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
@@ -2259,7 +2259,7 @@ module.exports = { compare, comparePluginVersion, compareAndroidPin };
 node --test tests/scripts/ && npm run verify:versions
 ```
 
-Expected: tests PASS, and the guard prints three green lines, the third naming `khipu-client-android 2.28.0`.
+Expected: tests PASS, and the guard prints three green lines, the third naming `khipu-client-android 2.28.1`.
 
 - [ ] **Step 5: Delete the dead config-file**
 
@@ -2285,7 +2285,7 @@ git commit -m "fix(release): guard the Android SDK floor, and drop a dead config
 
 The Android SDK version lives in one file, so there is no sync to break, but
 nothing asserted the line even parsed — and there is now a floor worth
-enforcing: below 2.28.0 the SDK carries khenshin protocol 1.0.59, which kills
+enforcing: below 2.28.1 the SDK carries khenshin protocol 1.0.59, which kills
 the app process on a USER_DISCONNECTED failure reason. The Gradle suite asserts
 that floor at test time; this catches it at publish time.
 
@@ -3062,24 +3062,42 @@ At the top of `README.md`, immediately after the title and before `## Requisitos
 Add a section under the Android setup, titled `### Permissions this plugin adds to your app`:
 
 ```markdown
-The Khipu Android SDK declares these in its own manifest, and Android's manifest merger
-injects them into your app. You do not have to declare anything — but you do have to know
-they are there, because your app will ask for them and your privacy notice has to account
-for them:
+Installing this plugin adds three permissions to your app. The Khipu Android SDK declares
+them in its own manifest and Android's manifest merger pulls them in, so you do not have
+to declare anything — but you do have to know they are there, because your privacy notice
+has to account for what your app can collect.
 
-| Permission | Where it comes from |
+| Permission | What it is for |
 | --- | --- |
-| `android.permission.INTERNET` | The SDK's manifest |
-| `android.permission.ACCESS_FINE_LOCATION` | The SDK's manifest |
-| `android.permission.ACCESS_COARSE_LOCATION` | The SDK's manifest |
+| `android.permission.INTERNET` | Talking to Khipu |
+| `android.permission.ACCESS_COARSE_LOCATION` | Banks that ask to geolocate the payer during the payment |
+| `android.permission.ACCESS_FINE_LOCATION` | The same |
 
-Precise location is personal data. Under Chile's Ley 21.719 you need to be able to declare
-what your app collects, so this is not a detail we should be leaving you to discover.
+**Declared is not the same as used.** Location is not requested when the payment starts,
+and for most payments it is never requested at all:
 
-If your integration does not need location, you can drop those two with the manifest
-merger. In a Cordova app you do not edit `AndroidManifest.xml` by hand — Cordova generates
-it — so it goes through `config.xml`.
+- Nothing is asked for at startup. The location screen appears only if Khipu's server asks
+  for it during the payment, which happens when the payer's bank requires it.
+- When it does appear, the payer grants or denies it themselves, through Android's own
+  dialog.
+- **If the payer denies it, the payment continues.** It is not a requirement.
+- Until it is granted, the only thing reported is whether the device has a location
+  provider at all — not where it is. That check needs no permission.
+
+Precise location is personal data, so under Chile's Ley 21.719 this belongs in your privacy
+notice even though it is conditional and consented. If you need the authoritative version
+of any of this, ask us rather than inferring it from here.
+
+If your integration definitely does not need location, you can drop those two permissions
+with the manifest merger. In a Cordova app you do not edit `AndroidManifest.xml` by hand —
+Cordova generates it — so it goes through `config.xml`.
 ```
+
+Two things to fold in when writing this: link to docs.khipu.com's Android light-client page
+once the canonical explanation is published there — the SDK team is having it documented,
+and a second copy here will drift — and keep the wording conditional. An earlier draft of
+this plan said "your app will ask for them", which would have alarmed merchants about
+something that does not happen by default.
 
 **Then verify the recipe before writing it.** The spec deliberately does not assert it. Try this in `example/config.xml`, inside `<platform name="android">`:
 
