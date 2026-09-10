@@ -546,5 +546,15 @@ That is a deliberate trade by the SDK team, and one more reason §4.5's README g
 confirm status server-side is worth writing.
 
 One consequence for the `asJson()` finding recorded in that ticket: after §4.2 this plugin
-no longer calls it, so Cordova leaves that finding's blast radius. `capacitor-khipu` does
-still call it, and remains affected.
+no longer calls it, so Cordova leaves that finding's blast radius. As checked on
+2026-09-09, `capacitor-khipu` still calls it — `KhipuPlugin.java:126`, clean working tree
+— but its session reportedly intends to move off it too, so treat that as a snapshot and
+not a durable fact about another repository.
+
+Which points at something worth more than the list of affected repositories. If all four
+bridges route around `asJson()`, the method stays in the SDK returning a JSON object that
+drops `exitUrl`, `continueUrl` and `failureReason` when they are null, diverging from iOS,
+with nobody left to notice. It stops being a bug with a symptom and becomes a trap waiting
+for the next consumer. That is an argument for fixing it in the SDK rather than treating it
+as resolved because its callers stepped around it — the `khipu-client-android` session is
+making that case, and the decision sits with the repository owner, not with this spec.
