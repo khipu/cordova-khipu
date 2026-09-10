@@ -22,7 +22,7 @@ and we do not. This work closes it.
 Scope:
 
 1. Five Android defects, four of which change what the merchant receives, plus the
-   `khipu-client-android` bump to 2.28.1 that closes a process-killing crash (§16).
+   `khipu-client-android` bump to 2.28.2 that closes a process-killing crash (§16).
 2. A verification layer that makes the two halves provably agree: a key-drift guard, a
    Gradle test bed for Android, and CI — which this repo has never had.
 3. The published JavaScript surface: TypeScript declarations and an optional promise.
@@ -37,7 +37,7 @@ inventing a second one, and says so.
 
 Everything in this table was checked by reading source, not from memory or
 documentation. The Android SDK was read at tag `2.27.0` — what the plugin pinned when
-this work started — and at `2.28.1`, which is what it pins now.
+this work started — and at `2.28.2`, which is what it pins now.
 
 | Fact | Value | How it was verified |
 | --- | --- | --- |
@@ -415,7 +415,7 @@ from 2.11.0 onward. Past entries stay as they are.
 | Phase | Contents | Expected state |
 | --- | --- | --- |
 | 0 | CI (`node`, `ios`, `android`, `example`), `tests/android/` with its wrapper, and the example's Android build wired into CI | Green against today's code, with nothing fixed yet |
-| 1 | The five Android defects, test-first: phantom `colors`, type coercion, result shape, callback ordering plus the in-flight guard, and `resultCode` branching. Plus the SDK bump to 2.28.1 (§16), verified by resolving it in the example's Android build | New tests fail before, pass after |
+| 1 | The five Android defects, test-first: phantom `colors`, type coercion, result shape, callback ordering plus the in-flight guard, and `resultCode` branching. Plus the SDK bump to 2.28.2 (§16), verified by resolving it in the example's Android build | New tests fail before, pass after |
 | 2 | One key list per language, iOS symmetry (`private`, `NSNull`), surgical `update-plugin-version`, `enable-gradle-kotlin-plugin` plus its test, `check-native-versions` extension, dead XML deleted | No behaviour change |
 | 3 | `types/index.d.ts`, optional promise, `verify:keys` (its five surfaces exist only now), README and CHANGELOG contract note, the injected-permissions section (§4.6), final English sweep | Contract documented and tied together |
 | 4 | Release 2.11.0 | `npm run verify` green |
@@ -437,7 +437,7 @@ result instead of an `"Activity cancelled or failed"` string; and a wrong-typed 
 now discarded rather than coerced to `false`. Each with the one-line migration for a
 merchant who depended on the old behaviour.
 
-It also gets a plain entry for the `khipu-client-android` bump from 2.27.0 to 2.28.1,
+It also gets a plain entry for the `khipu-client-android` bump from 2.27.0 to 2.28.2,
 stating what it fixes: a `failureReason` of `USER_DISCONNECTED` used to kill the app
 process on Android (§16). That one needs no migration — merchants only have to update —
 but it is the most consequential line in the release, so it goes first.
@@ -473,10 +473,12 @@ here against the artifacts (§2). It matters because it defeats every callback-l
 guarantee this spec makes: the process dies, so nothing downstream of it runs.
 
 **This work fixes it** by moving `src/android/khipu.gradle` from `khipu-client-android`
-2.27.0 to **2.28.1**, which closes both halves of the problem. 2.28.0 already carried
+2.27.0 to **2.28.2**, which closes every half of the problem. 2.28.0 already carried
 protocol 1.0.60 — the release whose Java enum has all fifteen constants,
 `USER_DISCONNECTED` included — which ends the skew against iOS. 2.28.1 adds the guard that
-keeps any *other* unknown value from reaching the EventThread at all.
+keeps any *other* unknown value from reaching the EventThread at all, and 2.28.2 adds the
+`asJson()` fix described at the end of this section. The paragraphs that follow explain why
+each step was necessary but not sufficient.
 
 When an `OPERATION_FAILURE` event carries a `failureReason` the client's enum does not
 know, `FailureReasonType.forValue` throws `IOException("Cannot deserialize
@@ -583,8 +585,18 @@ for the next consumer. That is an argument for fixing it in the SDK rather than 
 as resolved because its callers stepped around it — the `khipu-client-android` session is
 making that case, and the decision sits with the repository owner, not with this spec.
 
-**Update:** that argument became **IKW-1233**. `asJson()` moves to
-`GsonBuilder().serializeNulls()`, so `exitUrl`, `continueUrl` and `failureReason` will
-arrive present-and-null instead of absent, matching iOS. Fixed in a branch and **not
-released** — it is not in 2.28.1. It changes nothing here, because §4.2 builds the object
-itself, but it means the two layers will agree rather than compensate for each other.
+**Update:** that argument became **IKW-1233**, and it shipped in **2.28.2**. `asJson()`
+now uses `GsonBuilder().serializeNulls()`, so `exitUrl`, `continueUrl` and `failureReason`
+arrive present-and-null instead of absent, matching iOS. Verified on the published AAR:
+`javap -c -p` on `KhipuResult.class` shows `GsonBuilder` and `serializeNulls`, with a
+positive control on the class first — without one, an empty grep cannot tell "the fix is
+missing" from "I am not looking at the right class" — and `runGuarded` is still there, so
+2.28.1's guard did not regress.
+
+It changes nothing here, because §4.2 builds the object itself. It was taken anyway: it is
+a strict superset of 2.28.1, and the whole point of the argument was that the two layers
+should agree rather than compensate for each other.
+
+`capacitor-khipu` has since completed its own migration off `asJson()`, so the dated
+snapshot above is now history rather than a live disagreement: both readings were accurate
+at their own moment, and IKW-1233 records it that way.

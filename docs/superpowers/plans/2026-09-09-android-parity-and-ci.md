@@ -15,7 +15,7 @@
 - **Language: English only.** Code, comments, test names, identifiers, README, and new CHANGELOG entries. Translate every file you touch as part of the same edit. Preserve the *reasoning* in existing Spanish comments — this is a translation, not a rewrite; a comment that loses its "why" is a regression.
 - **Commit messages: English**, Conventional Commits (a husky `commit-msg` hook runs commitlint and will reject anything else).
 - **Target version: 2.11.0**, treated as a bug fix. Do not bump `package.json` by hand; the release does it (Task 18).
-- **Android SDK pin: `com.khipu:khipu-client-android:2.28.1`** in `src/android/khipu.gradle`, already committed. Never lower it, for two independent reasons: anything below 2.28.0 pins khenshin protocol 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value; and 2.28.1 is the release that guards all 23 socket listeners so no deserialization failure reaches the EventThread at all (spec §16).
+- **Android SDK pin: `com.khipu:khipu-client-android:2.28.2`** in `src/android/khipu.gradle`, already committed. Never lower it, for three reasons that arrived one release at a time: anything below 2.28.0 pins khenshin protocol 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value; 2.28.2 is the release that guards all 23 socket listeners so no deserialization failure reaches the EventThread at all; and 2.28.2 fixes `asJson()` to serialize nulls (spec §16).
 - **iOS SDK pin: `KhipuClientIOS` `2.16.5`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this.
 - **`plugin.xml` invariants** that `check-native-versions.js` guards and you must not break: `nospm="true"` on the `<pod>`, `package="swift"` on `<platform name="ios">`, and one `<source-file>` per `.swift` file in `src/ios/`.
 - **Absent is not false.** Everywhere an option is read, "the JavaScript did not send this key" must stay distinct from "it sent `false`". The native SDKs apply their own defaults and the plugin must let them.
@@ -154,7 +154,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.khipu:khipu-client-android:2.28.1'
+    implementation 'com.khipu:khipu-client-android:2.28.2'
 
     testImplementation 'junit:junit:4.13.2'
     // org.json inside android.jar is a set of stubs whose every method throws
@@ -237,7 +237,7 @@ import java.util.Arrays;
  * Android framework, every mapper test would fail at once with a confusing error. This
  * test fails first, with an obvious one.
  *
- * The second is the reason src/android/khipu.gradle says 2.28.1 and not 2.27.0. Protocol
+ * The second is the reason src/android/khipu.gradle says 2.28.2 and not 2.27.0. Protocol
  * 1.0.59 has fourteen FailureReasonType constants and no USER_DISCONNECTED; its
  * forValue() throws IOException on any value it does not know, and the SDK's
  * OPERATION_FAILURE listener calls the converter with no try/catch on socket.io's
@@ -270,7 +270,7 @@ public class SdkContractTest {
         assertNotNull("the protocol jar is not on the test classpath", constants);
         assertEquals(15, constants.length);
         assertTrue(
-                "protocol 1.0.59 is on the classpath; the SDK pin must be 2.28.1 or newer",
+                "protocol 1.0.59 is on the classpath; the SDK pin must be 2.28.2 or newer",
                 Arrays.stream(constants).anyMatch(c -> c.toString().equals("USER_DISCONNECTED"))
         );
     }
@@ -283,9 +283,9 @@ public class SdkContractTest {
 cd tests/android && ./gradlew test
 ```
 
-Expected: both tests PASS. `theProtocolEnumKnowsUserDisconnected` is the executable form of the claim in the previous commit, so a pass here is the first real confirmation that 2.28.1 resolves from the Nexus.
+Expected: both tests PASS. `theProtocolEnumKnowsUserDisconnected` is the executable form of the claim in the previous commit, so a pass here is the first real confirmation that 2.28.2 resolves from the Nexus.
 
-If it fails with `Could not resolve com.khipu:khipu-client-android:2.28.1`, the Nexus host is unreachable from this machine — that is the risk in spec §14 and it blocks this task, not later ones. Report it rather than working around it.
+If it fails with `Could not resolve com.khipu:khipu-client-android:2.28.2`, the Nexus host is unreachable from this machine — that is the risk in spec §14 and it blocks this task, not later ones. Report it rather than working around it.
 
 - [ ] **Step 8: Prove the exclusion works**
 
@@ -310,7 +310,7 @@ the only file that needs Cordova on the classpath — and runs JUnit on the JVM.
 
 SdkContractTest turns two claims into assertions: that the SDK's builders work
 off-device, and that the pinned protocol knows USER_DISCONNECTED, which is why
-the pin is 2.28.1."
+the pin is 2.28.2."
 ```
 
 ---
@@ -1437,7 +1437,7 @@ public class KhipuPlugin extends CordovaPlugin {
      * outcome for the merchant — the user walked away — arrived in two different shapes
      * depending on whether Android killed the activity, which is an invisible timing
      * detail deciding the response format. Verified in KhipuActivity.kt:119 and :320 at
-     * tag 2.28.1.
+     * tag 2.28.2.
      */
     private void deliver(ActivityResult activityResult) {
         CallbackContext callbackContext = pendingCall.getAndSet(null);
@@ -1494,7 +1494,7 @@ The Gradle bed excludes this file on purpose, so the compiler that matters is th
 cd example && npm install && npm run plugin:add && npx cordova platform add android@15.1.0 --nosave && npx cordova build android --debug
 ```
 
-Expected: `BUILD SUCCESSFUL`. If `getKhipuLauncherIntent` or `KHIPU_RESULT_EXTRA` cannot be resolved, the SDK's Kotlin file-facade class name changed between 2.27.0 and 2.28.1 — check `com.khipu.client.KhipuKt` in the AAR before adjusting the import.
+Expected: `BUILD SUCCESSFUL`. If `getKhipuLauncherIntent` or `KHIPU_RESULT_EXTRA` cannot be resolved, the SDK's Kotlin file-facade class name changed between 2.27.0 and 2.28.2 — check `com.khipu.client.KhipuKt` in the AAR before adjusting the import.
 
 - [ ] **Step 3: Confirm the mapper tests still pass**
 
@@ -2143,7 +2143,7 @@ Append to `tests/scripts/check-native-versions.test.js`:
 
 ```javascript
 test('accepts a pinned Android SDK', () => {
-    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.1'\n}\n";
+    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.2'\n}\n";
 
     const result = compareAndroidPin(gradle);
 
@@ -2193,7 +2193,7 @@ In `scripts/check-native-versions.js`, rename `compararVersionDelPlugin` to `com
 // throw is uncaught and kills the merchant's app process. 2.28.0 pins 1.0.60, which has
 // the fifteenth constant. tests/android/ asserts the same floor at runtime; this catches
 // it at publish time, before anyone runs a test.
-const ANDROID_SDK_FLOOR = '2.28.1';
+const ANDROID_SDK_FLOOR = '2.28.2';
 
 function compareAndroidPin (khipuGradle) {
     const pin = khipuGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
@@ -2259,7 +2259,7 @@ module.exports = { compare, comparePluginVersion, compareAndroidPin };
 node --test tests/scripts/ && npm run verify:versions
 ```
 
-Expected: tests PASS, and the guard prints three green lines, the third naming `khipu-client-android 2.28.1`.
+Expected: tests PASS, and the guard prints three green lines, the third naming `khipu-client-android 2.28.2`.
 
 - [ ] **Step 5: Delete the dead config-file**
 
@@ -2285,7 +2285,7 @@ git commit -m "fix(release): guard the Android SDK floor, and drop a dead config
 
 The Android SDK version lives in one file, so there is no sync to break, but
 nothing asserted the line even parsed — and there is now a floor worth
-enforcing: below 2.28.1 the SDK carries khenshin protocol 1.0.59, which kills
+enforcing: below 2.28.2 the SDK carries khenshin protocol 1.0.59, which kills
 the app process on a USER_DISCONNECTED failure reason. The Gradle suite asserts
 that floor at test time; this catches it at publish time.
 
@@ -3236,7 +3236,7 @@ now go through \`npm run verify\`."
 
 ## Task 17: Raise the SDK to the release that carries the crash guard
 
-**Gated on availability.** The `khipu-client-android` session reports that the fix for the process-killing crash is merged and will publish as **2.28.1**, or as 2.29.0 if a `feat:` lands in the same batch. Do this task when the artifact exists, and not before. It is independent of every other task, so it can also land after the release as a follow-up.
+**The pin itself is done.** The crash guard shipped in 2.28.2 and the `asJson()` fix in 2.28.2; `src/android/khipu.gradle` points at 2.28.2, verified against the markers in Step 2. What is left in this task is the floor inside the guard, which cannot move until Task 11 creates it. Steps 1 and 2 stay as the record of how those artifacts were verified, and as the recipe for the next time the SDK moves.
 
 **Files:**
 - Modify: `src/android/khipu.gradle`
@@ -3254,7 +3254,7 @@ now go through \`npm run verify\`."
 curl -s https://dev.khipu.com/nexus/content/repositories/khenshin/com/khipu/khipu-client-android/maven-metadata.xml | grep -o '<version>[^<]*</version>' | tail -5
 ```
 
-Expected: the newest version listed is 2.28.1 or higher. **Do not guess the number** — the bump is a `fix:` so a patch is expected, but the release number depends on what else entered the same merge.
+Expected: the newest version listed is 2.28.2 or higher. **Do not guess the number** — a `fix:` implies a patch, but the release number depends on what else entered the same merge. This is why the pin moved three times in two days: 2.28.0, then 2.28.2, then 2.28.2.
 
 - [ ] **Step 2: Verify the artifact actually carries the guard**
 
