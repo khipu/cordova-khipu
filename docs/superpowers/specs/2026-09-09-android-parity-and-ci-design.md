@@ -520,3 +520,31 @@ unknown value degrades instead of killing the process, and decide how the genera
 clients should handle unknown enum values in general. Neither is a change to this plugin.
 Reproducing the crash on purpose would cost real failed operations and is not part of this
 work.
+
+**Both are tracked as IKW-1232**, which is the single ticket the four bridge repositories
+reference rather than one each: https://khipucom.atlassian.net/browse/IKW-1232
+
+**And the first ask is already done.** The `khipu-client-android` session reports the fix
+merged: all 23 listeners now run through a guard that catches `Throwable`, logs it, and
+does not propagate, so nothing reaches the EventThread. It publishes as 2.28.1, or 2.29.0
+if a `feat:` lands in the same batch. Raising the pin to it is Task 17 of the
+implementation plan, gated on the artifact existing — and on verifying the artifact
+carries the guard by the right marker, because the obvious one lies: the `Exception table`
+count in `KhipuSocketIOClient` is 1 in 2.27.0, 1 in 2.28.0, and still 1 with the fix,
+since the new `try/catch` compiles into a separate class. The markers are the existence of
+`SocketMessageGuardKt.runGuarded` and of a private `onMessage` on the client.
+
+The guard introduces a contract this plugin has to honour, and already does. A terminal
+message that cannot be deserialized now ends the operation instead of killing the process,
+so the launcher's callback fires — but the `KhipuResult` may arrive with **no**
+`failureReason`, because the reason is precisely what failed to parse. §4.2's mapper turns
+a null `failureReason` into `JSONObject.NULL`, which reaches JavaScript as `null`, which is
+what the declarations promise; no extra work. A non-terminal message that fails is logged
+and ignored and the operation continues, which means a `FORM_REQUEST` that fails to parse
+leaves the payer waiting for a form that will never render — no crash, and no way forward.
+That is a deliberate trade by the SDK team, and one more reason §4.5's README guidance to
+confirm status server-side is worth writing.
+
+One consequence for the `asJson()` finding recorded in that ticket: after §4.2 this plugin
+no longer calls it, so Cordova leaves that finding's blast radius. `capacitor-khipu` does
+still call it, and remains affected.
