@@ -578,8 +578,24 @@ a separate class. The markers that do move are the existence of
 `SocketMessageGuardKt.runGuarded` and of a private `onMessage` on the client; both are
 present in 2.28.1's `classes.jar` and neither exists in 2.28.0.
 
-The guard does **not** introduce a contract this plugin must honour, and an earlier draft
-of this section said it did. The claim was that a terminal message which fails to
+**Superseded by 2.28.4 — read this paragraph and the next together.** As of
+`khipu-client-android` **2.28.4** (IKW-1240) an undecipherable terminal message DOES resolve
+the merchant's call: the guard now calls `returnToApp()` and `buildResult` has a branch for
+the case. The merchant receives `result = "ERROR"` with `failureReason = null`, empty strings
+for the exit fields, `continueUrl = null` and no events. §4.2's mapper already handles that
+shape — a null `failureReason` becomes `JSONObject.NULL` and reaches JavaScript as `null` —
+so there is no work to do. Verified on the published AAR with a positive control: the guard's
+calls into `KhipuViewModel` are `disconnectClient`, `returnToApp`, `setOperationFinished` and
+`setUnprocessableMessage` in 2.28.4, against only `disconnectClient` and `setOperationFinished`
+in 2.28.3, out of 292 classes extracted.
+
+The paragraph below describes 2.28.1 through 2.28.3 and is kept because it is the reason the
+pin had to keep moving, and because it records a correction worth remembering: the behaviour
+was described wrongly twice — first by us, then again after the SDK session corrected its own
+account of its own code.
+
+The guard did **not**, in those versions, introduce a contract this plugin must honour, and an
+earlier draft of this section said it did. The claim was that a terminal message which fails to
 deserialize ends the operation so the launcher's callback fires, possibly with no
 `failureReason`. That is false, and the `khipu-client-android` session corrected it after
 checking its own code. Verified here at tag 2.28.3: `operationFinished` is read in exactly

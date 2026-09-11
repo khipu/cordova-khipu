@@ -2143,7 +2143,7 @@ Append to `tests/scripts/check-native-versions.test.js`:
 
 ```javascript
 test('accepts a pinned Android SDK', () => {
-    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.3'\n}\n";
+    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.4'\n}\n";
 
     const result = compareAndroidPin(gradle);
 
@@ -2202,7 +2202,7 @@ In `scripts/check-native-versions.js`, rename `compararVersionDelPlugin` to `com
 //
 // tests/android/ asserts the same floor at runtime; this catches it at publish time,
 // before anyone runs a test.
-const ANDROID_SDK_FLOOR = '2.28.3';
+const ANDROID_SDK_FLOOR = '2.28.4';
 
 function compareAndroidPin (khipuGradle) {
     const pin = khipuGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
@@ -2268,7 +2268,32 @@ module.exports = { compare, comparePluginVersion, compareAndroidPin };
 node --test tests/scripts/ && npm run verify:versions
 ```
 
-Expected: tests PASS, and the guard prints three green lines, the third naming `khipu-client-android 2.28.3`.
+Expected: tests PASS, and the guard prints three green lines, the third naming `khipu-client-android 2.28.4`.
+
+- [ ] **Step 4b: Raise the SDK pin to 2.28.4, in BOTH files that carry it**
+
+2.28.4 (IKW-1240) makes an undecipherable terminal message resolve the merchant's call instead
+of stranding the payer with no callback — the same class of defect as Task 6's. The pin lives in
+two places and they must not drift:
+
+- `src/android/khipu.gradle` — what a merchant's app resolves
+- `tests/android/build.gradle` — what the unit tests resolve
+
+Change both to `2.28.4`, then confirm the artifact actually carries the fix rather than trusting
+the version number. The marker is `returnToApp` appearing among the guard's calls; it is absent
+in 2.28.3:
+
+```bash
+cd "$(mktemp -d)" && curl -sO https://dev.khipu.com/nexus/content/repositories/khenshin/com/khipu/khipu-client-android/2.28.4/khipu-client-android-2.28.4.aar
+unzip -q khipu-client-android-2.28.4.aar && mkdir c && cd c && unzip -q ../classes.jar
+find . -name '*.class' | wc -l   # positive control: expect ~292, not 0
+javap -c -p com/khipu/client/socket/SocketMessageGuardKt.class | grep -oE 'KhipuViewModel\.[a-zA-Z]+' | sort -u
+```
+
+Expected: `disconnectClient`, `returnToApp`, `setOperationFinished`, `setUnprocessableMessage`.
+
+Then `cd tests/android && ./gradlew test` — expect 18 green, `SdkContractTest` included, which
+proves 2.28.4 resolves from the Nexus.
 
 - [ ] **Step 5: Delete the dead config-file**
 
@@ -2294,7 +2319,7 @@ git commit -m "fix(release): guard the Android SDK floor, and drop a dead config
 
 The Android SDK version lives in one file, so there is no sync to break, but
 nothing asserted the line even parsed — and there is now a floor worth
-enforcing: below 2.28.3 the SDK carries khenshin protocol 1.0.59, which kills
+enforcing: below 2.28.4 the SDK carries khenshin protocol 1.0.59, which kills
 the app process on a USER_DISCONNECTED failure reason. The Gradle suite asserts
 that floor at test time; this catches it at publish time.
 
