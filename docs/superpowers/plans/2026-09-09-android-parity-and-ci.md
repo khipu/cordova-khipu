@@ -3208,6 +3208,38 @@ had an empty location purpose string in its own example's Info.plist rejected in
 review (IKW-1243): an empty or generic string fails review exactly as a missing scheme breaks
 `canOpenURL`. Neither failure shows up in a build.
 
+- [ ] **Step 6b: Tell merchants how to reach the TypeScript declarations**
+
+Shipping `types/index.d.ts` is not enough on its own. TypeScript auto-discovers declarations only
+for `@types/*` packages; for this one a merchant has to point at it, and without that they get no
+completion and no checking even though the file is installed. This was measured, not assumed: a
+consumer project compiling the documented `window.Khipu.startOperation(...)` call fails with
+`TS2339: Property 'Khipu' does not exist on type 'Window'` until something pulls the declarations in.
+
+Add to the README, in the usage section:
+
+```markdown
+### TypeScript
+
+The plugin ships its own declarations. TypeScript does not pick them up automatically, so add
+this to your `tsconfig.json` once:
+
+    {
+      "compilerOptions": {
+        "types": ["cordova-khipu"]
+      }
+    }
+
+`window.Khipu` is then typed, and so are the options and the result. A triple-slash
+`/// <reference types="cordova-khipu" />` in a single file works too if you would rather not
+touch your compiler options.
+```
+
+Verify the wording you write actually works before shipping it: build a throwaway consumer project
+outside the repo, apply exactly the instruction you wrote, and confirm that a wrong argument type in
+a `startOperation` call is REPORTED. An instruction that does not produce checking is worse than no
+instruction, because a merchant will believe they are covered.
+
 - [ ] **Step 7: Translate the rest of the README**
 
 The whole file goes to English, including the sections that are already partly there. Preserve every hard-won note: the `locale` divergence between SDKs with its evidence, the `exitUrl: ""` versus `null` warning, the CI network note, the deployment-target section, the Swift-version section.
