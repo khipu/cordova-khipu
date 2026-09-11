@@ -16,7 +16,7 @@
 - **Commit messages: English**, Conventional Commits (a husky `commit-msg` hook runs commitlint and will reject anything else).
 - **Target version: 2.11.0**, treated as a bug fix. Do not bump `package.json` by hand; the release does it (Task 18).
 - **Android SDK pin: `com.khipu:khipu-client-android:2.28.3`** in `src/android/khipu.gradle`, already committed. Never lower it. Four releases got it here and three of them fixed something this plugin depends on: **2.28.0** carries khenshin protocol 1.0.60, and anything below it carries 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value; **2.28.1** guards all 23 socket listeners so no deserialization failure reaches the EventThread at all; **2.28.2** fixes `asJson()` to serialize nulls, which this plugin does not use; **2.28.3** adds `OPERATION_WARNING` to the guard's terminal types, without which an `OPERATION_WARNING` that failed to deserialize left the operation unfinished and its callback never fired (spec §16).
-- **iOS SDK pin: `KhipuClientIOS` `2.16.6`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this. 2.16.6 is the release that stops an unreadable socket frame from killing the app and stops a terminal parse failure from stranding the payer with no callback (IKW-1234) — the iOS counterpart of the Android work behind the 2.28.x pin.
+- **iOS SDK pin: `KhipuClientIOS` `2.16.6`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this. 2.16.6 is the release that stops an unreadable socket frame from killing the app and stops a terminal parse failure from stranding the payer with no callback (IKW-1234) — the iOS counterpart of the Android work behind the 2.28.x pin. **Do not raise it to 2.17.0**: that release fixes a CoreLocation hang and aligns location-denial behaviour with Android, but it also makes an unreadable terminal message report `failureReason: "USER_CANCELED"` when the SDK simply could not read it. This plugin surfaces that field, so a version that misreports it is worse for merchants than the hang it fixes. Take the release carrying IKW-1245 instead.
 - **`plugin.xml` invariants** that `check-native-versions.js` guards and you must not break: `nospm="true"` on the `<pod>`, `package="swift"` on `<platform name="ios">`, and one `<source-file>` per `.swift` file in `src/ios/`.
 - **Absent is not false.** Everywhere an option is read, "the JavaScript did not send this key" must stay distinct from "it sent `false`". The native SDKs apply their own defaults and the plugin must let them.
 - **Engine floors:** `cordova-ios >= 7.0.0`, `cordova-android >= 13.0.0`, iOS deployment target 13.
@@ -3198,6 +3198,13 @@ plutil -extract LSApplicationQueriesSchemes xml1 -o - platforms/ios/App/App-Info
 
 Expected: the nine schemes. If the list cannot be found in the documentation, stop and ask
 rather than assembling it from another repository.
+
+**The same rule covers any purpose string you add.** If declaring the schemes means also
+declaring a permission key with a purpose string — `NSLocationWhenInUseUsageDescription` and
+its siblings — take the wording from Khipu's documentation too. The `KhipuClientIOS` session
+had an empty location purpose string in its own example's Info.plist rejected in App Store
+review (IKW-1243): an empty or generic string fails review exactly as a missing scheme breaks
+`canOpenURL`. Neither failure shows up in a build.
 
 - [ ] **Step 7: Translate the rest of the README**
 
