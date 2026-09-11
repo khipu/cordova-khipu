@@ -2772,7 +2772,9 @@ function keysMatching (source, pattern) {
 }
 
 function interfaceKeys (declarations, name) {
-    const block = declarations.match(new RegExp(`export interface ${name} \\{(.*?)\\n\\}`, 's'));
+    // `export` is optional: the declarations are ambient, not a module, because this plugin is
+  // reached through a Cordova-injected global rather than an npm import.
+  const block = declarations.match(new RegExp(`(?:export )?interface ${name} \\{(.*?)\\n\\}`, 's'));
 
     if (!block) {
         return null;
