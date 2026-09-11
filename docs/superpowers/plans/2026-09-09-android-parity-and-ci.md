@@ -3062,7 +3062,7 @@ At the top of `README.md`, immediately after the title and before `## Requisitos
 > | --- | --- | --- |
 > | The result arrived as a **JSON string** | An object, as on iOS | Delete your `JSON.parse(...)`. If you support both platforms you were probably already doing `typeof x === 'string' ? JSON.parse(x) : x` — that keeps working. |
 > | `exitUrl`, `continueUrl` and `failureReason` were **absent** when null | Present, as `null` | Nothing, unless you tested with `'continueUrl' in result` |
-> | A cancellation after the app was backgrounded for over three minutes arrived as the string `"Activity cancelled or failed"` | A normal result with `failureReason: 'USER_CANCELED'` | Handle it like any other cancellation |
+> | A cancellation after the app was backgrounded for over three minutes arrived as the string `"Activity cancelled or failed"` | Your **error** callback, with a full result object whose `result` is `'ERROR'` and `failureReason` is `'USER_CANCELED'` | Handle it like any other cancellation — an ordinary cancellation from the exit page arrives the same way |
 > | An option of the wrong type was silently coerced to `false` | Discarded, so the SDK's own default applies | Send the right type. `showFooter: 'true'` was never doing what it looked like |
 ```
 
