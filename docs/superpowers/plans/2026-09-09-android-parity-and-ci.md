@@ -3328,9 +3328,13 @@ Expected: PASS, `SdkContractTest` included — the protocol still has fifteen co
 
 The section currently says the residue stays with the SDK team. Half of it no longer does: the listeners are guarded. Record what remains — the protocol generator (frente 2 in the SDK session's terms, still open) — and add the behavioural contract the guard introduces:
 
-> A terminal message that cannot be deserialized now ends the operation rather than
-> killing the process, so the launcher's callback does fire — but the `KhipuResult` may
-> arrive with no `failureReason`, because the reason is exactly what failed to parse.
+> A terminal message that cannot be deserialized does NOT end the operation. Verified at
+> tag 2.28.3: `operationFinished` is read only at `KhipuActivity.kt:307` and `:588`, neither
+> of which delivers a result, and `buildResult` runs once at `:318` behind
+> `if (khipuUiState.returnToApp)`. There is no crash, but the payer is stranded and the
+> merchant's callback never fires; the only exit is the back button's cancellation dialog,
+> which produces an ordinary `USER_CANCELED` result this plugin already handles. Tracked as
+> IKW-1240. Nothing to build for it.
 > `KhipuResultMapper` already handles that: a null `failureReason` becomes
 > `JSONObject.NULL` and reaches JavaScript as `null`, which is what the declarations
 > promise. A non-terminal message that fails is logged and ignored and the operation

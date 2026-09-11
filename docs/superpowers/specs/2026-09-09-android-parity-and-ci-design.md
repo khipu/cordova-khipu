@@ -578,16 +578,27 @@ a separate class. The markers that do move are the existence of
 `SocketMessageGuardKt.runGuarded` and of a private `onMessage` on the client; both are
 present in 2.28.1's `classes.jar` and neither exists in 2.28.0.
 
-The guard introduces a contract this plugin has to honour, and already does. A terminal
-message that cannot be deserialized now ends the operation instead of killing the process,
-so the launcher's callback fires — but the `KhipuResult` may arrive with **no**
-`failureReason`, because the reason is precisely what failed to parse. §4.2's mapper turns
-a null `failureReason` into `JSONObject.NULL`, which reaches JavaScript as `null`, which is
-what the declarations promise; no extra work. A non-terminal message that fails is logged
+The guard does **not** introduce a contract this plugin must honour, and an earlier draft
+of this section said it did. The claim was that a terminal message which fails to
+deserialize ends the operation so the launcher's callback fires, possibly with no
+`failureReason`. That is false, and the `khipu-client-android` session corrected it after
+checking its own code. Verified here at tag 2.28.3: `operationFinished` is read in exactly
+two places, `KhipuActivity.kt:307` and `:588`, and neither delivers a result; `buildResult`
+is invoked once, at `:318`, inside `if (khipuUiState.returnToApp)`, and `returnToApp` is
+raised only by payer actions or by `operationXXX?.let` blocks that do not run when the
+parse failed before the setter. There is no inactivity timer.
+
+What actually happens is worse for the payer and simpler for us: no crash, but the payer is
+left on the previous screen with the socket closed, and **the merchant's callback never
+fires**. The only way out is the back button, whose cancellation dialog produces a normal
+`result = "ERROR"` with `failureReason = "USER_CANCELED"` — which this plugin already
+handles. So there is nothing to build for it. A non-terminal message that fails is logged
 and ignored and the operation continues, which means a `FORM_REQUEST` that fails to parse
-leaves the payer waiting for a form that will never render — no crash, and no way forward.
-That is a deliberate trade by the SDK team, and one more reason §4.5's README guidance to
-confirm status server-side is worth writing.
+leaves the payer waiting for a form that will never render. Either way — terminal or not —
+the ending is a payer with no way forward and a merchant with no callback, so §4.5's README
+guidance to confirm the operation's status server-side is the load-bearing mitigation for
+this whole class, not a footnote. The stranded-terminal case is reported and tracked as
+IKW-1240.
 
 One consequence for the `asJson()` finding recorded in that ticket: after §4.2 this plugin
 no longer calls it, so Cordova leaves that finding's blast radius. As checked on
