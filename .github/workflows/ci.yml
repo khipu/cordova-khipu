@@ -57,12 +57,12 @@ jobs:
       - name: Unit-test the pure half
         run: ./gradlew test
         working-directory: tests/android
+      - run: npm ci
       # The only check that compiles KhipuPlugin.java, which needs Cordova on the
       # classpath. It runs on every pull request because Ubuntu makes it cheap; the
       # iOS half of the example is push-only, in the `example` job.
       - name: Build the example's Android platform
         run: |
-          npm ci
           npm install
           npm run plugin:add
           npx cordova platform add android@15.1.0 --nosave
