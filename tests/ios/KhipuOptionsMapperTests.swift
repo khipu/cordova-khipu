@@ -80,7 +80,7 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertEqual(input.colors?["lightPrimary"], "#000002")
     }
 
-    func testAnUnknownColorKeyIsDiscarded() {
+    func testAnUnknownColourKeyIsDiscarded() {
         let input = KhipuOptionsMapper.parse([
             "options": ["colors": ["lightPrimary": "#8347AD", "purple": "#8347AD"]]
         ])
@@ -138,10 +138,13 @@ final class KhipuOptionsMapperTests: XCTestCase {
         }
     }
 
-    /// The keys and the setters are one list. If that ever splits again, this is the
-    /// test that notices.
-    func testEveryColourKeyHasASetter() {
-        XCTAssertEqual(KhipuOptionsMapper.colorKeys.count, 12)
-        XCTAssertEqual(KhipuOptionsMapper.colorSetters.count, KhipuOptionsMapper.colorKeys.count)
+    /// The table is the single source of both the keys and the setters, so unlike the Java
+    /// side there is no second structure that could drift out of step with it — `colorKeys`
+    /// is derived from `colorSetters`. What is still worth pinning is the count: an entry
+    /// dropped or duplicated in a merge would go unnoticed otherwise. That each key reaches
+    /// its own field is covered by testAllTwelveColorsReachTheCorrectSetter.
+    func testTheColourTableHasTwelveEntries() {
+        XCTAssertEqual(KhipuOptionsMapper.colorSetters.count, 12)
+        XCTAssertEqual(Set(KhipuOptionsMapper.colorKeys).count, 12, "a duplicated key would silently shadow a setter")
     }
 }
