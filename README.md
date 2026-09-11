@@ -4,7 +4,7 @@ Cordova plugin for Khipu
 
 > ### Upgrading to 2.11.0 from 2.10.x — read this if you support Android
 >
-> Four things changed in what Android hands your callbacks. All four bring it in line
+> Five things changed in what Android hands your callbacks. All five bring it in line
 > with iOS and with what this README always documented, but if your code depended on the
 > old behaviour it needs a one-line change.
 >
@@ -13,7 +13,8 @@ Cordova plugin for Khipu
 > | The result arrived as a **JSON string** | An object, as on iOS | Delete your `JSON.parse(...)`. If you support both platforms you were probably already doing `typeof x === 'string' ? JSON.parse(x) : x` — that keeps working. |
 > | `exitUrl`, `continueUrl` and `failureReason` were **absent** when null | Present, as `null` | Nothing, unless you tested with `'continueUrl' in result` |
 > | A cancellation after the app was backgrounded for over three minutes arrived as the string `"Activity cancelled or failed"` | Your **error** callback, with a full result object whose `result` is `'ERROR'` and `failureReason` is `'USER_CANCELED'` | Handle it like any other cancellation — an ordinary cancellation from the exit page arrives the same way |
-> | An option of the wrong type was silently coerced to `false` | Discarded, so the SDK's own default applies | Send the right type. `showFooter: 'true'` was never doing what it looked like |
+> | An option of the wrong type was silently coerced to `false` | Discarded, so the SDK's own default applies | Send the right type. `showFooter: 'yes'` was never doing what it looked like |
+> | An option sent as the string `'true'` or `'false'` was parsed as a boolean | Discarded like any other wrong type, so the SDK's default applies | Send a real boolean. This is the one case where the old behaviour did what it looked like |
 
 ## Requirements
 
@@ -248,9 +249,11 @@ while it is on top. When the payer comes back, Cordova rebuilds the plugin, and 
 rebuilt instance has no callback to answer: **your success and error callbacks will not
 fire.** The SDK does report the outcome — when it was destroyed for more than three
 minutes it deliberately ends the operation as `USER_CANCELED` — but the bridge no longer
-has anywhere to deliver it. A plain system back press is a further exception: it finishes
-the SDK's activity with no payload at all, so what your error callback gets is not a
-result object but the plain string `"The Khipu operation returned no result."`
+has anywhere to deliver it.
+
+Backing out is not one of these cases. A system back press is intercepted by the SDK, which asks
+the payer to confirm; confirming reports the cancellation to Khipu and returns a full result with
+`failureReason: 'USER_CANCELED'`, the same shape as any other cancellation.
 
 So do not treat a missing callback as a missing outcome. Confirm the operation's status
 against the Khipu API from your backend before deciding a payment did not happen. That
@@ -331,6 +334,10 @@ add this to your `tsconfig.json` once:
       }
     }
 ```
+
+If your `tsconfig.json` already has a `types` array, append `cordova-khipu` to it rather than
+replacing it — setting `types` at all turns off the automatic inclusion of every other ambient
+package.
 
 `window.Khipu` is then typed, and so are the options and the result. A triple-slash
 `/// <reference types="cordova-khipu" />` in a single file works too if you would rather
