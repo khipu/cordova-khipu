@@ -13,13 +13,13 @@
 
 var CLAVE_ALMACENAMIENTO = 'cordova-khipu-harness';
 
-var CAMPOS_TEXTO = [
-  { clave: 'title', ejemplo: 'Demo Cordova' },
-  { clave: 'titleImageUrl', ejemplo: 'https://s3.amazonaws.com/static.khipu.com/logo-khipu-color.png' },
-  { clave: 'locale', ejemplo: 'es_CL' }
+var TEXT_FIELDS = [
+  { key: 'title', example: 'Demo Cordova' },
+  { key: 'titleImageUrl', example: 'https://s3.amazonaws.com/static.khipu.com/logo-khipu-color.png' },
+  { key: 'locale', example: 'es_CL' }
 ];
 
-var CAMPOS_SWITCH = [
+var SWITCH_FIELDS = [
   'skipExitPage',
   'skipExitSuccessPage',
   'showFooter',
@@ -27,7 +27,7 @@ var CAMPOS_SWITCH = [
   'showPaymentDetails'
 ];
 
-var CLAVES_COLOR = [
+var COLOR_KEYS = [
   'lightBackground',
   'lightOnBackground',
   'lightPrimary',
@@ -134,15 +134,15 @@ document.addEventListener('deviceready', function () {
 function construirCampos () {
   var contenedorTexto = document.getElementById('campos-texto');
 
-  CAMPOS_TEXTO.forEach(function (campo) {
+  TEXT_FIELDS.forEach(function (campo) {
     var entrada = document.createElement('input');
     entrada.type = 'text';
-    entrada.placeholder = campo.ejemplo;
+    entrada.placeholder = campo.example;
     entrada.autocapitalize = 'off';
     entrada.autocorrect = 'off';
     entrada.spellcheck = false;
 
-    controles.texto[campo.clave] = agregarFila(contenedorTexto, campo.clave, entrada);
+    controles.texto[campo.key] = agregarFila(contenedorTexto, campo.key, entrada);
   });
 
   // `theme` es de texto pero con valores cerrados, así que va como selector.
@@ -156,14 +156,14 @@ function construirCampos () {
   controles.tema = agregarFila(contenedorTexto, 'theme', selectorTema);
 
   var contenedorSwitch = document.getElementById('campos-switch');
-  CAMPOS_SWITCH.forEach(function (clave) {
+  SWITCH_FIELDS.forEach(function (clave) {
     var interruptor = document.createElement('input');
     interruptor.type = 'checkbox';
     controles.interruptores[clave] = agregarFila(contenedorSwitch, clave, interruptor);
   });
 
   var contenedorColor = document.getElementById('campos-color');
-  CLAVES_COLOR.forEach(function (clave) {
+  COLOR_KEYS.forEach(function (clave) {
     var selectorColor = document.createElement('input');
     selectorColor.type = 'color';
     selectorColor.value = clave.indexOf('dark') === 0 ? '#101418' : '#ffffff';
