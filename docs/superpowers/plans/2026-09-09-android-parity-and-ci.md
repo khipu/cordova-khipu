@@ -16,7 +16,7 @@
 - **Commit messages: English**, Conventional Commits (a husky `commit-msg` hook runs commitlint and will reject anything else).
 - **Target version: 2.11.0**, treated as a bug fix. Do not bump `package.json` by hand; the release does it (Task 18).
 - **Android SDK pin: `com.khipu:khipu-client-android:2.28.3`** in `src/android/khipu.gradle`, already committed. Never lower it. Four releases got it here and three of them fixed something this plugin depends on: **2.28.0** carries khenshin protocol 1.0.60, and anything below it carries 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value; **2.28.1** guards all 23 socket listeners so no deserialization failure reaches the EventThread at all; **2.28.2** fixes `asJson()` to serialize nulls, which this plugin does not use; **2.28.3** adds `OPERATION_WARNING` to the guard's terminal types, without which an `OPERATION_WARNING` that failed to deserialize left the operation unfinished and its callback never fired (spec §16).
-- **iOS SDK pin: `KhipuClientIOS` `2.16.6`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this. 2.16.6 is the release that stops an unreadable socket frame from killing the app and stops a terminal parse failure from stranding the payer with no callback (IKW-1234) — the iOS counterpart of the Android work behind the 2.28.x pin. **Do not raise it to 2.17.0**: that release fixes a CoreLocation hang and aligns location-denial behaviour with Android, but it also makes an unreadable terminal message report `failureReason: "USER_CANCELED"` when the SDK simply could not read it. This plugin surfaces that field, so a version that misreports it is worse for merchants than the hang it fixes. Take the release carrying IKW-1245 instead.
+- **iOS SDK pin: `KhipuClientIOS` `2.16.6`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this. 2.16.6 is the release that stops an unreadable socket frame from killing the app and stops a terminal parse failure from stranding the payer with no callback (IKW-1234) — the iOS counterpart of the Android work behind the 2.28.x pin. **Raised to 2.17.1 in Task 13.** 2.17.0 fixed a CoreLocation hang and aligned location-denial behaviour with Android, but introduced a false `failureReason: "USER_CANCELED"` on an unreadable terminal message — a field this plugin surfaces, so it was held back. 2.17.1 closes that (IKW-1245), which makes the pair worth taking.
 - **`plugin.xml` invariants** that `check-native-versions.js` guards and you must not break: `nospm="true"` on the `<pod>`, `package="swift"` on `<platform name="ios">`, and one `<source-file>` per `.swift` file in `src/ios/`.
 - **Absent is not false.** Everywhere an option is read, "the JavaScript did not send this key" must stay distinct from "it sent `false`". The native SDKs apply their own defaults and the plugin must let them.
 - **Engine floors:** `cordova-ios >= 7.0.0`, `cordova-android >= 13.0.0`, iOS deployment target 13.
@@ -2615,6 +2615,22 @@ npm test
 
 Expected: FAIL — the new file's assertions fail because there is no validation and no promise yet.
 
+- [ ] **Step 2b: Raise the iOS SDK pin to 2.17.1, in BOTH files that carry it**
+
+Independent of the JavaScript work, and committed separately. The pin lives in `Package.swift`
+(`exact: "2.16.6"`) and in `plugin.xml`'s `<pod spec="2.16.6">`, and `npm run verify:versions`
+fails if they disagree — which is the point of having it.
+
+2.17.1 brings two fixes worth having and closes the one that made 2.17.0 unacceptable: a
+CoreLocation failure used to leave the payment on a spinner with no error and no way out;
+rejecting the location permission used to end the operation instead of continuing as Android
+does; and 2.17.0's false `failureReason: "USER_CANCELED"` on an unreadable terminal message is
+gone.
+
+After changing both, run `npm run verify:versions` (expect it to name 2.17.1) and the iOS suite
+with `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
+against an already-available simulator — do not create, erase or delete one. Expect 15 tests green.
+
 - [ ] **Step 3: Rewrite the module**
 
 `www/cordova-khipu.js`:
@@ -3456,6 +3472,13 @@ git checkout main && git pull && npm run release
 ```
 
 `before:init` runs `npm run verify`. `after:bump` runs `update-plugin-version.js` and commits `plugin.xml`. Expected: 2.11.0 tagged, published to npm, GitHub release created.
+
+**A failed release command is not evidence that nothing published.** The `KhipuClientIOS` session
+hit an identical publish timeout on four consecutive releases — two of them had published anyway
+and two had not, with the same error text and the same exit code. If `npm run release` fails, do
+not rerun it and do not assume the version is free. Ask the registry: `npm view cordova-khipu@2.11.0 version`
+answers whether it exists, and `npm view cordova-khipu versions --json` shows the whole list. Only
+after the registry says the version is absent is a retry safe.
 
 - [ ] **Step 4: Lead the changelog with the crash**
 
