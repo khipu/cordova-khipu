@@ -27,9 +27,8 @@ function compare (packageSwift, pluginXml, iosSourceFiles = []) {
         };
     }
 
-    // Se aíslan las etiquetas <pod> primero y después se extrae la versión, para
-    // no depender del orden de los atributos: update-plugin-version.js
-    // reescribe plugin.xml con el Builder de xml2js en cada release.
+    // The <pod> tags are isolated first and the version extracted afterwards, so this
+    // does not depend on attribute order: a hand edit can reorder them.
     const podTags = [...pluginXml.matchAll(/<pod\b[^>]*name="KhipuClientIOS"[^>]*>/g)];
 
     if (podTags.length === 0) {
@@ -79,9 +78,8 @@ function compare (packageSwift, pluginXml, iosSourceFiles = []) {
         };
     }
 
-    // Se aísla la etiqueta <platform name="ios"> igual que se aisló <pod>, tolerante al orden
-    // de atributos por la misma razón: update-plugin-version.js reescribe plugin.xml en cada
-    // release.
+    // The <platform name="ios"> tag is isolated the same way <pod> was, tolerant of
+    // attribute order for the same reason: a hand edit can reorder them.
     const iosPlatformTags = [...pluginXml.matchAll(/<platform\b[^>]*\bname="ios"[^>]*>/g)];
 
     if (iosPlatformTags.length === 0 || !/\bpackage\s*=\s*"swift"/.test(iosPlatformTags[0][0])) {
