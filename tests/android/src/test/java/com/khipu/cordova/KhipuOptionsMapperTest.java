@@ -146,21 +146,36 @@ public class KhipuOptionsMapperTest {
     @Test
     public void appliesEveryColourKeyItWasGiven() throws Exception {
         JSONObject colors = new JSONObject();
-        for (String key : KhipuOptionsMapper.COLOR_KEYS) {
-            colors.put(key, "#8347AD");
+        for (int index = 0; index < KhipuOptionsMapper.COLOR_KEYS.size(); index++) {
+            colors.put(KhipuOptionsMapper.COLOR_KEYS.get(index), String.format("#%06X", index));
         }
 
         KhipuColors applied = KhipuOptionsMapper.makeColors(
                 KhipuOptionsMapper.parse(new JSONObject()
                         .put("options", new JSONObject().put("colors", colors))).colors);
 
-        assertEquals("#8347AD", applied.getLightPrimary());
-        assertEquals("#8347AD", applied.getDarkOnTopBarContainer());
+        // A distinct value per key, and every getter asserted. A setter wired to the wrong
+        // key leaves the table twelve entries long, so the cardinality check below cannot
+        // see it; this can.
+        assertEquals("#000000", applied.getLightBackground());
+        assertEquals("#000001", applied.getLightOnBackground());
+        assertEquals("#000002", applied.getLightPrimary());
+        assertEquals("#000003", applied.getLightOnPrimary());
+        assertEquals("#000004", applied.getLightTopBarContainer());
+        assertEquals("#000005", applied.getLightOnTopBarContainer());
+        assertEquals("#000006", applied.getDarkBackground());
+        assertEquals("#000007", applied.getDarkOnBackground());
+        assertEquals("#000008", applied.getDarkPrimary());
+        assertEquals("#000009", applied.getDarkOnPrimary());
+        assertEquals("#00000A", applied.getDarkTopBarContainer());
+        assertEquals("#00000B", applied.getDarkOnTopBarContainer());
     }
 
     /**
-     * The table and the twelve setters are the same list. If a key is ever added to
-     * COLOR_KEYS without a setter beside it, this fails instead of silently dropping it.
+     * The key list and the setter table are one structure in two halves. This catches a key
+     * added to one half and not the other. It cannot catch a setter wired to the wrong key,
+     * nor two setters swapped — both leave the sizes equal. That case is covered by
+     * appliesEveryColourKeyItWasGiven, which gives every key a distinct value.
      */
     @Test
     public void everyColourKeyHasASetter() {
