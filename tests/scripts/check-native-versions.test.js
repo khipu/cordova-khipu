@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { compare, comparePluginVersion, compareAndroidPin } = require('../../scripts/check-native-versions.js');
+const { compare, comparePluginVersion, compareAndroidPin, compareAndroidPinsAgree } = require('../../scripts/check-native-versions.js');
 
 const PACKAGE_SWIFT = version =>
     `.package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "${version}")`;
@@ -228,4 +228,31 @@ test('rejects an Android SDK older than the one that fixes the process crash', (
 
     assert.strictEqual(result.ok, false);
     assert.match(result.message, /2\.28\.4/);
+});
+
+test('accepts two Android Gradle files pinning the same version', () => {
+    const gradle = "implementation 'com.khipu:khipu-client-android:2.28.4'\n";
+
+    const result = compareAndroidPinsAgree(gradle, gradle);
+
+    assert.strictEqual(result.ok, true);
+    assert.match(result.message, /2\.28\.4/);
+});
+
+test('rejects two Android Gradle files pinning different versions', () => {
+    const shipped = "implementation 'com.khipu:khipu-client-android:2.28.4'\n";
+    const tested = "implementation 'com.khipu:khipu-client-android:2.28.3'\n";
+
+    const result = compareAndroidPinsAgree(shipped, tested);
+
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /2\.28\.4/);
+    assert.match(result.message, /2\.28\.3/);
+});
+
+test('rejects a tests Gradle file with no Android SDK dependency', () => {
+    assert.strictEqual(
+        compareAndroidPinsAgree("implementation 'com.khipu:khipu-client-android:2.28.4'\n", 'dependencies {\n}\n').ok,
+        false
+    );
 });

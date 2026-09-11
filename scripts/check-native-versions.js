@@ -209,6 +209,36 @@ function isOlderThan (version, floor) {
     return false;
 }
 
+// The Android SDK version is declared twice: once in src/android/khipu.gradle, which is what
+// a merchant's app resolves, and once in tests/android/build.gradle, which is what our unit
+// tests resolve. Nothing else ties them together, so without this a bump to one of them alone
+// would leave us validating a different SDK than we ship — the same drift this file already
+// prevents for the iOS pin across Package.swift and plugin.xml.
+function compareAndroidPinsAgree (khipuGradle, testsGradle) {
+    const shipped = khipuGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
+    const tested = testsGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
+
+    if (!tested) {
+        return {
+            ok: false,
+            message: 'no `com.khipu:khipu-client-android` dependency found in tests/android/build.gradle'
+        };
+    }
+
+    // A missing dependency in khipu.gradle is compareAndroidPin's to report, not this check's.
+    if (shipped && shipped[1] !== tested[1]) {
+        return {
+            ok: false,
+            message: `the Android SDK version differs: src/android/khipu.gradle says ${shipped[1]} and tests/android/build.gradle says ${tested[1]}`
+        };
+    }
+
+    return {
+        ok: true,
+        message: `khipu-client-android ${tested[1]} matches between src/android/khipu.gradle and tests/android/build.gradle`
+    };
+}
+
 function main () {
     const root = path.resolve(__dirname, '..');
     const iosSourceFiles = fs
@@ -224,7 +254,11 @@ function main () {
             iosSourceFiles
         ),
         comparePluginVersion(packageJson.version, pluginXml),
-        compareAndroidPin(fs.readFileSync(path.join(root, 'src', 'android', 'khipu.gradle'), 'utf-8'))
+        compareAndroidPin(fs.readFileSync(path.join(root, 'src', 'android', 'khipu.gradle'), 'utf-8')),
+        compareAndroidPinsAgree(
+            fs.readFileSync(path.join(root, 'src', 'android', 'khipu.gradle'), 'utf-8'),
+            fs.readFileSync(path.join(root, 'tests', 'android', 'build.gradle'), 'utf-8')
+        )
     ];
 
     const falla = resultados.find(resultado => !resultado.ok);
@@ -239,7 +273,7 @@ function main () {
     }
 }
 
-module.exports = { compare, comparePluginVersion, compareAndroidPin };
+module.exports = { compare, comparePluginVersion, compareAndroidPin, compareAndroidPinsAgree };
 
 if (require.main === module) {
     main();
