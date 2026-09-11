@@ -2,6 +2,7 @@
   "name": "cordova-khipu",
   "version": "2.10.1",
   "description": "Khipu Cordova Plugin",
+  "types": "types/index.d.ts",
   "cordova": {
     "id": "cordova-khipu",
     "platforms": [
@@ -29,6 +30,7 @@
     "Package.swift",
     "www/",
     "src/",
+    "types/",
     "tests/",
     "scripts/",
     "README.md",
