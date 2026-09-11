@@ -529,15 +529,22 @@ wrong: iOS's enum has `USER_DISCONNECTED`, so iOS decodes that value correctly. 
 | Value that arrives | Android (14 constants) | iOS (15 constants) |
 | --- | --- | --- |
 | `USER_DISCONNECTED` | Crashes, kills the process | Decodes correctly |
-| A value neither library knows | Crashes, kills the process | Swallowed; the operation stalls |
+| A value neither library knows | Crashes, kills the process | Swallowed; the operation stalls (the decode path — see the note below on a second, separate iOS crash path) |
 
 1. **The live defect was Android-only.** Its cause was the 1.0.59-against-1.0.60 skew,
    and its symptom was that an ordinary outcome killed the merchant's app. Fixed here by
    the bump to 2.28.1.
-2. **The iOS fragility is latent.** The `do { } catch { print(...) }` degrades badly for a
-   future value its own enum does not know either. Real, worth fixing, but not what fired
-   and not the same cause — that one is about how the clients handle unknown values in
-   general, which is a generator-level question.
+2. **The iOS fragility was latent, and is now fixed.** The `do { } catch { print(...) }`
+   degrades badly for a future value its own enum does not know either: no crash, but the
+   operation never finishes and the callback never fires. `KhipuClientIOS` **2.16.6**
+   closes it (IKW-1234), and `Package.swift` and `plugin.xml` now pin it.
+
+   That release also names something this spec had not found. The characterisation above —
+   "swallowed, the operation stalls" — described the *decode* path, which is what was
+   verified here. There was a second path upstream of it: an unreadable socket frame killed
+   the merchant's app on iOS too. So the row above is accurate for the case it describes and
+   incomplete as a description of the platform; iOS had a crash path of its own, by a
+   different mechanism, and 2.16.6 fixes both it and the stall.
 
 §4.5's README guidance — confirm status server-side — still applies to both platforms,
 because the iOS path to a lost callback exists even though nothing triggers it today.

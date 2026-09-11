@@ -16,7 +16,7 @@
 - **Commit messages: English**, Conventional Commits (a husky `commit-msg` hook runs commitlint and will reject anything else).
 - **Target version: 2.11.0**, treated as a bug fix. Do not bump `package.json` by hand; the release does it (Task 18).
 - **Android SDK pin: `com.khipu:khipu-client-android:2.28.3`** in `src/android/khipu.gradle`, already committed. Never lower it. Four releases got it here and three of them fixed something this plugin depends on: **2.28.0** carries khenshin protocol 1.0.60, and anything below it carries 1.0.59, whose `FailureReasonType` lacks `USER_DISCONNECTED` and kills the app process on that value; **2.28.1** guards all 23 socket listeners so no deserialization failure reaches the EventThread at all; **2.28.2** fixes `asJson()` to serialize nulls, which this plugin does not use; **2.28.3** adds `OPERATION_WARNING` to the guard's terminal types, without which an `OPERATION_WARNING` that failed to deserialize left the operation unfinished and its callback never fired (spec §16).
-- **iOS SDK pin: `KhipuClientIOS` `2.16.5`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this.
+- **iOS SDK pin: `KhipuClientIOS` `2.16.6`**, and it must stay identical in `Package.swift` and in the `<pod>` of `plugin.xml`. `npm run verify:versions` enforces this. 2.16.6 is the release that stops an unreadable socket frame from killing the app and stops a terminal parse failure from stranding the payer with no callback (IKW-1234) — the iOS counterpart of the Android work behind the 2.28.x pin.
 - **`plugin.xml` invariants** that `check-native-versions.js` guards and you must not break: `nospm="true"` on the `<pod>`, `package="swift"` on `<platform name="ios">`, and one `<source-file>` per `.swift` file in `src/ios/`.
 - **Absent is not false.** Everywhere an option is read, "the JavaScript did not send this key" must stay distinct from "it sent `false`". The native SDKs apply their own defaults and the plugin must let them.
 - **Engine floors:** `cordova-ios >= 7.0.0`, `cordova-android >= 13.0.0`, iOS deployment target 13.
@@ -3145,11 +3145,40 @@ holds on iOS too, for a different reason: an event the SDK cannot decode is logg
 leaves the operation unfinished.
 ```
 
-- [ ] **Step 6: Translate the rest of the README**
+- [ ] **Step 6: Declare the bank URL schemes in the example**
+
+`example/config.xml` declares no `LSApplicationQueriesSchemes`, so the example cannot detect
+the payer's bank apps on iOS. The `KhipuClientIOS` session found this while reviewing the
+four client SDKs' examples and reports the correct list is **nine** entries published in
+Khipu's integration documentation.
+
+Copy that list from the documentation — **not** from another example app, which is how two
+of the sibling examples ended up with stale schemes — and add it to `example/config.xml`
+inside `<platform name="ios">`:
+
+```xml
+    <config-file target="*-Info.plist" parent="LSApplicationQueriesSchemes">
+      <array>
+        <!-- the nine entries from Khipu's integration documentation -->
+      </array>
+    </config-file>
+```
+
+Then rebuild the example for iOS and confirm they reached the built plist:
+
+```bash
+cd example && npm run reset && npm run plugin:add && npx cordova platform add ios@8.1.1 --nosave && npx cordova build ios --emulator
+plutil -extract LSApplicationQueriesSchemes xml1 -o - platforms/ios/App/App-Info.plist
+```
+
+Expected: the nine schemes. If the list cannot be found in the documentation, stop and ask
+rather than assembling it from another repository.
+
+- [ ] **Step 7: Translate the rest of the README**
 
 The whole file goes to English, including the sections that are already partly there. Preserve every hard-won note: the `locale` divergence between SDKs with its evidence, the `exitUrl: ""` versus `null` warning, the CI network note, the deployment-target section, the Swift-version section.
 
-- [ ] **Step 7: Translate the remaining Spanish**
+- [ ] **Step 8: Translate the remaining Spanish**
 
 ```bash
 grep -rniE '\b(que|para|porque|cuando|desde|entonces|hace|hacer|comercio|clave|version del|se usa)\b' \
@@ -3161,11 +3190,11 @@ grep -rniE '\b(que|para|porque|cuando|desde|entonces|hace|hacer|comercio|clave|v
 
 Expected at the end of this step: no hits outside `CHANGELOG.md` (past entries stay) and the `docs/superpowers/` directory (Step 8 covers it). This grep is a helper, not a gate — read the files.
 
-- [ ] **Step 8: Translate the 2026-09-04 spec and plan**
+- [ ] **Step 9: Translate the 2026-09-04 spec and plan**
 
 Both files in `docs/superpowers/` go to English. They are the record of why the iOS half looks the way it does, and half the comments in `src/ios/` cite them.
 
-- [ ] **Step 9: Run everything**
+- [ ] **Step 10: Run everything**
 
 ```bash
 npm run verify
@@ -3173,7 +3202,7 @@ npm run verify
 
 Expected: tests, version guard, key guard, iOS tests and Android tests all pass.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 Two commits, because they are two different kinds of change and one is far easier to review than the other:
 

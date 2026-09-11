@@ -26,7 +26,7 @@
     </config-file>
     <podspec>
       <pods>
-        <pod name="KhipuClientIOS" spec="2.16.5" swift-version="5.1" nospm="true"/>
+        <pod name="KhipuClientIOS" spec="2.16.6" swift-version="5.1" nospm="true"/>
       </pods>
     </podspec>
     <source-file src="src/ios/KhipuPlugin.swift"/>

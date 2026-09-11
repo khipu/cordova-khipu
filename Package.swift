@@ -22,7 +22,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apache/cordova-ios.git", from: "8.0.0"),
-        .package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "2.16.5")
+        .package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "2.16.6")
     ],
     targets: [
         .target(
