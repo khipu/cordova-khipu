@@ -68,3 +68,7 @@ captures
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
+
+# The Gradle wrapper of tests/android/ is checked in on purpose: CI validates
+# its checksum with gradle/actions/wrapper-validation.
+!tests/android/gradle/wrapper/gradle-wrapper.jar
