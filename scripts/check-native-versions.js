@@ -115,8 +115,8 @@ function compare (packageSwift, pluginXml, iosSourceFiles = []) {
 // 2.9.1. Nada lo detectaba, porque `compare()` mira la versión de KhipuClientIOS y no la del
 // plugin. Va aparte y no como un parámetro más de `compare()` a propósito: un parámetro
 // opcional es un chequeo que se puede dejar de pasar sin que nadie se entere.
-function compararVersionDelPlugin (versionEnPackageJson, pluginXml) {
-    if (!versionEnPackageJson) {
+function comparePluginVersion (packageJsonVersion, pluginXml) {
+    if (!packageJsonVersion) {
         return {
             ok: false,
             message: 'no se pudo leer la versión del plugin desde package.json'
@@ -126,26 +126,87 @@ function compararVersionDelPlugin (versionEnPackageJson, pluginXml) {
     // Se aísla la etiqueta <plugin> antes de buscar `version`, porque ese atributo también
     // aparece en la declaración XML (`<?xml version="1.0"?>`) y en cada <engine>.
     const pluginTag = pluginXml.match(/<plugin\b[^>]*>/);
-    const enPluginXml = pluginTag && pluginTag[0].match(/\bversion="([^"]+)"/);
+    const pluginXmlVersion = pluginTag && pluginTag[0].match(/\bversion="([^"]+)"/);
 
-    if (!enPluginXml) {
+    if (!pluginXmlVersion) {
         return {
             ok: false,
             message: 'el <plugin> de plugin.xml no declara `version`'
         };
     }
 
-    if (enPluginXml[1] !== versionEnPackageJson) {
+    if (pluginXmlVersion[1] !== packageJsonVersion) {
         return {
             ok: false,
-            message: `la versión del plugin difiere: package.json dice ${versionEnPackageJson} y plugin.xml dice ${enPluginXml[1]}`
+            message: `la versión del plugin difiere: package.json dice ${packageJsonVersion} y plugin.xml dice ${pluginXmlVersion[1]}`
         };
     }
 
     return {
         ok: true,
-        message: `versión del plugin ${versionEnPackageJson} sincronizada entre package.json y plugin.xml`
+        message: `versión del plugin ${packageJsonVersion} sincronizada entre package.json y plugin.xml`
     };
+}
+
+// The floor is not arbitrary. khipu-client-android 2.27.0 pins khenshin protocol 1.0.59,
+// whose FailureReasonType enum has fourteen constants and no USER_DISCONNECTED. Its
+// forValue() throws IOException on an unknown value, and the SDK's OPERATION_FAILURE
+// listener calls the converter with no try/catch on socket.io's EventThread — so that
+// throw is uncaught and kills the merchant's app process. 2.28.0 pins 1.0.60, which has
+// the fifteenth constant. 2.28.1 then guarded the listeners so no deserialization failure
+// reaches the EventThread at all, and 2.28.3 added OPERATION_WARNING to the guard's
+// terminal types — without which an OPERATION_WARNING that failed to parse left the
+// operation unfinished and its callback never fired.
+//
+// This is a floor, not a mirror of the pin: khipu.gradle can move above it freely and this
+// check does not care. Raise the floor only when a release fixes something the plugin
+// depends on, which is what 2.28.0, 2.28.1 and 2.28.3 each did.
+//
+// tests/android/ asserts the same floor at runtime; this catches it at publish time,
+// before anyone runs a test.
+const ANDROID_SDK_FLOOR = '2.28.4';
+
+function compareAndroidPin (khipuGradle) {
+    const pin = khipuGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
+
+    if (!pin) {
+        return {
+            ok: false,
+            message: 'no `com.khipu:khipu-client-android` dependency found in src/android/khipu.gradle'
+        };
+    }
+
+    if (!/^\d+\.\d+\.\d+$/.test(pin[1])) {
+        return {
+            ok: false,
+            message: `the Android SDK version must be exact, and src/android/khipu.gradle says ${pin[1]}`
+        };
+    }
+
+    if (isOlderThan(pin[1], ANDROID_SDK_FLOOR)) {
+        return {
+            ok: false,
+            message: `src/android/khipu.gradle pins khipu-client-android ${pin[1]}, below the ${ANDROID_SDK_FLOOR} floor: anything older carries khenshin protocol 1.0.59, which kills the app process on a USER_DISCONNECTED failure reason`
+        };
+    }
+
+    return {
+        ok: true,
+        message: `khipu-client-android ${pin[1]} pinned in src/android/khipu.gradle`
+    };
+}
+
+function isOlderThan (version, floor) {
+    const asNumbers = value => value.split('.').map(Number);
+    const [left, right] = [asNumbers(version), asNumbers(floor)];
+
+    for (let index = 0; index < 3; index++) {
+        if (left[index] !== right[index]) {
+            return left[index] < right[index];
+        }
+    }
+
+    return false;
 }
 
 function main () {
@@ -162,7 +223,8 @@ function main () {
             pluginXml,
             iosSourceFiles
         ),
-        compararVersionDelPlugin(packageJson.version, pluginXml)
+        comparePluginVersion(packageJson.version, pluginXml),
+        compareAndroidPin(fs.readFileSync(path.join(root, 'src', 'android', 'khipu.gradle'), 'utf-8'))
     ];
 
     const falla = resultados.find(resultado => !resultado.ok);
@@ -177,7 +239,7 @@ function main () {
     }
 }
 
-module.exports = { compare, compararVersionDelPlugin };
+module.exports = { compare, comparePluginVersion, compareAndroidPin };
 
 if (require.main === module) {
     main();

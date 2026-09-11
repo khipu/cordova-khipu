@@ -15,7 +15,6 @@
         <param name="android-package" value="com.khipu.cordova.KhipuPlugin"/>
       </feature>
     </config-file>
-    <config-file parent="/*" target="AndroidManifest.xml"/>
     <source-file src="src/android/com/khipu/cordova/KhipuPlugin.java" target-dir="src/com/khipu/cordova"/>
     <source-file src="src/android/com/khipu/cordova/KhipuOptionsInput.java" target-dir="src/com/khipu/cordova"/>
     <source-file src="src/android/com/khipu/cordova/KhipuOptionsMapper.java" target-dir="src/com/khipu/cordova"/>

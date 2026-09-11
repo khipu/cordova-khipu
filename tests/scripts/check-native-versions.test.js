@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { compare, compararVersionDelPlugin } = require('../../scripts/check-native-versions.js');
+const { compare, comparePluginVersion, compareAndroidPin } = require('../../scripts/check-native-versions.js');
 
 const PACKAGE_SWIFT = version =>
     `.package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "${version}")`;
@@ -158,14 +158,14 @@ const PLUGIN_TAG = version =>
     `<plugin id="cordova-khipu" version="${version}" xmlns="http://apache.org/cordova/ns/plugins/1.0">`;
 
 test('acepta que la versión del plugin coincida entre package.json y plugin.xml', () => {
-    const resultado = compararVersionDelPlugin('2.10.1', PLUGIN_TAG('2.10.1'));
+    const resultado = comparePluginVersion('2.10.1', PLUGIN_TAG('2.10.1'));
 
     assert.strictEqual(resultado.ok, true);
     assert.match(resultado.message, /2\.10\.1/);
 });
 
 test('rechaza si la versión del plugin difiere entre los dos archivos', () => {
-    const resultado = compararVersionDelPlugin('2.9.1', PLUGIN_TAG('2.10.0'));
+    const resultado = comparePluginVersion('2.9.1', PLUGIN_TAG('2.10.0'));
 
     assert.strictEqual(resultado.ok, false);
     assert.match(resultado.message, /2\.9\.1/);
@@ -173,7 +173,7 @@ test('rechaza si la versión del plugin difiere entre los dos archivos', () => {
 });
 
 test('rechaza si el <plugin> de plugin.xml no declara version', () => {
-    const resultado = compararVersionDelPlugin(
+    const resultado = comparePluginVersion(
         '2.10.1',
         '<plugin id="cordova-khipu" xmlns="http://apache.org/cordova/ns/plugins/1.0">');
 
@@ -182,7 +182,7 @@ test('rechaza si el <plugin> de plugin.xml no declara version', () => {
 });
 
 test('rechaza si no se recibió la versión de package.json', () => {
-    const resultado = compararVersionDelPlugin(undefined, PLUGIN_TAG('2.10.1'));
+    const resultado = comparePluginVersion(undefined, PLUGIN_TAG('2.10.1'));
 
     assert.strictEqual(resultado.ok, false);
     assert.match(resultado.message, /package\.json/);
@@ -198,6 +198,34 @@ test('no se confunde con el version de la declaración XML ni con el de los <eng
         '</plugin>'
     ].join('\n');
 
-    assert.strictEqual(compararVersionDelPlugin('2.10.1', xml).ok, true);
-    assert.strictEqual(compararVersionDelPlugin('1.0', xml).ok, false);
+    assert.strictEqual(comparePluginVersion('2.10.1', xml).ok, true);
+    assert.strictEqual(comparePluginVersion('1.0', xml).ok, false);
+});
+
+test('accepts a pinned Android SDK', () => {
+    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.4'\n}\n";
+
+    const result = compareAndroidPin(gradle);
+
+    assert.strictEqual(result.ok, true);
+    assert.match(result.message, /2\.28\.4/);
+});
+
+test('rejects a floating Android SDK version', () => {
+    const gradle = "dependencies {\n    implementation 'com.khipu:khipu-client-android:2.28.+'\n}\n";
+
+    assert.strictEqual(compareAndroidPin(gradle).ok, false);
+});
+
+test('rejects a missing Android SDK dependency', () => {
+    assert.strictEqual(compareAndroidPin('dependencies {\n}\n').ok, false);
+});
+
+test('rejects an Android SDK older than the one that fixes the process crash', () => {
+    const gradle = "implementation 'com.khipu:khipu-client-android:2.27.0'\n";
+
+    const result = compareAndroidPin(gradle);
+
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /2\.28\.4/);
 });
