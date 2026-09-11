@@ -339,9 +339,14 @@ can fail, which is precisely the argument the iOS design already makes.
   the xml2js `Builder`, which reformats it; that is what forced the attribute-order-tolerant
   regexes in `check-native-versions.js`. The regexes stay — they are cheap insurance — but
   their comments stop citing a rewrite that no longer happens.
-- `check-native-versions.js` gains a check that `khipu.gradle` declares a pinned
-  `com.khipu:khipu-client-android` version. It lives in one file, so there is no sync to
-  break, but nothing currently asserts the line parses at all.
+- `check-native-versions.js` gains two Android checks. The first asserts `khipu.gradle`
+  declares a pinned `com.khipu:khipu-client-android` version at or above a floor — nothing
+  currently asserts that line even parses. The second asserts that pin matches the one in
+  `tests/android/build.gradle`. **Corrected after §7.2 landed:** this section originally said
+  the Android version "lives in one file, so there is no sync to break". That stopped being
+  true the moment the Gradle test bed was created, since the bed resolves its own copy of the
+  SDK. A merchant shipping one version while our unit tests validate another is the same drift
+  this file already prevents for iOS across `Package.swift` and `plugin.xml`.
 - `enable-gradle-kotlin-plugin.js` moves from `require(path)` to
   `JSON.parse(readFileSync(path))` — `require` caches the module and the script then mutates
   it — returns early when the flag is already `true`, gets a comment explaining *why*

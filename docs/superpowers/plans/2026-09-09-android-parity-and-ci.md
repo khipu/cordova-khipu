@@ -2148,7 +2148,7 @@ test('accepts a pinned Android SDK', () => {
     const result = compareAndroidPin(gradle);
 
     assert.strictEqual(result.ok, true);
-    assert.match(result.message, /2\.28\.0/);
+    assert.match(result.message, /2\.28\.4/);
 });
 
 test('rejects a floating Android SDK version', () => {
@@ -2167,7 +2167,7 @@ test('rejects an Android SDK older than the one that fixes the process crash', (
     const result = compareAndroidPin(gradle);
 
     assert.strictEqual(result.ok, false);
-    assert.match(result.message, /2\.28\.0/);
+    assert.match(result.message, /2\.28\.4/);
 });
 ```
 
@@ -2317,8 +2317,8 @@ Expected: `BUILD SUCCESSFUL`. The SDK's own manifest declares `KhipuActivity` an
 git add scripts/check-native-versions.js tests/scripts/check-native-versions.test.js plugin.xml
 git commit -m "fix(release): guard the Android SDK floor, and drop a dead config-file
 
-The Android SDK version lives in one file, so there is no sync to break, but
-nothing asserted the line even parsed — and there is now a floor worth
+The Android SDK version was guarded by nothing — no check asserted the line
+even parsed — and there is now a floor worth
 enforcing: below 2.28.4 the SDK carries khenshin protocol 1.0.59, which kills
 the app process on a USER_DISCONNECTED failure reason. The Gradle suite asserts
 that floor at test time; this catches it at publish time.
