@@ -6,13 +6,19 @@
 // effect and no error. scripts/check-option-keys.js compares all of them against this
 // file, which is why the interfaces below are the source of truth rather than a
 // convenience.
+//
+// These declarations are deliberately AMBIENT, not a module: there is no top-level `export`
+// anywhere in this file. Cordova injects `window.Khipu` at runtime and this package has no npm
+// entry point, so a merchant never imports it. Adding a single export would make the file a
+// module, and `window.Khipu` would silently stop being typed for the only call pattern the
+// README documents.
 
-export type KhipuTheme = 'light' | 'dark' | 'system';
+type KhipuTheme = 'light' | 'dark' | 'system';
 
-export type KhipuResultStatus = 'OK' | 'ERROR' | 'WARNING' | 'CONTINUE';
+type KhipuResultStatus = 'OK' | 'ERROR' | 'WARNING' | 'CONTINUE';
 
 /** Hex colours, as `#rrggbb`. Every one is optional; the SDK has its own palette. */
-export interface KhipuColors {
+interface KhipuColors {
   lightBackground?: string;
   lightOnBackground?: string;
   lightPrimary?: string;
@@ -27,7 +33,7 @@ export interface KhipuColors {
   darkOnTopBarContainer?: string;
 }
 
-export interface KhipuOptions {
+interface KhipuOptions {
   /** Title for the top bar during the payment. */
   title?: string;
   /** URL of an image to show centred in the top bar. */
@@ -54,13 +60,13 @@ export interface KhipuOptions {
   colors?: KhipuColors;
 }
 
-export interface KhipuEvent {
+interface KhipuEvent {
   name: string;
   type: string;
   timestamp: string;
 }
 
-export interface KhipuResult {
+interface KhipuResult {
   operationId: string;
   result: KhipuResultStatus;
   exitTitle: string;
@@ -75,12 +81,12 @@ export interface KhipuResult {
   events: KhipuEvent[];
 }
 
-export interface KhipuCall {
+interface KhipuCall {
   operationId: string;
   options?: KhipuOptions;
 }
 
-export interface KhipuPlugin {
+interface KhipuPlugin {
   /**
    * Starts a payment. Called with callbacks, it returns nothing; called without them, it
    * returns a promise.
@@ -97,12 +103,8 @@ export interface KhipuPlugin {
   startOperation(call: KhipuCall): Promise<KhipuResult>;
 }
 
-declare global {
-  interface Window {
-    Khipu: KhipuPlugin;
-  }
+interface Window {
+  Khipu: KhipuPlugin;
 }
 
 declare const Khipu: KhipuPlugin;
-
-export default Khipu;
