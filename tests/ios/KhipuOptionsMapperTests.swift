@@ -4,13 +4,13 @@ import KhipuClientIOS
 
 final class KhipuOptionsMapperTests: XCTestCase {
 
-    func testSinClaveOptionsDevuelveTodoNil() {
+    func testWithNoOptionsKeyEverythingIsNil() {
         let input = KhipuOptionsMapper.parse(["operationId": "abc"])
 
         XCTAssertEqual(input, KhipuOptionsInput())
     }
 
-    func testMapeaTodosLosCamposEscalares() {
+    func testMapsEveryScalarField() {
         let input = KhipuOptionsMapper.parse([
             "operationId": "abc",
             "options": [
@@ -37,9 +37,9 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertEqual(input.theme, .dark)
     }
 
-    /// El plugin tiene que poder distinguir "no me mandaron la clave" de
-    /// "me mandaron false": el SDK aplica sus propios valores por omisión.
-    func testClaveAusenteNoSeConfundeConFalse() {
+    /// The plugin has to tell "they did not send me the key" apart from "they sent me
+    /// false": the SDK applies its own defaults.
+    func testAnAbsentKeyIsNotConfusedWithFalse() {
         let input = KhipuOptionsMapper.parse(["options": ["title": "Demo"]])
 
         XCTAssertNil(input.showFooter)
@@ -49,12 +49,12 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertNil(input.skipExitSuccessPage)
     }
 
-    /// Este es el caso que hoy crashea la app.
-    func testTipoEquivocadoSeDescartaEnVezDeCrashear() {
+    /// This is the divergence that made Android and iOS disagree.
+    func testAWrongTypeIsDiscardedRatherThanCoerced() {
         let input = KhipuOptionsMapper.parse([
             "options": [
                 "title": 123,
-                "showFooter": "sí",
+                "showFooter": "yes",
                 "locale": ["es", "CL"]
             ]
         ])
@@ -64,76 +64,84 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertNil(input.locale)
     }
 
-    func testThemeDesconocidoSeDescarta() {
-        XCTAssertNil(KhipuOptionsMapper.parse(["options": ["theme": "neón"]]).theme)
+    func testAnUnknownThemeIsDiscarded() {
+        XCTAssertNil(KhipuOptionsMapper.parse(["options": ["theme": "neon"]]).theme)
     }
 
-    func testMapeaLasDoceClavesDeColor() {
-        var colores: [String: Any] = [:]
-        for (indice, clave) in KhipuOptionsMapper.colorKeys.enumerated() {
-            colores[clave] = String(format: "#%06X", indice)
+    func testMapsTheTwelveColourKeys() {
+        var colors: [String: Any] = [:]
+        for (index, key) in KhipuOptionsMapper.colorKeys.enumerated() {
+            colors[key] = String(format: "#%06X", index)
         }
 
-        let input = KhipuOptionsMapper.parse(["options": ["colors": colores]])
+        let input = KhipuOptionsMapper.parse(["options": ["colors": colors]])
 
         XCTAssertEqual(input.colors?.count, 12)
         XCTAssertEqual(input.colors?["lightPrimary"], "#000002")
     }
 
-    func testDescartaClavesDeColorDesconocidas() {
+    func testAnUnknownColorKeyIsDiscarded() {
         let input = KhipuOptionsMapper.parse([
-            "options": ["colors": ["lightPrimary": "#8347AD", "morado": "#8347AD"]]
+            "options": ["colors": ["lightPrimary": "#8347AD", "purple": "#8347AD"]]
         ])
 
         XCTAssertEqual(input.colors, ["lightPrimary": "#8347AD"])
     }
 
-    func testColorsVacioSigueSiendoDistintoDeAusente() {
+    func testEmptyColorsIsStillDifferentFromAbsent() {
         XCTAssertEqual(KhipuOptionsMapper.parse(["options": ["colors": [String: Any]()]]).colors, [:])
         XCTAssertNil(KhipuOptionsMapper.parse(["options": [String: Any]()]).colors)
     }
 
-    /// `KhipuColors` tiene propiedades internas pero es `Codable`, así que se
-    /// puede verificar el objeto que efectivamente recibe el SDK.
-    func testLosColoresLleganAlObjetoDelSdk() throws {
+    /// `KhipuColors` has internal properties but is `Codable`, so the object the SDK
+    /// actually receives can be verified.
+    func testColorsReachTheSdkObject() throws {
         let colors = KhipuOptionsMapper.makeColors(from: [
             "lightPrimary": "#8347AD",
             "darkPrimary": "#3CB4E5"
         ])
 
-        let datos = try JSONEncoder().encode(colors)
-        let decodificado = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: datos) as? [String: Any])
+        let data = try JSONEncoder().encode(colors)
+        let decoded = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        XCTAssertEqual(decodificado["lightPrimary"] as? String, "#8347AD")
-        XCTAssertEqual(decodificado["darkPrimary"] as? String, "#3CB4E5")
-        XCTAssertNil(decodificado["lightBackground"])
+        XCTAssertEqual(decoded["lightPrimary"] as? String, "#8347AD")
+        XCTAssertEqual(decoded["darkPrimary"] as? String, "#3CB4E5")
+        XCTAssertNil(decoded["lightBackground"])
     }
 
-    /// El test anterior solo ejercita dos de los doce `if let` de `makeColors`. Un setter
-    /// cruzado en cualquiera de los otros diez —por ejemplo `darkOnBackground` llamando a
-    /// `darkBackground`— pasaría esa prueba igual, porque `lightPrimary` y `darkPrimary` no
-    /// comparten setter con nadie. Acá las doce claves reciben un valor distinto entre sí, para
-    /// que un cruce se note: si dos claves compartieran setter, sus valores decodificados
-    /// quedarían intercambiados o duplicados en vez de cada uno con el suyo.
-    func testLosDoceColoresLleganAlSetterCorrecto() throws {
-        var colores: [String: String] = [:]
-        for (indice, clave) in KhipuOptionsMapper.colorKeys.enumerated() {
-            colores[clave] = String(format: "#%06X", indice)
+    /// The previous test only exercises two of the twelve entries in `colorSetters`. A
+    /// setter wired to the wrong key in any of the other ten — for example
+    /// `darkOnBackground` calling `darkBackground` — would pass that test just the same,
+    /// because `lightPrimary` and `darkPrimary` do not share a setter with anyone. Here,
+    /// all twelve keys receive a value distinct from each other, so that a mix-up would
+    /// show: if two keys shared a setter, their decoded values would come out swapped or
+    /// duplicated instead of each with its own.
+    func testAllTwelveColorsReachTheCorrectSetter() throws {
+        var colors: [String: String] = [:]
+        for (index, key) in KhipuOptionsMapper.colorKeys.enumerated() {
+            colors[key] = String(format: "#%06X", index)
         }
 
-        let colors = KhipuOptionsMapper.makeColors(from: colores)
+        let applied = KhipuOptionsMapper.makeColors(from: colors)
 
-        let datos = try JSONEncoder().encode(colors)
-        let decodificado = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: datos) as? [String: Any])
+        let data = try JSONEncoder().encode(applied)
+        let decoded = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        XCTAssertEqual(decodificado.count, KhipuOptionsMapper.colorKeys.count)
-        for clave in KhipuOptionsMapper.colorKeys {
+        XCTAssertEqual(decoded.count, KhipuOptionsMapper.colorKeys.count)
+        for key in KhipuOptionsMapper.colorKeys {
             XCTAssertEqual(
-                decodificado[clave] as? String,
-                colores[clave],
-                "\(clave) no llegó al SDK con su propio valor")
+                decoded[key] as? String,
+                colors[key],
+                "\(key) did not reach the SDK with its own value")
         }
+    }
+
+    /// The keys and the setters are one list. If that ever splits again, this is the
+    /// test that notices.
+    func testEveryColourKeyHasASetter() {
+        XCTAssertEqual(KhipuOptionsMapper.colorKeys.count, 12)
+        XCTAssertEqual(KhipuOptionsMapper.colorSetters.count, KhipuOptionsMapper.colorKeys.count)
     }
 }
