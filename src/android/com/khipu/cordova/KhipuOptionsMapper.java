@@ -1,5 +1,6 @@
 package com.khipu.cordova;
 
+import com.khipu.client.KhipuColors;
 import com.khipu.client.KhipuOptions;
 
 import org.json.JSONObject;
@@ -9,6 +10,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 /**
  * Reads the options a merchant's JavaScript sent, and applies them to the SDK's builder.
@@ -112,5 +114,87 @@ final class KhipuOptionsMapper {
     private static JSONObject objectOrNull(JSONObject source, String key) {
         Object value = source.opt(key);
         return value instanceof JSONObject ? (JSONObject) value : null;
+    }
+
+    /**
+     * The twelve colour setters, keyed by the name JavaScript uses. This is the same
+     * list as COLOR_KEYS and is checked against it by a test: keeping the keys and the
+     * setters in one structure is what stops the two from drifting.
+     */
+    private static final Map<String, BiConsumer<KhipuColors.Builder, String>> COLOR_SETTERS;
+
+    static {
+        Map<String, BiConsumer<KhipuColors.Builder, String>> setters = new LinkedHashMap<>();
+        setters.put("lightBackground", KhipuColors.Builder::lightBackground);
+        setters.put("lightOnBackground", KhipuColors.Builder::lightOnBackground);
+        setters.put("lightPrimary", KhipuColors.Builder::lightPrimary);
+        setters.put("lightOnPrimary", KhipuColors.Builder::lightOnPrimary);
+        setters.put("lightTopBarContainer", KhipuColors.Builder::lightTopBarContainer);
+        setters.put("lightOnTopBarContainer", KhipuColors.Builder::lightOnTopBarContainer);
+        setters.put("darkBackground", KhipuColors.Builder::darkBackground);
+        setters.put("darkOnBackground", KhipuColors.Builder::darkOnBackground);
+        setters.put("darkPrimary", KhipuColors.Builder::darkPrimary);
+        setters.put("darkOnPrimary", KhipuColors.Builder::darkOnPrimary);
+        setters.put("darkTopBarContainer", KhipuColors.Builder::darkTopBarContainer);
+        setters.put("darkOnTopBarContainer", KhipuColors.Builder::darkOnTopBarContainer);
+        COLOR_SETTERS = Collections.unmodifiableMap(setters);
+    }
+
+    /** Applies an already-validated input to the SDK's builder. */
+    static KhipuOptions makeOptions(KhipuOptionsInput input) {
+        KhipuOptions.Builder builder = new KhipuOptions.Builder();
+
+        if (input.topBarTitle != null) {
+            builder.topBarTitle(input.topBarTitle);
+        }
+        if (input.topBarImageUrl != null) {
+            builder.topBarImageUrl(input.topBarImageUrl);
+        }
+        if (input.skipExitPage != null) {
+            builder.skipExitPage(input.skipExitPage);
+        }
+        if (input.skipExitSuccessPage != null) {
+            builder.skipExitSuccessPage(input.skipExitSuccessPage);
+        }
+        if (input.showFooter != null) {
+            builder.showFooter(input.showFooter);
+        }
+        if (input.showMerchantLogo != null) {
+            builder.showMerchantLogo(input.showMerchantLogo);
+        }
+        if (input.showPaymentDetails != null) {
+            builder.showPaymentDetails(input.showPaymentDetails);
+        }
+        if (input.locale != null) {
+            builder.locale(input.locale);
+        }
+        if (input.theme != null) {
+            builder.theme(input.theme);
+        }
+        // Only when the key actually arrived. Applying an empty KhipuColors would
+        // override the SDK's own palette with nothing.
+        if (input.colors != null) {
+            builder.colors(makeColors(input.colors));
+        }
+
+        return builder.build();
+    }
+
+    static KhipuColors makeColors(Map<String, String> colors) {
+        KhipuColors.Builder builder = new KhipuColors.Builder();
+
+        for (Map.Entry<String, BiConsumer<KhipuColors.Builder, String>> setter : COLOR_SETTERS.entrySet()) {
+            String value = colors.get(setter.getKey());
+            if (value != null) {
+                setter.getValue().accept(builder, value);
+            }
+        }
+
+        return builder.build();
+    }
+
+    /** For the test that keeps COLOR_KEYS and COLOR_SETTERS the same length. */
+    static int colourSetterCount() {
+        return COLOR_SETTERS.size();
     }
 }

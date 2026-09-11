@@ -1,8 +1,10 @@
 package com.khipu.cordova;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 
+import com.khipu.client.KhipuColors;
 import com.khipu.client.KhipuOptions;
 
 import org.json.JSONObject;
@@ -125,5 +127,43 @@ public class KhipuOptionsMapperTest {
                 new JSONObject("{\"options\":{\"title\":\"Demo\"}}"));
 
         assertNull(input.colors);
+    }
+
+    @Test
+    public void appliesOnlyTheFieldsThatArrived() throws Exception {
+        KhipuOptionsInput input = KhipuOptionsMapper.parse(new JSONObject(
+                "{\"options\":{\"locale\":\"es_CL\",\"showFooter\":false}}"));
+
+        KhipuOptions options = KhipuOptionsMapper.makeOptions(input);
+
+        assertEquals("es_CL", options.getLocale());
+        assertFalse(options.getShowFooter());
+        // Never sent, so the SDK's own default has to survive.
+        assertNull(options.getTopBarTitle());
+        assertNull(options.getColors());
+    }
+
+    @Test
+    public void appliesEveryColourKeyItWasGiven() throws Exception {
+        JSONObject colors = new JSONObject();
+        for (String key : KhipuOptionsMapper.COLOR_KEYS) {
+            colors.put(key, "#8347AD");
+        }
+
+        KhipuColors applied = KhipuOptionsMapper.makeColors(
+                KhipuOptionsMapper.parse(new JSONObject()
+                        .put("options", new JSONObject().put("colors", colors))).colors);
+
+        assertEquals("#8347AD", applied.getLightPrimary());
+        assertEquals("#8347AD", applied.getDarkOnTopBarContainer());
+    }
+
+    /**
+     * The table and the twelve setters are the same list. If a key is ever added to
+     * COLOR_KEYS without a setter beside it, this fails instead of silently dropping it.
+     */
+    @Test
+    public void everyColourKeyHasASetter() {
+        assertEquals(KhipuOptionsMapper.COLOR_KEYS.size(), KhipuOptionsMapper.colourSetterCount());
     }
 }
