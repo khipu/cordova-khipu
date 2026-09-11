@@ -6,119 +6,119 @@ const { compare, comparePluginVersion, compareAndroidPin, compareAndroidPinsAgre
 const PACKAGE_SWIFT = version =>
     `.package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "${version}")`;
 
-// El atributo que cordova-ios lee es `spec`, no `version`: Podfile.js solo emite la
-// restricción si encuentra `spec`. Un `version=` se ignora en silencio y el pod queda sin pin.
-// Envuelto en <platform name="ios" package="swift">, que ahora `compare()` también verifica.
+// The attribute cordova-ios reads is `spec`, not `version`: Podfile.js only emits the
+// constraint if it finds `spec`. A `version=` is silently ignored and the pod ends up unpinned.
+// Wrapped in <platform name="ios" package="swift">, which `compare()` now also checks.
 const PLUGIN_XML = version =>
     `<platform name="ios" package="swift"><podspec><pods><pod name="KhipuClientIOS" spec="${version}" swift-version="5.1" nospm="true"/></pods></podspec></platform>`;
 
-test('acepta versiones iguales', () => {
-    const resultado = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.5'));
+test('accepts matching versions', () => {
+    const result = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.5'));
 
-    assert.strictEqual(resultado.ok, true);
-    assert.match(resultado.message, /2\.16\.5/);
+    assert.strictEqual(result.ok, true);
+    assert.match(result.message, /2\.16\.5/);
 });
 
-test('rechaza versiones distintas', () => {
-    const resultado = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.2'));
+test('rejects differing versions', () => {
+    const result = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.2'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /2\.16\.5/);
-    assert.match(resultado.message, /2\.16\.2/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /2\.16\.5/);
+    assert.match(result.message, /2\.16\.2/);
 });
 
-test('rechaza si falta la versión en Package.swift', () => {
-    const resultado = compare('let package = Package(name: "cordova-khipu")', PLUGIN_XML('2.16.5'));
+test('rejects when the version is missing from Package.swift', () => {
+    const result = compare('let package = Package(name: "cordova-khipu")', PLUGIN_XML('2.16.5'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /Package\.swift/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /Package\.swift/);
 });
 
-test('rechaza si falta el pod en plugin.xml', () => {
-    const resultado = compare(PACKAGE_SWIFT('2.16.5'), '<plugin id="cordova-khipu"></plugin>');
+test('rejects when the pod is missing from plugin.xml', () => {
+    const result = compare(PACKAGE_SWIFT('2.16.5'), '<plugin id="cordova-khipu"></plugin>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /plugin\.xml/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /plugin\.xml/);
 });
 
-test('tolera que los atributos del pod vengan en otro orden', () => {
-    const resultado = compare(
+test('tolerates the pod attributes coming in a different order', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<platform name="ios" package="swift"><pod spec="2.16.5" name="KhipuClientIOS" nospm="true"/></platform>');
 
-    assert.strictEqual(resultado.ok, true);
+    assert.strictEqual(result.ok, true);
 });
 
-// Regresión del bug que encontró la Task 3: con `version=` el pod queda sin pin y cada
-// comercio recibe la versión que CocoaPods resuelva. El check tiene que gritar, no pasar.
-test('rechaza version= en vez de spec=, que cordova-ios ignora', () => {
-    const resultado = compare(
+// Regression for the bug Task 3 found: with `version=` the pod ends up unpinned and every
+// merchant gets whatever version CocoaPods resolves. The check has to shout, not pass.
+test('rejects version= instead of spec=, which cordova-ios ignores', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<pod name="KhipuClientIOS" version="2.16.5" nospm="true"/>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /plugin\.xml/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /plugin\.xml/);
 });
 
-test('rechaza si el <pod> no tiene ni spec ni version', () => {
-    const resultado = compare(
+test('rejects when the <pod> has neither spec nor version', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<pod name="KhipuClientIOS" nospm="true"/>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /plugin\.xml/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /plugin\.xml/);
 });
 
-// Regresión del fix de la revisión: dos <pod name="KhipuClientIOS"> instalarían
-// versiones distintas de CocoaPods según cuál gane. El check tiene que fallar por
-// cardinalidad, no dar por buena una coincidencia parcial con el primero que encuentre.
-test('rechaza si hay más de un <pod name="KhipuClientIOS">, aunque las versiones coincidan', () => {
-    const resultado = compare(
+// Regression for the review's fix: two <pod name="KhipuClientIOS"> tags would install
+// different CocoaPods versions depending on which one wins. The check has to fail on
+// cardinality, not approve a partial match against whichever it finds first.
+test('rejects more than one <pod name="KhipuClientIOS">, even if the versions match', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         PLUGIN_XML('2.16.5') + PLUGIN_XML('2.16.5'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /2 etiquetas/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /found 2/);
 });
 
-// Caso simétrico: si el <pod> sin `spec` es el primero, el check no debe dar un falso
-// bloqueo por eso solo para aprobar tácitamente el segundo. Falla por cardinalidad antes
-// de mirar `spec`, así que el mensaje tiene que hablar de la duplicación, no de `spec`.
-test('rechaza dos <pod> aunque el primero no tenga spec y el segundo sí', () => {
-    const resultado = compare(
+// Symmetric case: if the <pod> without `spec` comes first, the check must not give a false
+// pass just to tacitly approve the second one. It fails on cardinality before looking at
+// `spec`, so the message has to talk about the duplication, not about `spec`.
+test('rejects two <pod> tags even when the first has no spec and the second does', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<pod name="KhipuClientIOS" nospm="true"/>' + PLUGIN_XML('2.16.5'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /2 etiquetas/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /found 2/);
 });
 
-// I2: `nospm="true"` es lo que hace que cordova-ios 8 descarte el pod. Si se cae, el camino
-// SPM empieza a exigir CocoaPods además y el SDK queda enlazado dos veces.
-test('rechaza si el <pod> perdió `nospm="true"`', () => {
-    const resultado = compare(
+// I2: `nospm="true"` is what makes cordova-ios 8 discard the pod. If it falls off, the SPM
+// path starts requiring CocoaPods too and the SDK ends up linked twice.
+test('rejects when the <pod> lost `nospm="true"`', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
-        '<platform name="ios" package="swift"><pod name="KhipuClientIOS" spec="2.16.5"/></platform>');
+        '<platform name="ios"><pod name="KhipuClientIOS" spec="2.16.5"/></platform>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /nospm/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /nospm/);
 });
 
-// I2: `package="swift"` en <platform name="ios"> es lo que hace que cordova-ios 8 reconozca
-// el plugin como paquete SPM. Sin él, cordova-ios 8 deja de usar SPM.
-test('rechaza si <platform name="ios"> perdió `package="swift"`', () => {
-    const resultado = compare(
+// I2: `package="swift"` on <platform name="ios"> is what makes cordova-ios 8 recognise
+// the plugin as an SPM package. Without it, cordova-ios 8 stops using SPM.
+test('rejects when <platform name="ios"> lost `package="swift"`', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<platform name="ios"><pod name="KhipuClientIOS" spec="2.16.5" nospm="true"/></platform>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /package="swift"/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /package="swift"/);
 });
 
-// I2: SPM toma el directorio src/ios/ completo, pero CocoaPods (cordova-ios 7) solo instala lo
-// que declara un <source-file> explícito. Un archivo nuevo compilaría bajo cordova-ios 8 y
-// faltaría en silencio bajo el 7 si nadie le agrega su <source-file>.
-test('acepta cuando todos los .swift de src/ios/ tienen su <source-file>', () => {
+// I2: SPM takes the whole src/ios/ directory, but CocoaPods (cordova-ios 7) only installs
+// what an explicit <source-file> declares. A new file would compile under cordova-ios 8 and
+// silently go missing under 7 if nobody adds its <source-file>.
+test('accepts when every .swift file in src/ios/ has its <source-file>', () => {
     const pluginXml =
         '<platform name="ios" package="swift">' +
         '<podspec><pods><pod name="KhipuClientIOS" spec="2.16.5" nospm="true"/></pods></podspec>' +
@@ -126,71 +126,71 @@ test('acepta cuando todos los .swift de src/ios/ tienen su <source-file>', () =>
         '<source-file src="src/ios/KhipuOptionsMapper.swift"/>' +
         '</platform>';
 
-    const resultado = compare(
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         pluginXml,
         ['KhipuPlugin.swift', 'KhipuOptionsMapper.swift']);
 
-    assert.strictEqual(resultado.ok, true);
+    assert.strictEqual(result.ok, true);
 });
 
-test('rechaza un .swift de src/ios/ sin su <source-file> en plugin.xml', () => {
+test('rejects a .swift file in src/ios/ with no <source-file> in plugin.xml', () => {
     const pluginXml =
         '<platform name="ios" package="swift">' +
         '<podspec><pods><pod name="KhipuClientIOS" spec="2.16.5" nospm="true"/></pods></podspec>' +
         '<source-file src="src/ios/KhipuPlugin.swift"/>' +
         '</platform>';
 
-    const resultado = compare(
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         pluginXml,
-        ['KhipuPlugin.swift', 'KhipuArchivoNuevo.swift']);
+        ['KhipuPlugin.swift', 'KhipuNewFile.swift']);
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /KhipuArchivoNuevo\.swift/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /KhipuNewFile\.swift/);
 });
 
-// La versión del plugin vive en dos archivos, igual que la de KhipuClientIOS. Un release
-// interrumpido a mitad puede dejarlos descoordinados —le pasó al 2.10.0, que abortó con
-// plugin.xml en 2.10.0 y package.json en 2.9.1— y nada lo detectaba.
+// The plugin version lives in two files, just like KhipuClientIOS's. A release interrupted
+// halfway can leave them out of step — it happened to 2.10.0, which aborted with plugin.xml
+// at 2.10.0 and package.json at 2.9.1 — and nothing detected it.
 
 const PLUGIN_TAG = version =>
     `<plugin id="cordova-khipu" version="${version}" xmlns="http://apache.org/cordova/ns/plugins/1.0">`;
 
-test('acepta que la versión del plugin coincida entre package.json y plugin.xml', () => {
-    const resultado = comparePluginVersion('2.10.1', PLUGIN_TAG('2.10.1'));
+test('accepts a matching plugin version between package.json and plugin.xml', () => {
+    const result = comparePluginVersion('2.10.1', PLUGIN_TAG('2.10.1'));
 
-    assert.strictEqual(resultado.ok, true);
-    assert.match(resultado.message, /2\.10\.1/);
+    assert.strictEqual(result.ok, true);
+    assert.match(result.message, /2\.10\.1/);
 });
 
-test('rechaza si la versión del plugin difiere entre los dos archivos', () => {
-    const resultado = comparePluginVersion('2.9.1', PLUGIN_TAG('2.10.0'));
+test('rejects a plugin version that differs between the two files', () => {
+    const result = comparePluginVersion('2.9.1', PLUGIN_TAG('2.10.0'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /2\.9\.1/);
-    assert.match(resultado.message, /2\.10\.0/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /2\.9\.1/);
+    assert.match(result.message, /2\.10\.0/);
 });
 
-test('rechaza si el <plugin> de plugin.xml no declara version', () => {
-    const resultado = comparePluginVersion(
+test('rejects when plugin.xml\'s <plugin> does not declare version', () => {
+    const result = comparePluginVersion(
         '2.10.1',
         '<plugin id="cordova-khipu" xmlns="http://apache.org/cordova/ns/plugins/1.0">');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /plugin\.xml/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /plugin\.xml/);
 });
 
-test('rechaza si no se recibió la versión de package.json', () => {
-    const resultado = comparePluginVersion(undefined, PLUGIN_TAG('2.10.1'));
+test('rejects when no version was received from package.json', () => {
+    const result = comparePluginVersion(undefined, PLUGIN_TAG('2.10.1'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /package\.json/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /package\.json/);
 });
 
-// El atributo `version` también aparece en la declaración XML y en los <engine>, así que el
-// chequeo tiene que leer el del <plugin> y no el primero que encuentre.
-test('no se confunde con el version de la declaración XML ni con el de los <engine>', () => {
+// The `version` attribute also shows up in the XML declaration and on <engine> tags, so the
+// check has to read the one on <plugin>, not the first one it finds.
+test('is not confused by the version on the XML declaration or on <engine> tags', () => {
     const xml = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         PLUGIN_TAG('2.10.1'),

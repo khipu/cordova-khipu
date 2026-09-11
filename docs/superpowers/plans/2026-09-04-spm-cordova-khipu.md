@@ -1,74 +1,74 @@
-# Migración de `cordova-khipu` a SPM, compatibilidad con Cordova actual y app de ejemplo — Plan de implementación
+# Migrating `cordova-khipu` to SPM, compatibility with current Cordova, and an example app — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Que `cordova-khipu` se pueda instalar por Swift Package Manager en cordova-ios 8 sin dejar de funcionar por CocoaPods en cordova-ios 7, esté al día con cordova-android 15, y traiga una app de ejemplo que ejercite los dos gestores.
+**Goal:** Make `cordova-khipu` installable via Swift Package Manager on cordova-ios 8 without breaking CocoaPods on cordova-ios 7, bring it up to date with cordova-android 15, and ship an example app that exercises both managers.
 
-**Architecture:** Un solo `plugin.xml` describe ambos caminos: cordova-ios 7 ignora el atributo `package="swift"` y usa `<podspec>` + `<source-file>`; cordova-ios 8 lo reconoce, descarta los `<source-file>` y, gracias a `nospm="true"` en el `<pod>`, también descarta CocoaPods, quedando con el `Package.swift` de la raíz. El código Swift usa `#if canImport(Cordova)` para compilar en los dos mundos. La app de ejemplo vive en `example/` y elige el gestor pinneando el major de la plataforma.
+**Architecture:** A single `plugin.xml` describes both paths: cordova-ios 7 ignores the `package="swift"` attribute and uses `<podspec>` + `<source-file>`; cordova-ios 8 recognises it, discards the `<source-file>` tags and, thanks to `nospm="true"` on the `<pod>`, also discards CocoaPods, left with the root `Package.swift`. The Swift code uses `#if canImport(Cordova)` to compile in both worlds. The example app lives in `example/` and picks its manager by pinning the platform's major version.
 
-**Tech Stack:** Cordova 13 · cordova-ios 7.1.1 y 8.1.1 · cordova-android 15.1.0 · Swift 5.9 / SPM · CocoaPods · `KhipuClientIOS` 2.16.5 · `khipu-client-android` 2.27.0 · Node 20+ (`node --test`, sin frameworks de test nuevos)
+**Tech Stack:** Cordova 13 · cordova-ios 7.1.1 and 8.1.1 · cordova-android 15.1.0 · Swift 5.9 / SPM · CocoaPods · `KhipuClientIOS` 2.16.5 · `khipu-client-android` 2.27.0 · Node 20+ (`node --test`, no new test frameworks)
 
 **Spec:** `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md`
 
 ## Global Constraints
 
-Estos valores aplican a **todas** las tareas. Están copiados textuales del spec.
+These values apply to **every** task. They are copied verbatim from the spec.
 
-- El **package y el product de SPM deben llamarse exactamente `cordova-khipu`** (el id del plugin). `SwiftPackage._pluginReference()` de cordova-ios genera `.product(name: "cordova-khipu", package: "cordova-khipu")`; cualquier otro nombre rompe la resolución. El nombre del **target** sí es libre y es `CordovaKhipu`.
-- **`KhipuClientIOS` fijado en `2.16.5` exacto** en los dos manifests: `exact: "2.16.5"` en `Package.swift` y **`spec="2.16.5"`** en el `<pod>` de `plugin.xml`. Nunca rangos, y nunca el atributo `version`: `Podfile.js` de cordova-ios solo lee `spec` y descarta `version` en silencio, dejando el pod sin pin.
-- **Piso de iOS 13.0** en los dos caminos.
-- **`khipu-client-android` queda en `2.27.0`**, que ya es la última.
-- **`@objc(KhipuPlugin)` no se toca.** `CDVViewController` resuelve la clase con `NSClassFromString("KhipuPlugin")` y su fallback usa `CFBundleExecutable`, que bajo SPM nunca coincide con el módulo. Sin ese atributo el plugin no se encuentra en runtime.
+- The **SPM package and product must both be named exactly `cordova-khipu`** (the plugin's id). cordova-ios's `SwiftPackage._pluginReference()` generates `.product(name: "cordova-khipu", package: "cordova-khipu")`; any other name breaks resolution. The **target**'s name is free, and is `CordovaKhipu`.
+- **`KhipuClientIOS` pinned at exactly `2.16.5`** in both manifests: `exact: "2.16.5"` in `Package.swift` and **`spec="2.16.5"`** on the `<pod>` in `plugin.xml`. Never ranges, and never the `version` attribute: cordova-ios's `Podfile.js` only reads `spec` and silently discards `version`, leaving the pod unpinned.
+- **iOS floor of 13.0** on both paths.
+- **`khipu-client-android` stays at `2.27.0`**, already the latest.
+- **`@objc(KhipuPlugin)` is not touched.** `CDVViewController` resolves the class with `NSClassFromString("KhipuPlugin")` and its fallback uses `CFBundleExecutable`, which under SPM never matches the module. Without that attribute the plugin cannot be found at runtime.
 - **`<engines>`:** `cordova-ios >=7.0.0`, `cordova-android >=13.0.0`.
-- **Versión a publicar al final: `2.10.0`.** Hasta la Task 13 el `version` de `package.json` y `plugin.xml` se deja en `2.9.1`.
-- **Colores de marca Khipu:** púrpura `#8347AD`, cian `#3CB4E5`.
-- **Node 20.19.4** para todo lo que invoque cordova. `cordova-ios` 8.1.1 declara
-  `engines.node: "^20.17.0 || >=22.9.0"`, y la v20.12.2 que toma el shell por defecto en esta
-  máquina no lo cumple. Usar el prefijo de PATH:
+- **Version to publish at the end: `2.10.0`.** Until Task 13, `package.json`'s and `plugin.xml`'s `version` stay at `2.9.1`.
+- **Khipu brand colours:** purple `#8347AD`, cyan `#3CB4E5`.
+- **Node 20.19.4** for everything that invokes cordova. `cordova-ios` 8.1.1 declares
+  `engines.node: "^20.17.0 || >=22.9.0"`, and the v20.12.2 this machine's shell picks up by
+  default does not meet it. Use this PATH prefix:
   `export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"`.
-- **No se agrega CI.** Está fuera de alcance por decisión explícita.
-- **No se publica a npm dentro de este plan.** La Task 13 deja todo listo; publicar requiere una confirmación aparte.
-- Todo comentario y texto de usuario va en español, con acentos correctos.
+- **No CI gets added.** Out of scope by explicit decision.
+- **Nothing gets published to npm within this plan.** Task 13 leaves everything ready; publishing needs a separate confirmation.
+- Every comment and user-facing string goes in Spanish, with correct accents.
 
 ## File Structure
 
-**Se crean:**
+**Created:**
 
-| Archivo | Responsabilidad |
+| File | Responsibility |
 | --- | --- |
-| `Package.swift` | Manifiesto SPM del plugin. Único lugar donde vive la versión de `KhipuClientIOS` para el camino SPM. |
-| `src/ios/KhipuOptionsMapper.swift` | Traduce el diccionario que llega de JS a un tipo propio y de ahí al Builder del SDK. Es lo único de iOS que se puede testear en aislamiento. |
-| `tests/ios/KhipuOptionsMapperTests.swift` | Tests del mapper. |
-| `scripts/configure-swift-ios.js` | Hook `after_prepare` que configura Swift solo en cordova-ios < 8. Reemplaza a `cordova-plugin-add-swift-support`. |
-| `scripts/check-native-versions.js` | Falla si la versión de `KhipuClientIOS` difiere entre `Package.swift` y `plugin.xml`. |
-| `tests/scripts/configure-swift-ios.test.js` | Tests de los helpers del hook (`node --test`). |
-| `tests/scripts/check-native-versions.test.js` | Tests del comparador de versiones. |
-| `example/package.json` | Scripts `ios:pods` / `ios:spm` / `android`. |
-| `example/scripts/install-plugin.mjs` | Empaqueta el plugin y lo instala en el ejemplo desde el tarball, con los dos rodeos que exige `cordova-lib` 13. |
-| `.nvmrc` | Fija Node 20.19.4. Hoy el repo hereda el `.nvmrc` del directorio padre, que apunta a una versión que `cordova-ios` 8 no acepta. |
-| `example/config.xml` | Config de la app de ejemplo. Piso iOS 13. |
-| `example/.gitignore` | Ignora `platforms/`, `plugins/`, `node_modules/` y los tarballs. |
-| `example/www/index.html` | Shell del harness. |
-| `example/www/css/harness.css` | Estilos del harness. |
-| `example/www/js/harness.js` | Toda la lógica del harness: campos, tri-estado, presets, preview, resultado. |
-| `example/README.md` | Matriz de verificación manual. |
-| `CHANGELOG.md` | Generado por `@release-it/conventional-changelog`. |
-| `LICENSE` | Falta hoy pese a que `package.json` declara MIT. **Bloqueado** hasta confirmar la licencia (ver Task 12). |
+| `Package.swift` | The plugin's SPM manifest. The only place the `KhipuClientIOS` version lives for the SPM path. |
+| `src/ios/KhipuOptionsMapper.swift` | Translates the dictionary that arrives from JS into our own type and from there into the SDK's Builder. The only piece of iOS that can be tested in isolation. |
+| `tests/ios/KhipuOptionsMapperTests.swift` | Tests for the mapper. |
+| `scripts/configure-swift-ios.js` | `after_prepare` hook that configures Swift only on cordova-ios < 8. Replaces `cordova-plugin-add-swift-support`. |
+| `scripts/check-native-versions.js` | Fails if the `KhipuClientIOS` version differs between `Package.swift` and `plugin.xml`. |
+| `tests/scripts/configure-swift-ios.test.js` | Tests for the hook's helpers (`node --test`). |
+| `tests/scripts/check-native-versions.test.js` | Tests for the version comparator. |
+| `example/package.json` | `ios:pods` / `ios:spm` / `android` scripts. |
+| `example/scripts/install-plugin.mjs` | Packages the plugin and installs it in the example from the tarball, with the two detours `cordova-lib` 13 requires. |
+| `.nvmrc` | Pins Node 20.19.4. Today the repo inherits the parent directory's `.nvmrc`, which points at a version `cordova-ios` 8 does not accept. |
+| `example/config.xml` | The example app's config. iOS floor of 13. |
+| `example/.gitignore` | Ignores `platforms/`, `plugins/`, `node_modules/` and the tarballs. |
+| `example/www/index.html` | The harness shell. |
+| `example/www/css/harness.css` | The harness styles. |
+| `example/www/js/harness.js` | All of the harness's logic: fields, tri-state, presets, preview, result. |
+| `example/README.md` | Manual verification matrix. |
+| `CHANGELOG.md` | Generated by `@release-it/conventional-changelog`. |
+| `LICENSE` | Missing today even though `package.json` declares MIT. **Blocked** until the license is confirmed (see Task 12). |
 
-**Se modifican:**
+**Modified:**
 
-| Archivo | Cambio |
+| File | Change |
 | --- | --- |
-| `plugin.xml` | `package="swift"`, `nospm="true"`, `KhipuClientIOS` 2.16.5, `<engines>`, hook nuevo, baja de `cordova-plugin-add-swift-support`, `<source-file>` del mapper |
-| `src/ios/KhipuPlugin.swift` | Shim de `import`, uso del mapper, presenter desde `self.viewController` |
-| `src/android/khipu.gradle` | `mavenCentral()` en vez de `jcenter()`, DSL de packaging de AGP 8 |
-| `package.json` | `files`, `scripts.test`, `scripts.verify:versions`, hooks de `release-it`, `infile` del changelog |
-| `README.md` | Secciones de iOS y Android reescritas |
-| `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` | Sección de resultados de verificación (Tasks 3 y 4) |
+| `plugin.xml` | `package="swift"`, `nospm="true"`, `KhipuClientIOS` 2.16.5, `<engines>`, new hook, dropping `cordova-plugin-add-swift-support`, `<source-file>` for the mapper |
+| `src/ios/KhipuPlugin.swift` | `import` shim, using the mapper, presenter from `self.viewController` |
+| `src/android/khipu.gradle` | `mavenCentral()` instead of `jcenter()`, AGP 8 packaging DSL |
+| `package.json` | `files`, `scripts.test`, `scripts.verify:versions`, `release-it` hooks, changelog `infile` |
+| `README.md` | iOS and Android sections rewritten |
+| `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` | Verification results section (Tasks 3 and 4) |
 
 ---
 
-### Task 1: `Package.swift` y `plugin.xml` dual
+### Task 1: Dual `Package.swift` and `plugin.xml`
 
 **Files:**
 - Create: `Package.swift`
@@ -76,31 +76,31 @@ Estos valores aplican a **todas** las tareas. Están copiados textuales del spec
 - Modify: `src/ios/KhipuPlugin.swift:1`
 
 **Interfaces:**
-- Consumes: nada.
-- Produces: package SPM `cordova-khipu`, product `cordova-khipu`, target `CordovaKhipu` (módulo Swift `CordovaKhipu`) con sus fuentes en `src/ios`. Las tareas 9 y 10 agregan archivos a ese mismo target y a `<source-file>`.
+- Consumes: nothing.
+- Produces: the SPM package `cordova-khipu`, product `cordova-khipu`, target `CordovaKhipu` (Swift module `CordovaKhipu`) with its sources under `src/ios`. Tasks 9 and 10 add files to that same target and to `<source-file>`.
 
-- [ ] **Step 1: Confirmar que hoy no hay paquete SPM**
+- [ ] **Step 1: Confirm there is no SPM package today**
 
 Run: `swift package describe`
-Expected: FAIL con `error: Could not find Package.swift in this directory`
+Expected: FAIL with `error: Could not find Package.swift in this directory`
 
-- [ ] **Step 2: Crear `Package.swift`**
+- [ ] **Step 2: Create `Package.swift`**
 
 ```swift
 // swift-tools-version:5.9
 
 import PackageDescription
 
-// El nombre del package y el del product tienen que ser exactamente el id del
-// plugin: cordova-ios genera `.product(name: "cordova-khipu", package:
-// "cordova-khipu")` a partir de él (SwiftPackage._pluginReference). El nombre
-// del target sí es libre.
+// The package name and the product name have to be exactly the plugin's id:
+// cordova-ios generates `.product(name: "cordova-khipu", package:
+// "cordova-khipu")` from it (SwiftPackage._pluginReference). The target's
+// name is free.
 //
-// La dependencia a apache/cordova-ios la reescribe cordova al instalar el
-// plugin, apuntándola a la CordovaLib local del proyecto; acá solo se usa para
-// compilar y testear el paquete suelto. En la práctica resuelve a 8.0.0 exacto,
-// porque Apache etiqueta los releases posteriores como `rel/8.1.1` y SPM no lee
-// esos tags como semver.
+// The dependency on apache/cordova-ios gets rewritten by cordova itself when
+// installing the plugin, pointing it at the project's local CordovaLib; here
+// it is only used to compile and test the standalone package. In practice it
+// resolves to exact 8.0.0, because Apache tags later releases as `rel/8.1.1`
+// and SPM does not read those tags as semver.
 let package = Package(
     name: "cordova-khipu",
     platforms: [
@@ -126,48 +126,49 @@ let package = Package(
 )
 ```
 
-- [ ] **Step 3: Resolver dependencias**
+- [ ] **Step 3: Resolve dependencies**
 
 Run: `swift package resolve`
-Expected: PASS. Resuelve `khipuclientios 2.16.5`, `cordova-ios 8.0.0`, `khenshinprotocolswift`, `khenshinsecuremessage`, `socket.io-client-swift`, `starscream`, `tweetnacl-swiftwrap`.
+Expected: PASS. Resolves `khipuclientios 2.16.5`, `cordova-ios 8.0.0`, `khenshinprotocolswift`, `khenshinsecuremessage`, `socket.io-client-swift`, `starscream`, `tweetnacl-swiftwrap`.
 
-Si falla con `the package ... does not contain a Package.swift`, revisar la URL. Si falla con `Dependencies could not be resolved`, revisar que el tag `2.16.5` exista en `khipu/KhipuClientIOS`.
+If it fails with `the package ... does not contain a Package.swift`, check the URL. If it fails with `Dependencies could not be resolved`, check that tag `2.16.5` exists on `khipu/KhipuClientIOS`.
 
-- [ ] **Step 4: Ver los schemes que genera Xcode**
+- [ ] **Step 4: See the schemes Xcode generates**
 
 Run: `xcodebuild -list`
-Expected: aparece el scheme `cordova-khipu`. Anotar el nombre exacto; los pasos siguientes lo usan.
+Expected: the `cordova-khipu` scheme shows up. Write down the exact name; the next steps use it.
 
-- [ ] **Step 5: Compilar y ver que falla por el `import` faltante**
+- [ ] **Step 5: Compile and see it fail on the missing `import`**
 
 Run: `xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build`
-Expected: FAIL con `cannot find type 'CDVPlugin' in scope` y `cannot find type 'CDVInvokedUrlCommand' in scope`.
+Expected: FAIL with `cannot find type 'CDVPlugin' in scope` and `cannot find type 'CDVInvokedUrlCommand' in scope`.
 
-Esto es lo esperado: hoy `KhipuPlugin.swift` recibe `CDVPlugin` por el bridging header del proyecto, que bajo SPM no existe.
+This is expected: today `KhipuPlugin.swift` gets `CDVPlugin` from the project's bridging header, which does not exist under SPM.
 
-- [ ] **Step 6: Agregar el shim de `import`**
+- [ ] **Step 6: Add the `import` shim**
 
-En `src/ios/KhipuPlugin.swift`, reemplazar la primera línea (`import KhipuClientIOS`) por:
+In `src/ios/KhipuPlugin.swift`, replace the first line (`import KhipuClientIOS`) with:
 
 ```swift
 import UIKit
 #if canImport(Cordova)
-// cordova-ios 8 expone CordovaLib como el módulo `Cordova` (viene de
-// CordovaLib/include/Cordova/). En cordova-ios 7 no hay módulo: CDVPlugin llega
-// por el bridging header del proyecto y este import no aplica.
+// cordova-ios 8 exposes CordovaLib as the `Cordova` module (it comes from
+// CordovaLib/include/Cordova/). On cordova-ios 7 there is no module:
+// CDVPlugin arrives via the project's bridging header and this import does
+// not apply.
 import Cordova
 #endif
 import KhipuClientIOS
 ```
 
-- [ ] **Step 7: Compilar y verificar que pasa**
+- [ ] **Step 7: Compile and verify it passes**
 
 Run: `xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build`
 Expected: PASS, `BUILD SUCCEEDED`.
 
-- [ ] **Step 8: Reemplazar `plugin.xml`**
+- [ ] **Step 8: Replace `plugin.xml`**
 
-Contenido completo del archivo:
+Full content of the file:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -211,31 +212,31 @@ Contenido completo del archivo:
 </plugin>
 ```
 
-Cambios respecto del archivo anterior: se agregó `<engines>`, `package="swift"` en el `<platform>` de iOS, `nospm="true"` en el `<pod>`, y la versión del pod subió de `2.16.2` a `2.16.5`. La `<dependency>` de `cordova-plugin-add-swift-support` sigue ahí a propósito: sale en la Task 2.
+Changes from the previous file: `<engines>` was added, `package="swift"` on the iOS `<platform>`, `nospm="true"` on the `<pod>`, and the pod's version went from `2.16.2` to `2.16.5`. The `<dependency>` on `cordova-plugin-add-swift-support` is still there on purpose: it goes away in Task 2.
 
-- [ ] **Step 9: Verificar que `plugin.xml` sigue siendo XML válido**
+- [ ] **Step 9: Verify `plugin.xml` is still valid XML**
 
 Run: `grep -c 'platform name="ios" package="swift"' plugin.xml && grep -c 'nospm="true"' plugin.xml`
-Expected: `1` y `1`.
+Expected: `1` and `1`.
 
-> **Superado por la Task 3b.** El `<podspec>` que escribe esta tarea todavía usa `version=`,
-> `<config><source>` y `use-frameworks="true"`. Los tres resultaron estar mal y los corrige la
-> Task 3b; se dejan acá tal como se ejecutaron, para que el historial se entienda.
+> **Superseded by Task 3b.** The `<podspec>` this task writes still uses `version=`,
+> `<config><source>` and `use-frameworks="true"`. All three turned out to be wrong and Task 3b
+> fixes them; they are left here exactly as they were run, so the history makes sense.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add Package.swift plugin.xml src/ios/KhipuPlugin.swift
-git commit -m "feat(ios): agregar soporte SPM dual con CocoaPods
+git commit -m "feat(ios): add SPM support, dual with CocoaPods
 
-Package.swift para cordova-ios 8, con el podspec intacto y marcado
-nospm para cordova-ios 7. KhipuClientIOS sube a 2.16.5, que es la
-primera versión consumible por SPM."
+Package.swift for cordova-ios 8, with the podspec kept intact and
+marked nospm for cordova-ios 7. KhipuClientIOS bumps to 2.16.5, the
+first version consumable via SPM."
 ```
 
 ---
 
-### Task 2: Hook propio de Swift, en reemplazo de `cordova-plugin-add-swift-support`
+### Task 2: A Swift hook of our own, replacing `cordova-plugin-add-swift-support`
 
 **Files:**
 - Create: `scripts/configure-swift-ios.js`
@@ -244,12 +245,12 @@ primera versión consumible por SPM."
 - Modify: `package.json`
 
 **Interfaces:**
-- Consumes: el `plugin.xml` de la Task 1.
-- Produces: `scripts/configure-swift-ios.js` exporta la función de hook por defecto y, para tests, `getCordovaIosMajor(platformPath) -> number`, `findXcodeProjectName(platformPath) -> string` y `readSwiftVersionPreference(projectRoot) -> string | null`. `package.json` gana el script `npm test` que corre `node --test tests/scripts/`.
+- Consumes: Task 1's `plugin.xml`.
+- Produces: `scripts/configure-swift-ios.js` exports the hook function as its default export and, for tests, `getCordovaIosMajor(platformPath) -> number`, `findXcodeProjectName(platformPath) -> string` and `readSwiftVersionPreference(projectRoot) -> string | null`. `package.json` gains the `npm test` script, which runs `node --test tests/scripts/`.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [ ] **Step 1: Write the failing tests**
 
-Crear `tests/scripts/configure-swift-ios.test.js`:
+Create `tests/scripts/configure-swift-ios.test.js`:
 
 ```js
 const test = require('node:test');
@@ -264,7 +265,7 @@ function tempDir () {
     return fs.mkdtempSync(path.join(os.tmpdir(), 'cordova-khipu-test-'));
 }
 
-test('detecta cordova-ios 8 por la presencia de App.xcodeproj', () => {
+test('detects cordova-ios 8 from the presence of App.xcodeproj', () => {
     const root = tempDir();
     const platformPath = path.join(root, 'platforms', 'ios');
     fs.mkdirSync(path.join(platformPath, 'App.xcodeproj'), { recursive: true });
@@ -272,19 +273,19 @@ test('detecta cordova-ios 8 por la presencia de App.xcodeproj', () => {
     assert.strictEqual(hook.getCordovaIosMajor(platformPath), 8);
 });
 
-test('detecta cordova-ios 7 cuando el proyecto tiene otro nombre', () => {
+test('detects cordova-ios 7 when the project has a different name', () => {
     const root = tempDir();
     const platformPath = path.join(root, 'platforms', 'ios');
-    fs.mkdirSync(path.join(platformPath, 'MiApp.xcodeproj'), { recursive: true });
+    fs.mkdirSync(path.join(platformPath, 'MyApp.xcodeproj'), { recursive: true });
 
     assert.strictEqual(hook.getCordovaIosMajor(platformPath), 7);
 });
 
-test('el script cordova/version manda por sobre el heurístico', () => {
+test('the cordova/version script wins over the heuristic', () => {
     const root = tempDir();
     const platformPath = path.join(root, 'platforms', 'ios');
     fs.mkdirSync(path.join(platformPath, 'cordova'), { recursive: true });
-    fs.mkdirSync(path.join(platformPath, 'MiApp.xcodeproj'), { recursive: true });
+    fs.mkdirSync(path.join(platformPath, 'MyApp.xcodeproj'), { recursive: true });
 
     const versionScript = path.join(platformPath, 'cordova', 'version');
     fs.writeFileSync(versionScript, '#!/bin/sh\necho 8.1.1\n');
@@ -293,15 +294,15 @@ test('el script cordova/version manda por sobre el heurístico', () => {
     assert.strictEqual(hook.getCordovaIosMajor(platformPath), 8);
 });
 
-test('encuentra el nombre del proyecto Xcode en disco', () => {
+test('finds the Xcode project name on disk', () => {
     const root = tempDir();
     const platformPath = path.join(root, 'platforms', 'ios');
-    fs.mkdirSync(path.join(platformPath, 'MiApp.xcodeproj'), { recursive: true });
+    fs.mkdirSync(path.join(platformPath, 'MyApp.xcodeproj'), { recursive: true });
 
-    assert.strictEqual(hook.findXcodeProjectName(platformPath), 'MiApp');
+    assert.strictEqual(hook.findXcodeProjectName(platformPath), 'MyApp');
 });
 
-test('lee la preferencia SwiftVersion del config.xml', () => {
+test('reads the SwiftVersion preference from config.xml', () => {
     const root = tempDir();
     fs.writeFileSync(path.join(root, 'config.xml'),
         '<widget><platform name="ios">' +
@@ -311,14 +312,14 @@ test('lee la preferencia SwiftVersion del config.xml', () => {
     assert.strictEqual(hook.readSwiftVersionPreference(root), '5.9');
 });
 
-test('sin preferencia SwiftVersion devuelve null', () => {
+test('returns null with no SwiftVersion preference', () => {
     const root = tempDir();
     fs.writeFileSync(path.join(root, 'config.xml'), '<widget></widget>');
 
     assert.strictEqual(hook.readSwiftVersionPreference(root), null);
 });
 
-test('en cordova-ios 8 el hook no toca nada', () => {
+test('on cordova-ios 8 the hook touches nothing', () => {
     const root = tempDir();
     const platformPath = path.join(root, 'platforms', 'ios');
     fs.mkdirSync(path.join(platformPath, 'App.xcodeproj'), { recursive: true });
@@ -331,33 +332,33 @@ test('en cordova-ios 8 el hook no toca nada', () => {
         'original');
 });
 
-test('sin plataforma ios el hook sale sin lanzar', () => {
+test('with no ios platform the hook exits without throwing', () => {
     const root = tempDir();
     assert.doesNotThrow(() => hook({ opts: { projectRoot: root } }));
 });
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [ ] **Step 2: Run the tests and verify they fail**
 
 Run: `node --test tests/scripts/`
-Expected: FAIL con `Cannot find module '../../scripts/configure-swift-ios.js'`
+Expected: FAIL with `Cannot find module '../../scripts/configure-swift-ios.js'`
 
-- [ ] **Step 3: Escribir el hook**
+- [ ] **Step 3: Write the hook**
 
-Crear `scripts/configure-swift-ios.js`:
+Create `scripts/configure-swift-ios.js`:
 
 ```js
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-// cordova-ios 8 define SWIFT_VERSION y SWIFT_OBJC_BRIDGING_HEADER en su
-// plantilla; cordova-ios 7 no define ninguno de los dos, así que un plugin
-// escrito en Swift no compila sin esto. Este hook cubre solo ese hueco.
+// cordova-ios 8 defines SWIFT_VERSION and SWIFT_OBJC_BRIDGING_HEADER in its
+// template; cordova-ios 7 defines neither, so a plugin written in Swift will
+// not compile without this. This hook covers just that gap.
 //
-// Reemplaza a cordova-plugin-add-swift-support, que arma la ruta del proyecto
-// como `<config.name()>.xcodeproj` y por eso revienta con ENOENT en
-// cordova-ios 8, donde el proyecto se llama siempre App.xcodeproj.
+// Replaces cordova-plugin-add-swift-support, which builds the project path
+// as `<config.name()>.xcodeproj` and so blows up with ENOENT on cordova-ios
+// 8, where the project is always named App.xcodeproj.
 
 const DEFAULT_SWIFT_VERSION = '5.0';
 
@@ -375,13 +376,13 @@ module.exports = function (context) {
         }
         configureLegacyProject(projectRoot, platformPath);
     } catch (error) {
-        // Un problema configurando Swift no debe voltear el build entero: se
-        // avisa y se deja al comercio la salida manual.
+        // A problem configuring Swift must not take down the whole build:
+        // warn and leave the manual fix to the merchant.
         console.warn(
-            `cordova-khipu: no se pudo configurar Swift para iOS (${error.message}). ` +
-            'Si el build falla con "Cannot determine Swift version", agrega ' +
-            '<preference name="SwiftVersion" value="5.0" /> dentro de la sección ' +
-            'ios de tu config.xml.'
+            `cordova-khipu: could not configure Swift for iOS (${error.message}). ` +
+            'If the build fails with "Cannot determine Swift version", add ' +
+            '<preference name="SwiftVersion" value="5.0" /> inside the ios ' +
+            'section of your config.xml.'
         );
     }
 };
@@ -396,17 +397,17 @@ function getCordovaIosMajor (platformPath) {
             return Number(match[1]);
         }
     } catch (_) {
-        // Sin el script de version, cae al heurístico de abajo.
+        // Without the version script, fall back to the heuristic below.
     }
 
-    // cordova-ios 8 renombró el proyecto a App.xcodeproj de forma fija.
+    // cordova-ios 8 renamed the project to a fixed App.xcodeproj.
     return fs.existsSync(path.join(platformPath, 'App.xcodeproj')) ? 8 : 7;
 }
 
 function configureLegacyProject (projectRoot, platformPath) {
-    // `xcode` es dependencia de cordova-ios, así que resuelve desde el
-    // node_modules del proyecto. Es el mismo mecanismo que usaba
-    // cordova-plugin-add-swift-support.
+    // `xcode` is a dependency of cordova-ios, so it resolves from the
+    // project's node_modules. This is the same mechanism
+    // cordova-plugin-add-swift-support used.
     const xcode = require('xcode');
 
     const projectName = findXcodeProjectName(platformPath);
@@ -414,7 +415,7 @@ function configureLegacyProject (projectRoot, platformPath) {
     const bridgingHeader = path.join(platformPath, projectName, 'Bridging-Header.h');
 
     if (!fs.existsSync(bridgingHeader)) {
-        throw new Error(`no existe ${bridgingHeader}`);
+        throw new Error(`${bridgingHeader} does not exist`);
     }
 
     const swiftVersion = readSwiftVersionPreference(projectRoot) || DEFAULT_SWIFT_VERSION;
@@ -431,24 +432,24 @@ function configureLegacyProject (projectRoot, platformPath) {
 
     fs.writeFileSync(pbxprojPath, project.writeSync(), 'utf-8');
 
-    console.log(`cordova-khipu: SWIFT_VERSION=${swiftVersion} configurado para cordova-ios < 8.`);
+    console.log(`cordova-khipu: SWIFT_VERSION=${swiftVersion} configured for cordova-ios < 8.`);
 }
 
-// Se busca el .xcodeproj en disco en vez de derivarlo del nombre en config.xml:
-// es el mismo dato y evita depender de que cordova-common resuelva desde el
-// node_modules del proyecto.
+// The .xcodeproj is looked up on disk instead of derived from the name in
+// config.xml: it is the same piece of information, and this avoids depending
+// on cordova-common resolving from the project's node_modules.
 function findXcodeProjectName (platformPath) {
     const found = fs.readdirSync(platformPath).filter(entry => entry.endsWith('.xcodeproj'));
 
     if (found.length !== 1) {
-        throw new Error(`se esperaba un .xcodeproj en ${platformPath}, hay ${found.length}`);
+        throw new Error(`expected one .xcodeproj in ${platformPath}, found ${found.length}`);
     }
 
     return path.basename(found[0], '.xcodeproj');
 }
 
-// Lectura deliberadamente simple: alcanza para la única preferencia que nos
-// interesa y no arrastra cordova-common a un hook.
+// Deliberately simple read: it is enough for the one preference we care
+// about, and it does not drag cordova-common into a hook.
 function readSwiftVersionPreference (projectRoot) {
     const configPath = path.join(projectRoot, 'config.xml');
 
@@ -463,84 +464,84 @@ function readSwiftVersionPreference (projectRoot) {
     return match ? match[1] : null;
 }
 
-// Exportados para los tests.
+// Exported for the tests.
 module.exports.getCordovaIosMajor = getCordovaIosMajor;
 module.exports.findXcodeProjectName = findXcodeProjectName;
 module.exports.readSwiftVersionPreference = readSwiftVersionPreference;
 ```
 
-- [ ] **Step 4: Agregar el script `test` a `package.json`**
+- [ ] **Step 4: Add the `test` script to `package.json`**
 
-En el objeto `scripts` de `package.json`, agregar como primera entrada:
+In `package.json`'s `scripts` object, add as the first entry:
 
 ```json
     "test": "node --test tests/scripts/",
 ```
 
-- [ ] **Step 5: Correr los tests y verificar que pasan**
+- [ ] **Step 5: Run the tests and verify they pass**
 
 Run: `npm test`
-Expected: PASS, 8 tests, 0 fallas.
+Expected: PASS, 8 tests, 0 failures.
 
-- [ ] **Step 6: Registrar el hook y dar de baja la dependencia en `plugin.xml`**
+- [ ] **Step 6: Register the hook and drop the dependency in `plugin.xml`**
 
-Dentro de `<platform name="ios" package="swift">`, después del `<source-file>`, agregar:
+Inside `<platform name="ios" package="swift">`, after the `<source-file>`, add:
 
 ```xml
     <hook type="after_prepare" src="scripts/configure-swift-ios.js"/>
 ```
 
-Y borrar esta línea completa:
+And delete this whole line:
 
 ```xml
   <dependency id="cordova-plugin-add-swift-support" version="2.0.2"/>
 ```
 
-- [ ] **Step 7: Verificar que la dependencia ya no está**
+- [ ] **Step 7: Verify the dependency is gone**
 
-Run: `grep -c "add-swift-support" plugin.xml || echo "0 ocurrencias, correcto"`
-Expected: `0 ocurrencias, correcto`
+Run: `grep -c "add-swift-support" plugin.xml || echo "0 occurrences, correct"`
+Expected: `0 occurrences, correct`
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add scripts/configure-swift-ios.js tests/scripts/configure-swift-ios.test.js plugin.xml package.json
-git commit -m "fix(ios): reemplazar cordova-plugin-add-swift-support por un hook propio
+git commit -m "fix(ios): replace cordova-plugin-add-swift-support with our own hook
 
-Ese plugin arma la ruta del proyecto como <config.name()>.xcodeproj y
-revienta con ENOENT en cordova-ios 8, donde el proyecto se llama siempre
-App.xcodeproj. El hook nuevo no hace nada en cordova-ios 8 y solo
-configura Swift en las versiones que no lo traen."
+That plugin builds the project path as <config.name()>.xcodeproj and
+blows up with ENOENT on cordova-ios 8, where the project is always
+named App.xcodeproj. The new hook does nothing on cordova-ios 8 and
+only configures Swift on versions that do not already bring it."
 ```
 
 ---
 
-### Task 3: Verificar los dos majors de iOS en proyectos desechables
+### Task 3: Verify both iOS majors in throwaway projects
 
-Esta tarea es un **gate**: resuelve el riesgo 5 del spec. Si cordova-ios 7 no compila con el Xcode instalado, hay que detenerse y reevaluar el soporte dual antes de invertir en el resto del plan.
+This task is a **gate**: it resolves risk 5 from the spec. If cordova-ios 7 does not compile with the installed Xcode, stop and reassess dual support before investing in the rest of the plan.
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (agregar sección de resultados)
+- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (add a results section)
 
 **Interfaces:**
-- Consumes: el plugin tal como quedó después de la Task 2.
-- Produces: una sección `## 15. Resultados de verificación` en el spec, con la versión de Xcode usada y el resultado de cada escenario.
+- Consumes: the plugin as it stands after Task 2.
+- Produces: a `## 15. Verification results` section in the spec, with the Xcode version used and each scenario's result.
 
-- [ ] **Step 1: Anotar la versión de Xcode**
+- [ ] **Step 1: Note the Xcode version**
 
 Run: `xcodebuild -version`
-Guardar la salida; va en el spec al final de la tarea.
+Save the output; it goes in the spec at the end of the task.
 
-- [ ] **Step 2: Empaquetar el plugin**
+- [ ] **Step 2: Package the plugin**
 
 ```bash
 cd /Users/edavis/git/cordova-khipu
 npm pack --pack-destination /tmp
 ls /tmp/cordova-khipu-2.9.1.tgz
 ```
-Expected: el archivo existe.
+Expected: the file exists.
 
-- [ ] **Step 3: Crear el proyecto de cordova-ios 7 y verificar que falla sin el plugin**
+- [ ] **Step 3: Create the cordova-ios 7 project and verify it fails without the plugin**
 
 ```bash
 cd /tmp && rm -rf cdvtest7
@@ -548,7 +549,7 @@ npx cordova@13 create cdvtest7 com.khipu.test7 CdvTest7
 cd /tmp/cdvtest7
 ```
 
-Editar `/tmp/cdvtest7/config.xml` y agregar antes de `</widget>`:
+Edit `/tmp/cdvtest7/config.xml` and add before `</widget>`:
 
 ```xml
     <platform name="ios">
@@ -559,7 +560,7 @@ Editar `/tmp/cdvtest7/config.xml` y agregar antes de `</widget>`:
 Run: `npx cordova@13 plugin list`
 Expected: `No plugins added. Use 'cordova plugin add <plugin>'.`
 
-- [ ] **Step 4: Instalar plataforma y plugin, y compilar**
+- [ ] **Step 4: Install the platform and plugin, and compile**
 
 ```bash
 cd /tmp/cdvtest7
@@ -569,29 +570,29 @@ npx cordova@13 build ios --emulator 2>&1 | tail -40
 ```
 Expected: `BUILD SUCCEEDED`.
 
-Si falla, leer el error completo. Los dos modos de falla previstos:
-- `Cannot determine Swift version` → el hook de la Task 2 no se ejecutó o no encontró el pbxproj.
-- Errores del SDK de iOS o de Xcode → es exactamente el riesgo 5. **Detenerse y reportar** antes de seguir.
+If it fails, read the full error. The two expected failure modes:
+- `Cannot determine Swift version` → Task 2's hook did not run or could not find the pbxproj.
+- iOS SDK or Xcode errors → this is exactly risk 5. **Stop and report** before continuing.
 
-- [ ] **Step 5: Verificar que cordova-ios 7 tomó el camino de CocoaPods**
+- [ ] **Step 5: Verify cordova-ios 7 took the CocoaPods path**
 
 ```bash
 cd /tmp/cdvtest7
-test -f platforms/ios/Podfile && echo "Podfile presente: OK"
+test -f platforms/ios/Podfile && echo "Podfile present: OK"
 grep KhipuClientIOS platforms/ios/Podfile
-test ! -d platforms/ios/packages && echo "sin packages/: OK"
+test ! -d platforms/ios/packages && echo "no packages/: OK"
 ```
-Expected: `Podfile presente: OK`, una línea con `pod 'KhipuClientIOS', '2.16.5'`, y `sin packages/: OK`.
+Expected: `Podfile present: OK`, a line with `pod 'KhipuClientIOS', '2.16.5'`, and `no packages/: OK`.
 
-- [ ] **Step 6: Verificar que el hook configuró Swift**
+- [ ] **Step 6: Verify the hook configured Swift**
 
 ```bash
 cd /tmp/cdvtest7
 grep -m2 "SWIFT_VERSION\|SWIFT_OBJC_BRIDGING_HEADER" platforms/ios/CdvTest7.xcodeproj/project.pbxproj
 ```
-Expected: aparecen `SWIFT_VERSION = 5.0;` y `SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/$(PROJECT_NAME)/Bridging-Header.h";`
+Expected: `SWIFT_VERSION = 5.0;` and `SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/$(PROJECT_NAME)/Bridging-Header.h";` show up.
 
-- [ ] **Step 7: Crear el proyecto de cordova-ios 8 y compilar**
+- [ ] **Step 7: Create the cordova-ios 8 project and compile**
 
 ```bash
 cd /tmp && rm -rf cdvtest8
@@ -603,97 +604,98 @@ npx cordova@13 build ios --emulator 2>&1 | tail -40
 ```
 Expected: `BUILD SUCCEEDED`.
 
-- [ ] **Step 8: Verificar que cordova-ios 8 tomó el camino SPM y no CocoaPods**
+- [ ] **Step 8: Verify cordova-ios 8 took the SPM path, not CocoaPods**
 
 ```bash
 cd /tmp/cdvtest8
-test ! -f platforms/ios/Podfile && echo "sin Podfile: OK"
-test -d platforms/ios/packages/cordova-khipu && echo "package copiado: OK"
+test ! -f platforms/ios/Podfile && echo "no Podfile: OK"
+test -d platforms/ios/packages/cordova-khipu && echo "package copied: OK"
 grep cordova-khipu platforms/ios/packages/cordova-ios-plugins/Package.swift
 grep -n "cordova-ios" platforms/ios/packages/cordova-khipu/Package.swift
 ```
 Expected:
-- `sin Podfile: OK`
-- `package copiado: OK`
-- dos líneas: `package.dependencies.append(.package(name: "cordova-khipu", path: "../cordova-khipu"))` y `package.targets.first?.dependencies.append(.product(name: "cordova-khipu", package: "cordova-khipu"))`
-- la dependencia reescrita a `package(name: "cordova-ios", path: "../cordova-ios")`
+- `no Podfile: OK`
+- `package copied: OK`
+- two lines: `package.dependencies.append(.package(name: "cordova-khipu", path: "../cordova-khipu"))` and `package.targets.first?.dependencies.append(.product(name: "cordova-khipu", package: "cordova-khipu"))`
+- the dependency rewritten to `package(name: "cordova-ios", path: "../cordova-ios")`
 
-- [ ] **Step 9: Verificar que el hook no hizo nada en cordova-ios 8**
+- [ ] **Step 9: Verify the hook did nothing on cordova-ios 8**
 
-Run: `cd /tmp/cdvtest8 && npx cordova@13 prepare ios 2>&1 | grep -i "cordova-khipu" || echo "sin salida del hook: OK"`
-Expected: `sin salida del hook: OK`
+Run: `cd /tmp/cdvtest8 && npx cordova@13 prepare ios 2>&1 | grep -i "cordova-khipu" || echo "no hook output: OK"`
+Expected: `no hook output: OK`
 
-- [ ] **Step 10: Escribir los resultados en el spec**
+- [ ] **Step 10: Write the results into the spec**
 
-Agregar al final de `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md`:
+Add to the end of `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md`:
 
 ```markdown
-## 15. Resultados de verificación
+## 15. Verification results
 
-### Fase 1 — los dos majors de iOS (Task 3 del plan)
+### Phase 1 — the two iOS majors (plan Task 3)
 
-Ejecutado el <FECHA> con <SALIDA DE xcodebuild -version>.
+Run on <DATE> with <xcodebuild -version OUTPUT>.
 
-| Escenario | Resultado |
+| Scenario | Result |
 | --- | --- |
-| `cordova-ios@7.1.1` + CocoaPods, `cordova build ios --emulator` | <OK / detalle de la falla> |
-| `cordova-ios@7.1.1`: Podfile presente con `KhipuClientIOS 2.16.5` | <sí / no> |
-| `cordova-ios@7.1.1`: hook fijó `SWIFT_VERSION` y el bridging header | <sí / no> |
-| `cordova-ios@8.1.1` + SPM, `cordova build ios --emulator` | <OK / detalle de la falla> |
-| `cordova-ios@8.1.1`: sin Podfile, con `packages/cordova-khipu` | <sí / no> |
-| `cordova-ios@8.1.1`: el hook no emitió salida | <sí / no> |
+| `cordova-ios@7.1.1` + CocoaPods, `cordova build ios --emulator` | <OK / failure detail> |
+| `cordova-ios@7.1.1`: Podfile present with `KhipuClientIOS 2.16.5` | <yes / no> |
+| `cordova-ios@7.1.1`: the hook set `SWIFT_VERSION` and the bridging header | <yes / no> |
+| `cordova-ios@8.1.1` + SPM, `cordova build ios --emulator` | <OK / failure detail> |
+| `cordova-ios@8.1.1`: no Podfile, with `packages/cordova-khipu` | <yes / no> |
+| `cordova-ios@8.1.1`: the hook produced no output | <yes / no> |
 
-**Riesgo 5 (viabilidad de cordova-ios 7 con el Xcode actual):** <resuelto / abierto,
-con el detalle>.
+**Risk 5 (viability of cordova-ios 7 with the current Xcode):** <resolved / open,
+with the detail>.
 ```
 
-Reemplazar cada `<...>` por el valor real observado. No dejar ningún `<...>` en el archivo.
+Replace each `<...>` with the value actually observed. Do not leave any `<...>` in the file.
 
-- [ ] **Step 11: Limpiar y commitear**
+- [ ] **Step 11: Clean up and commit**
 
 ```bash
 rm -rf /tmp/cdvtest7 /tmp/cdvtest8 /tmp/cordova-khipu-2.9.1.tgz
 cd /Users/edavis/git/cordova-khipu
 git add docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md
-git commit -m "docs: registrar la verificación de cordova-ios 7 y 8"
+git commit -m "docs: record the cordova-ios 7 and 8 verification"
 ```
 
 ---
 
-### Task 3b: Corregir el pin del pod y el Podfile fantasma
+### Task 3b: Fix the pod pin and the phantom Podfile
 
-Dos defectos que encontró la Task 3 compilando de verdad. Los dos invalidan afirmaciones del
-spec, así que se arreglan antes de seguir.
+Two defects Task 3 found by actually compiling. Both invalidate claims made in the spec, so
+they get fixed before continuing.
 
-**a) El pin de versión del pod nunca se aplicó.** `Podfile.js` de cordova-ios solo emite la
-restricción de versión si el JSON del pod trae la clave `spec` (`if ('spec' in json &&
-json.spec.length)`, línea 300). El atributo `version` se ignora en silencio. El `plugin.xml`
-publicado en `cordova-khipu` 2.9.1 usa `version="2.16.2"`, o sea que **el plugin nunca fijó la
-versión del pod**: genera `pod 'KhipuClientIOS'` sin restricción. Es un defecto preexistente.
+**a) The pod's version pin never took effect.** cordova-ios's `Podfile.js` only emits the
+version constraint if the pod's JSON carries the `spec` key (`if ('spec' in json &&
+json.spec.length)`, line 300). The `version` attribute is silently ignored. The `plugin.xml`
+published in `cordova-khipu` 2.9.1 uses `version="2.16.2"`, meaning **the plugin never
+actually pinned the pod's version**: it generates `pod 'KhipuClientIOS'` with no constraint.
+This is a pre-existing defect.
 
-**b) Se crea un Podfile aunque el pod esté descartado.** El bloque `// sources` de `Api.js` no
-está protegido por `isSwiftPackagePlugin`, a diferencia del `// libraries` que le sigue. Con un
-`<config><source>` declarado, cordova-ios 8 marca el Podfile como sucio y corre `pod install`
-igual, rompiendo la premisa de "SPM puro, sin CocoaPods instalado". Declarar el trunk de
-CocoaPods era redundante: es el source por defecto cuando no hay ninguno.
+**b) A Podfile gets created even though the pod is discarded.** `Api.js`'s `// sources` block
+is not guarded by `isSwiftPackagePlugin`, unlike the `// libraries` block right after it. With
+a `<config><source>` declared, cordova-ios 8 marks the Podfile as dirty and runs `pod install`
+anyway, breaking the "pure SPM, no CocoaPods installed" premise. Declaring the CocoaPods trunk
+was redundant: it is the default source when none is declared.
 
 **Files:**
 - Modify: `plugin.xml`
-- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (sección §15)
+- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (§15 section)
 
 **Interfaces:**
-- Consumes: el `plugin.xml` de las Tasks 1 y 2.
-- Produces: un `<podspec>` sin `<config>` y con `spec="2.16.5"`. La Task 12 lo verifica con
-  `check-native-versions.js`, que busca `spec=` y falla ante `version=`.
+- Consumes: Tasks 1 and 2's `plugin.xml`.
+- Produces: a `<podspec>` with no `<config>` and with `spec="2.16.5"`. Task 12 verifies it with
+  `check-native-versions.js`, which looks for `spec=` and fails on `version=`.
 
-- [ ] **Step 1: Confirmar el estado actual**
+- [ ] **Step 1: Confirm the current state**
 
 Run: `grep -n "podspec\|<config>\|<source url\|<pod " plugin.xml`
-Expected: aparecen el `<config>`, el `<source url=...>` y un `<pod ... version="2.16.5" ...>`.
+Expected: the `<config>`, the `<source url=...>` and a `<pod ... version="2.16.5" ...>` show up.
 
-- [ ] **Step 2: Corregir el bloque `<podspec>`**
+- [ ] **Step 2: Fix the `<podspec>` block**
 
-Reemplazar el bloque completo:
+Replace the whole block:
 
 ```xml
     <podspec>
@@ -706,7 +708,7 @@ Reemplazar el bloque completo:
     </podspec>
 ```
 
-por:
+with:
 
 ```xml
     <podspec>
@@ -716,46 +718,47 @@ por:
     </podspec>
 ```
 
-Tres cambios:
+Three changes:
 
-1. `version=` pasa a **`spec=`**, que es el atributo que cordova-ios lee de verdad.
-2. Se elimina el `<config>` entero, cuyo `<source>` marcaba el Podfile como sucio.
-3. Se elimina **`use-frameworks="true"`** del `<pods>`. `PluginInfo.getPodSpecs()` convierte los
-   atributos de `<pods>` en *declaraciones* del Podfile (`use_frameworks!`), y el bloque
-   `// declarations` de `Api.js` tampoco tiene guarda de `isSwiftPackagePlugin` — así que esa
-   sola declaración basta para marcar el Podfile como sucio y disparar `pod install`.
+1. `version=` becomes **`spec=`**, the attribute cordova-ios actually reads.
+2. The whole `<config>` is removed, whose `<source>` was marking the Podfile dirty.
+3. **`use-frameworks="true"`** is removed from `<pods>`. `PluginInfo.getPodSpecs()` turns
+   `<pods>`'s attributes into Podfile *declarations* (`use_frameworks!`), and `Api.js`'s
+   `// declarations` block has no `isSwiftPackagePlugin` guard either — so that single
+   declaration alone is enough to mark the Podfile dirty and trigger `pod install`.
 
-Sobre el punto 3, que es el que cambia comportamiento en el camino viejo: sin `use_frameworks!`
-los pods se enlazan como librerías estáticas en vez de frameworks dinámicos. Es seguro para
-`KhipuClientIOS` porque su podspec declara `s.resource_bundles` —el mecanismo pensado
-justamente para enlace estático— y su `BundleHelper` resuelve con
+On point 3, the one that changes behaviour on the old path: without `use_frameworks!` the pods
+link as static libraries instead of dynamic frameworks. This is safe for `KhipuClientIOS`
+because its podspec declares `s.resource_bundles` — precisely the mechanism meant for static
+linking — and its `BundleHelper` resolves with
 `Bundle(for: KhipuClientBundleHelper.self).path(forResource: "KhipuClientIOS", ofType: "bundle")`,
-que funciona en los dos modelos: con framework dinámico apunta al bundle del framework, y con
-librería estática la clase queda en el binario de la app, donde CocoaPods copia el resource
-bundle. **Aun así hay que confirmarlo en runtime**, no solo que compile: los recursos que
-fallan lo hacen al mostrarse, no al enlazar.
+which works under both models: with a dynamic framework it points at the framework's bundle,
+and with a static library the class ends up in the app's binary, where CocoaPods copies the
+resource bundle. **It still has to be confirmed at runtime**, not just that it compiles:
+resources that fail do so when displayed, not when linked.
 
-Y no se puede simplemente dejarlo: en macOS, `check_cocoapods` de cordova-ios llama a
-`checkTool('pod', ...)`, que **rechaza** si el binario falta (solo devuelve `ignore` cuando el
-SO no es macOS). Con el Podfile sucio, un comercio en cordova-ios 8 sin CocoaPods instalado ve
-fallar `cordova plugin add`, que es exactamente lo que esta migración promete evitar.
+And it cannot simply be left in place: on macOS, cordova-ios's `check_cocoapods` calls
+`checkTool('pod', ...)`, which **rejects** if the binary is missing (it only returns `ignore`
+when the OS is not macOS). With the Podfile dirty, a merchant on cordova-ios 8 with no
+CocoaPods installed sees `cordova plugin add` fail, exactly what this migration promises to
+avoid.
 
-- [ ] **Step 3: Verificar el texto**
+- [ ] **Step 3: Verify the text**
 
 Run: `grep -c 'spec="2.16.5"' plugin.xml && grep -c "<config>" plugin.xml`
-Expected: `1` y luego `0`.
+Expected: `1` then `0`.
 
-- [ ] **Step 4: Re-verificar cordova-ios 7 — el pod ahora sí queda pinneado**
+- [ ] **Step 4: Re-verify cordova-ios 7 — the pod is now actually pinned**
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v20.19.4/bin:$PATH"
-node -v   # debe decir v20.19.4
+node -v   # should say v20.19.4
 npm pack --pack-destination /tmp
 cd /tmp && rm -rf cdvpin7 && npx cordova@13 create cdvpin7 com.khipu.pin7 CdvPin7
 cd /tmp/cdvpin7
 ```
 
-Editar `/tmp/cdvpin7/config.xml` y agregar antes de `</widget>`:
+Edit `/tmp/cdvpin7/config.xml` and add before `</widget>`:
 
 ```xml
     <platform name="ios">
@@ -769,121 +772,122 @@ npx cordova@13 platform add ios@7.1.1
 npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
 grep -n "KhipuClientIOS" platforms/ios/Podfile
 ```
-Expected: la línea dice **`pod 'KhipuClientIOS', '2.16.5'`**, con la versión. Antes de este
-arreglo decía `pod 'KhipuClientIOS'` a secas. Si sigue sin versión, el arreglo no funcionó:
-detente y reporta el contenido completo del Podfile.
+Expected: the line says **`pod 'KhipuClientIOS', '2.16.5'`**, with the version. Before this
+fix it said just `pod 'KhipuClientIOS'`. If it is still unversioned, the fix did not work:
+stop and report the Podfile's full content.
 
-- [ ] **Step 5: Re-verificar cordova-ios 8 — sin `Pods/` y sin `pod install`**
+- [ ] **Step 5: Re-verify cordova-ios 8 — no `Pods/` and no `pod install`**
 
 ```bash
 cd /tmp && rm -rf cdvpin8 && npx cordova@13 create cdvpin8 com.khipu.pin8 CdvPin8
 cd /tmp/cdvpin8
 npx cordova@13 platform add ios@8.1.1
 npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
-test ! -d platforms/ios/Pods && echo "sin Pods/: OK" || echo "TODAVÍA HAY Pods/"
-test -d platforms/ios/packages/cordova-khipu && echo "package SPM copiado: OK"
-grep -c "pod '" platforms/ios/Podfile 2>/dev/null || echo "Podfile sin pods: OK"
+test ! -d platforms/ios/Pods && echo "no Pods/: OK" || echo "Pods/ STILL THERE"
+test -d platforms/ios/packages/cordova-khipu && echo "SPM package copied: OK"
+grep -c "pod '" platforms/ios/Podfile 2>/dev/null || echo "Podfile has no pods: OK"
 cat platforms/ios/pods.json 2>/dev/null
 ```
-Expected: `sin Pods/: OK`, `package SPM copiado: OK`, `Podfile sin pods: OK`, y un `pods.json`
-con `declarations`, `sources` y `libraries` vacíos.
+Expected: `no Pods/: OK`, `SPM package copied: OK`, `Podfile has no pods: OK`, and a
+`pods.json` with `declarations`, `sources` and `libraries` all empty.
 
-**Va a existir un `platforms/ios/Podfile` vacío, y está bien.** Es inevitable: el constructor de
-la clase `Podfile` de cordova-ios escribe el archivo apenas se instancia, antes de evaluar
-contenido (`if (!fs.existsSync(this.path)) { this.clear(); this.write(); }`), y se instancia por
-el solo hecho de que el plugin declare un `<podspec>`. Como no se agrega nada, `isDirty()` queda
-en `false` y **`pod install` nunca corre**. Lo que el diseño promete es que no hace falta tener
-CocoaPods instalado, no que el archivo no exista. Esa promesa se verifica en el paso siguiente.
+**An empty `platforms/ios/Podfile` will exist, and that is fine.** It is unavoidable:
+cordova-ios's `Podfile` class constructor writes the file as soon as it is instantiated,
+before any content is evaluated (`if (!fs.existsSync(this.path)) { this.clear(); this.write(); }`),
+and it gets instantiated simply because the plugin declares a `<podspec>`. Since nothing gets
+added, `isDirty()` stays `false` and **`pod install` never runs**. What the design promises is
+that CocoaPods does not need to be installed, not that the file does not exist. That promise
+gets verified in the next step.
 
-- [ ] **Step 6: La prueba que de verdad importa — cordova-ios 8 sin CocoaPods en el PATH**
+- [ ] **Step 6: The test that actually matters — cordova-ios 8 with no CocoaPods on the PATH**
 
-Un `Podfile` vacío no cuesta nada; lo que costaría es que el camino SPM invocara el binario
-`pod`. Esto lo comprueba de forma directa:
+An empty `Podfile` costs nothing; what would cost something is the SPM path invoking the
+`pod` binary. This checks that directly:
 
 ```bash
 cd /tmp && rm -rf cdvnopod && npx cordova@13 create cdvnopod com.khipu.nopod CdvNoPod
 cd /tmp/cdvnopod
-export PATH_SIN_POD=$(dirname $(which pod))
-env PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -F "$PATH_SIN_POD" | paste -sd: -) sh -c '
-  which pod && echo "ERROR: pod sigue en el PATH" && exit 1
+export PATH_WITHOUT_POD=$(dirname $(which pod))
+env PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -F "$PATH_WITHOUT_POD" | paste -sd: -) sh -c '
+  which pod && echo "ERROR: pod is still on PATH" && exit 1
   npx cordova@13 platform add ios@8.1.1
   npx cordova@13 plugin add /tmp/cordova-khipu-2.9.1.tgz --nosave
   npx cordova@13 build ios --emulator 2>&1 | tail -20
 '
 ```
-Expected: `which pod` no encuentra nada, y aun así `BUILD SUCCEEDED`.
+Expected: `which pod` finds nothing, and it is still `BUILD SUCCEEDED`.
 
-Si esto falla con algo como `CocoaPods was not found`, el arreglo no alcanzó y hay que
-reportarlo: es la promesa central del trabajo.
+If this fails with something like `CocoaPods was not found`, the fix did not go far enough
+and it needs to be reported: this is the work's central promise.
 
-- [ ] **Step 6b: Compilar ambos caminos normales para confirmar que nada se rompió**
+- [ ] **Step 6b: Build both normal paths to confirm nothing broke**
 
 ```bash
 cd /tmp/cdvpin7 && npx cordova@13 build ios --emulator 2>&1 | tail -20
 cd /tmp/cdvpin8 && npx cordova@13 build ios --emulator 2>&1 | tail -20
 ```
-Expected: `BUILD SUCCEEDED` en los dos.
+Expected: `BUILD SUCCEEDED` on both.
 
-Y como señal temprana sobre el enlace estático, en el proyecto de cordova-ios 7:
+And as an early signal about static linking, on the cordova-ios 7 project:
 
 ```bash
 cd /tmp/cdvpin7
 find platforms/ios/Pods -name "*.bundle" -maxdepth 3 2>/dev/null
 ```
-Expected: aparece `KhipuClientIOS.bundle`. Si no aparece por ningún lado, es señal de que sacar
-`use_frameworks!` rompió los recursos, y hay que reportarlo antes de seguir.
+Expected: `KhipuClientIOS.bundle` shows up. If it shows up nowhere, that is a sign that
+removing `use_frameworks!` broke the resources, and it needs to be reported before continuing.
 
-- [ ] **Step 7: Registrar los resultados en el spec**
+- [ ] **Step 7: Record the results in the spec**
 
-Agregar a la sección `## 15. Resultados de verificación` una subsección:
+Add a subsection to `## 15. Verification results`:
 
 ```markdown
-### Corrección del pin del pod y del Podfile fantasma (Task 3b del plan)
+### Fixing the pod pin and the phantom Podfile (plan Task 3b)
 
-| Verificación | Antes | Después |
+| Check | Before | After |
 | --- | --- | --- |
-| Línea del pod en el Podfile de cordova-ios 7 | `<lo que decía>` | `<lo que dice ahora>` |
-| ¿Existe `Pods/` en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
-| ¿Corrió `pod install` en cordova-ios 8? | `<sí / no>` | `<sí / no>` |
-| Build de cordova-ios 8 **sin `pod` en el PATH** | `<no se probó>` | `<OK / detalle>` |
-| Build de cordova-ios 7 | `<OK / detalle>` | `<OK / detalle>` |
-| Build de cordova-ios 8 | `<OK / detalle>` | `<OK / detalle>` |
+| Pod line in cordova-ios 7's Podfile | `<what it said>` | `<what it says now>` |
+| Does `Pods/` exist on cordova-ios 8? | `<yes / no>` | `<yes / no>` |
+| Did `pod install` run on cordova-ios 8? | `<yes / no>` | `<yes / no>` |
+| cordova-ios 8 build **with `pod` off PATH** | `<not tried>` | `<OK / detail>` |
+| cordova-ios 7 build | `<OK / detail>` | `<OK / detail>` |
+| cordova-ios 8 build | `<OK / detail>` | `<OK / detail>` |
 ```
 
-Reemplazar cada `<...>` por el valor real. La columna "Antes" sale del reporte de la Task 3.
+Replace each `<...>` with the actual value. The "Before" column comes from Task 3's report.
 
-- [ ] **Step 8: Limpiar y commitear**
+- [ ] **Step 8: Clean up and commit**
 
 ```bash
 rm -rf /tmp/cdvpin7 /tmp/cdvpin8 /tmp/cordova-khipu-2.9.1.tgz
 cd /Users/edavis/git/cordova-khipu
 git add plugin.xml docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md
-git commit -m "fix(ios): fijar de verdad la versión del pod y no generar Podfile bajo SPM
+git commit -m "fix(ios): actually pin the pod version and stop generating a Podfile under SPM
 
-cordova-ios solo lee el atributo `spec` del <pod>; `version` se ignora en
-silencio, así que el plugin publicado nunca fijó la versión de
-KhipuClientIOS y cada comercio recibía la que CocoaPods resolviera.
+cordova-ios only reads the <pod>'s spec attribute; version is silently
+ignored, so the published plugin never pinned KhipuClientIOS's version
+and every merchant got whatever CocoaPods resolved.
 
-Y el bloque // sources de Api.js no está protegido por
-isSwiftPackagePlugin, así que declarar un <source> forzaba un Podfile y
-un pod install en cordova-ios 8, rompiendo la premisa de SPM puro. El
-trunk de CocoaPods es el source por defecto: declararlo era redundante."
+And Api.js's // sources block is not guarded by isSwiftPackagePlugin,
+so declaring a <source> forced a Podfile and a pod install on
+cordova-ios 8, breaking the pure-SPM premise. The CocoaPods trunk is
+the default source: declaring it was redundant."
 ```
 
 ---
 
-### Task 4: Spike — cómo instala el ejemplo el plugin local
+### Task 4: Spike — how the example installs the local plugin
 
-El riesgo es concreto: si `cordova plugin add ../` deja un symlink al repo, `SwiftPackage.addPlugin()` reescribiría el `Package.swift` real del plugin. Por eso el spike corre sobre un **clon desechable**, nunca sobre el repo de trabajo.
+The risk is concrete: if `cordova plugin add ../` leaves a symlink to the repo, `SwiftPackage.addPlugin()` would rewrite the plugin's real `Package.swift`. That is why the spike runs on a **throwaway clone**, never on the working repo.
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (sección de resultados)
+- Modify: `docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md` (results section)
 
 **Interfaces:**
-- Consumes: el plugin de la Task 2.
-- Produces: una decisión documentada sobre cómo `example/package.json` instala el plugin. La Task 5 la implementa.
+- Consumes: Task 2's plugin.
+- Produces: a documented decision on how `example/package.json` installs the plugin. Task 5 implements it.
 
-- [ ] **Step 1: Clonar el repo a un directorio desechable**
+- [ ] **Step 1: Clone the repo to a throwaway directory**
 
 ```bash
 rm -rf /tmp/spike-khipu
@@ -892,7 +896,7 @@ cd /tmp/spike-khipu
 git rev-parse --short HEAD
 ```
 
-- [ ] **Step 2: Armar un ejemplo mínimo dentro del clon**
+- [ ] **Step 2: Build a minimal example inside the clone**
 
 ```bash
 cd /tmp/spike-khipu
@@ -901,7 +905,7 @@ cd /tmp/spike-khipu/example
 npx cordova@13 platform add ios@8.1.1
 ```
 
-- [ ] **Step 3: Probar el método 1 — ruta relativa**
+- [ ] **Step 3: Try method 1 — relative path**
 
 ```bash
 cd /tmp/spike-khipu/example
@@ -911,9 +915,11 @@ ls -la platforms/ios/packages/ 2>/dev/null
 cd /tmp/spike-khipu && git status --porcelain
 ```
 
-Anotar tres cosas: si el comando terminó bien, si `plugins/cordova-khipu` es un symlink o un directorio real, y si `git status` muestra `Package.swift` modificado. **Un `Package.swift` modificado significa que este método corrompe el repo y queda descartado.**
+Note three things: whether the command finished cleanly, whether `plugins/cordova-khipu` is a
+symlink or a real directory, and whether `git status` shows `Package.swift` modified. **A
+modified `Package.swift` means this method corrupts the repo and is ruled out.**
 
-- [ ] **Step 4: Probar el método 2 — `--link`**
+- [ ] **Step 4: Try method 2 — `--link`**
 
 ```bash
 cd /tmp/spike-khipu/example
@@ -926,9 +932,13 @@ grep -n "cordova-ios" platforms/ios/packages/cordova-ios-plugins/Package.swift
 cd /tmp/spike-khipu && git status --porcelain
 ```
 
-Con `--link`, `SwiftPackage.addPlugin` no copia ni reescribe: referencia el directorio del plugin desde `packages/cordova-ios-plugins/Package.swift`. Anotar si el `Package.swift` del plugin quedó intacto y si el build resuelve. Ojo con el efecto secundario esperado: el plugin seguiría dependiendo de `apache/cordova-ios` desde git en vez de la CordovaLib local, lo que puede producir dos módulos `Cordova` distintos.
+With `--link`, `SwiftPackage.addPlugin` neither copies nor rewrites: it references the
+plugin's directory from `packages/cordova-ios-plugins/Package.swift`. Note whether the
+plugin's `Package.swift` stayed intact and whether the build resolves. Watch for the expected
+side effect: the plugin would keep depending on `apache/cordova-ios` from git instead of the
+local CordovaLib, which can produce two different `Cordova` modules.
 
-- [ ] **Step 5: Probar el método 3 — tarball**
+- [ ] **Step 5: Try method 3 — tarball**
 
 ```bash
 cd /tmp/spike-khipu/example
@@ -943,7 +953,7 @@ grep -n "cordova-ios" platforms/ios/packages/cordova-khipu/Package.swift
 cd /tmp/spike-khipu && git status --porcelain
 ```
 
-- [ ] **Step 6: Compilar con el método que haya quedado en pie**
+- [ ] **Step 6: Compile with whichever method survived**
 
 ```bash
 cd /tmp/spike-khipu/example
@@ -951,40 +961,40 @@ npx cordova@13 build ios --emulator 2>&1 | tail -30
 ```
 Expected: `BUILD SUCCEEDED`.
 
-Si el método 3 es el único que compila limpio, esa es la decisión.
+If method 3 is the only one that compiles clean, that is the decision.
 
-- [ ] **Step 7: Escribir la decisión en el spec**
+- [ ] **Step 7: Write the decision into the spec**
 
-Agregar a la sección `## 15. Resultados de verificación`:
+Add to `## 15. Verification results`:
 
 ```markdown
-### Fase 2 — instalación del plugin local en el ejemplo (Task 4 del plan)
+### Phase 2 — installing the plugin locally in the example (plan Task 4)
 
-| Método | `plugins/cordova-khipu` | ¿Modificó el `Package.swift` del repo? | ¿Compiló? |
+| Method | `plugins/cordova-khipu` | Did it modify the repo's `Package.swift`? | Did it compile? |
 | --- | --- | --- | --- |
-| `cordova plugin add ../` | <symlink / directorio> | <sí / no> | <sí / no> |
-| `cordova plugin add ../ --link` | <symlink / directorio> | <sí / no> | <sí / no> |
-| `npm pack` + `cordova plugin add ./*.tgz` | <symlink / directorio> | <sí / no> | <sí / no> |
+| `cordova plugin add ../` | <symlink / directory> | <yes / no> | <yes / no> |
+| `cordova plugin add ../ --link` | <symlink / directory> | <yes / no> | <yes / no> |
+| `npm pack` + `cordova plugin add ./*.tgz` | <symlink / directory> | <yes / no> | <yes / no> |
 
-**Decisión:** <método elegido>, porque <razón observada>.
+**Decision:** <method chosen>, because <reason observed>.
 
-Esto resuelve el riesgo 1 del §13.
+This resolves risk 1 from §13.
 ```
 
-Reemplazar cada `<...>` por el valor real. No dejar ningún `<...>`.
+Replace each `<...>` with the actual value. Do not leave any `<...>`.
 
-- [ ] **Step 8: Limpiar y commitear**
+- [ ] **Step 8: Clean up and commit**
 
 ```bash
 rm -rf /tmp/spike-khipu
 cd /Users/edavis/git/cordova-khipu
 git add docs/superpowers/specs/2026-09-04-spm-cordova-khipu-design.md
-git commit -m "docs: registrar el spike de instalación del plugin local"
+git commit -m "docs: record the local plugin install spike"
 ```
 
 ---
 
-### Task 5: Esqueleto de la app de ejemplo
+### Task 5: Example app skeleton
 
 **Files:**
 - Create: `example/package.json`
@@ -993,12 +1003,12 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 - Create: `example/www/index.html`
 
 **Interfaces:**
-- Consumes: la decisión de la Task 4 sobre cómo instalar el plugin.
-- Produces: los scripts `npm run ios:pods`, `npm run ios:spm`, `npm run android` y `npm run reset` en `example/`. Las tareas 6 y 7 reemplazan el contenido de `example/www/`.
+- Consumes: Task 4's decision on how to install the plugin.
+- Produces: the `npm run ios:pods`, `npm run ios:spm`, `npm run android` and `npm run reset` scripts in `example/`. Tasks 6 and 7 replace the content of `example/www/`.
 
-> **Resuelto por la Task 4.** El spike probó los tres métodos: `cordova plugin add ../` falla con `EINVAL: cp ... subdirectory of self`; `--link` compila pero deja dos identidades de `cordova-ios` y SwiftPM avisa que eso pasará a ser error; el tarball compila limpio. Se usa el tarball, con prefijo `file:` y ruta absoluta.
+> **Resolved by Task 4.** The spike tried all three methods: `cordova plugin add ../` fails with `EINVAL: cp ... subdirectory of self`; `--link` compiles but leaves two `cordova-ios` identities and SwiftPM warns that will become an error; the tarball compiles clean. The tarball is used, with the `file:` prefix and an absolute path.
 
-- [ ] **Step 1: Crear `example/package.json`**
+- [ ] **Step 1: Create `example/package.json`**
 
 ```json
 {
@@ -1006,7 +1016,7 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
   "displayName": "Khipu Example",
   "version": "1.0.0",
   "private": true,
-  "description": "App de ejemplo del plugin cordova-khipu",
+  "description": "Example app for the cordova-khipu plugin",
   "license": "MIT",
   "scripts": {
     "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
@@ -1027,55 +1037,60 @@ git commit -m "docs: registrar el spike de instalación del plugin local"
 }
 ```
 
-Notas sobre el diseño de los scripts:
-- `reset` borra `platforms/` y `plugins/` porque el gestor de paquetes de iOS lo decide el major de la plataforma, y no se puede cambiar en caliente.
-- `cordova.platforms` queda vacío a propósito: cada script agrega la que necesita.
-- **El plugin se instala ANTES de agregar la plataforma, y ese orden no es casual.** Instalar el
-  plugin dispara por dentro un `npm install` del tarball, y ese `npm install` reconcilia todo el
-  árbol de `node_modules`. Si la plataforma ya está agregada, `node_modules/cordova-ios` es lo
-  que npm encuentra sin declarar en ningún lado, y lo **poda**; entonces
-  `platforms/ios/cordova/Api.js` —que es literalmente `module.exports = require('cordova-ios')`—
-  falla con `Cannot find module 'cordova-ios'`. Haciéndolo al revés, el `npm install` ocurre
-  cuando todavía no hay nada que podar, y `cordova platform add` instala después el plugin que
-  ya está en `plugins/`. Que lo instale está garantizado por `installPluginsForNewPlatform()` de
-  `cordova-lib`, que toma los plugins del **contenido del directorio `plugins/`**
-  (`cordova_util.findPlugins`) y usa `package.json` solo para ordenarlos.
-- **Las plataformas no van en `devDependencies`.** Solo el CLI. Quién decide el major es el
-  script, con `platform add ios@7.1.1` o `ios@8.1.1`; declarar además `cordova-ios` como
-  dependencia crea una contradicción que npm resuelve en contra nuestra. Cualquier `npm install`
-  posterior dentro de `example/` —incluido el que `cordova plugin add` dispara internamente—
-  reconcilia el árbol contra `package.json` y revierte `node_modules/cordova-ios` al major
-  declarado, aunque el `platform add` haya dejado el otro instalado un paso antes. El síntoma es
-  `CordovaError: ... not an up-to-date Cordova iOS project` al instalar el plugin, en el camino
-  de CocoaPods.
-- **`--nosave` en los tres `cordova platform add`, y no solo en el `plugin add`.** Sin él,
-  cordova reescribe este `package.json` en cada corrida: `cordova.platforms` se llena y
-  `devDependencies.cordova-ios` queda con el major de la última corrida. Como los scripts se
-  corren en secuencia para verificar los tres escenarios, el archivo terminaría declarando el
-  camino que se probó último, que es justo el dato que uno quiere fijo. Sin esto, `reset` no es
-  un reset de verdad: borra `platforms/` y `plugins/` pero deja el `package.json` sucio.
-- El `engines` declara el piso que exige `cordova-ios` 8.1.1; sirve de aviso, no de barrera.
-- La instalación del plugin vive en un script aparte porque tiene dos rodeos que necesitan explicación: ver el paso siguiente.
+Notes on the scripts' design:
+- `reset` deletes `platforms/` and `plugins/` because the iOS package manager is decided by
+  the platform's major version, and cannot be switched on the fly.
+- `cordova.platforms` is left empty on purpose: each script adds whichever it needs.
+- **The plugin gets installed BEFORE the platform is added, and that order is not incidental.**
+  Installing the plugin internally triggers an `npm install` of the tarball, and that
+  `npm install` reconciles the whole `node_modules` tree. If the platform is already added,
+  `node_modules/cordova-ios` is something npm finds undeclared anywhere, and it **prunes** it;
+  then `platforms/ios/cordova/Api.js` — which is literally
+  `module.exports = require('cordova-ios')` — fails with `Cannot find module 'cordova-ios'`.
+  Doing it the other way, the `npm install` happens while there is still nothing to prune, and
+  `cordova platform add` afterward installs the plugin that is already sitting in `plugins/`.
+  That it gets installed is guaranteed by `cordova-lib`'s `installPluginsForNewPlatform()`,
+  which takes its plugins from the **content of the `plugins/` directory**
+  (`cordova_util.findPlugins`) and only uses `package.json` to order them.
+- **The platforms do not go in `devDependencies`.** Only the CLI does. The script decides the
+  major, with `platform add ios@7.1.1` or `ios@8.1.1`; also declaring `cordova-ios` as a
+  dependency creates a contradiction npm resolves against us. Any later `npm install` inside
+  `example/` — including the one `cordova plugin add` triggers internally — reconciles the tree
+  against `package.json` and reverts `node_modules/cordova-ios` to the declared major, even if
+  `platform add` had installed the other one a step earlier. The symptom is
+  `CordovaError: ... not an up-to-date Cordova iOS project` when installing the plugin, on the
+  CocoaPods path.
+- **`--nosave` on all three `cordova platform add` calls, not just on `plugin add`.** Without
+  it, cordova rewrites this `package.json` on every run: `cordova.platforms` fills up and
+  `devDependencies.cordova-ios` ends up with the last run's major. Since the scripts run in
+  sequence to verify all three scenarios, the file would end up declaring whichever path was
+  tested last, which is exactly the thing that should stay fixed. Without this, `reset` is not
+  a real reset: it deletes `platforms/` and `plugins/` but leaves `package.json` dirty.
+- `engines` declares the floor `cordova-ios` 8.1.1 requires; it serves as a warning, not a
+  barrier.
+- Installing the plugin lives in a separate script because it has two detours that need
+  explaining: see the next step.
 
-- [ ] **Step 1b: Crear `example/scripts/install-plugin.mjs`**
+- [ ] **Step 1b: Create `example/scripts/install-plugin.mjs`**
 
 ```js
-// Instala el plugin en la app de ejemplo desde un tarball de `npm pack`.
+// Installs the plugin in the example app from an `npm pack` tarball.
 //
-// Los dos rodeos de acá parecen innecesarios y no lo son. Salieron de probar los
-// tres métodos posibles contra un clon desechable (§15 del spec de diseño):
+// The two detours here look unnecessary and are not. They came out of trying
+// all three possible methods against a throwaway clone (design spec §15):
 //
-// 1. Tarball en vez de `cordova plugin add ../`. Esa forma falla con
-//    `EINVAL: cp ... subdirectory of self`, porque el destino (example/plugins/)
-//    es hijo del origen (el repo). Y `--link`, que sí funciona hoy, deja al
-//    plugin dependiendo de apache/cordova-ios por git en vez de la CordovaLib
-//    local del proyecto: SwiftPM lo tolera dedupeando, pero avisa "Conflicting
-//    identity for cordova-ios ... will be escalated to an error in future
-//    versions of SwiftPM". Instalar desde el tarball tiene además la ventaja de
-//    ejercitar exactamente el artefacto que recibe un comercio desde npm.
+// 1. Tarball instead of `cordova plugin add ../`. That form fails with
+//    `EINVAL: cp ... subdirectory of self`, because the destination
+//    (example/plugins/) is a child of the source (the repo). And `--link`,
+//    which does work today, leaves the plugin depending on apache/cordova-ios
+//    via git instead of the project's local CordovaLib: SwiftPM tolerates it
+//    by deduping, but warns "Conflicting identity for cordova-ios ... will be
+//    escalated to an error in future versions of SwiftPM". Installing from
+//    the tarball also has the advantage of exercising exactly the artifact a
+//    merchant gets from npm.
 //
-// 2. Prefijo `file:` y ruta absoluta. `cordova plugin add ./algo.tgz` falla por
-//    un bug de parseo de cordova-lib 13.0.0.
+// 2. `file:` prefix with an absolute path. `cordova plugin add ./thing.tgz`
+//    fails on a parsing bug in cordova-lib 13.0.0.
 
 import { execFileSync } from 'node:child_process';
 import { readdirSync, rmSync } from 'node:fs';
@@ -1085,19 +1100,19 @@ import { fileURLToPath } from 'node:url';
 const example = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = resolve(example, '..');
 
-const esTarball = (nombre) => nombre.startsWith('cordova-khipu-') && nombre.endsWith('.tgz');
+const isTarball = (name) => name.startsWith('cordova-khipu-') && name.endsWith('.tgz');
 
-// Un tarball de una versión anterior haría que más abajo se elija el equivocado.
-for (const viejo of readdirSync(example).filter(esTarball)) {
-    rmSync(join(example, viejo));
+// A tarball from an earlier version would make the wrong one get picked below.
+for (const old of readdirSync(example).filter(isTarball)) {
+    rmSync(join(example, old));
 }
 
 execFileSync('npm', ['pack', '--pack-destination', example], { cwd: repo, stdio: 'inherit' });
 
-const tarball = readdirSync(example).find(esTarball);
+const tarball = readdirSync(example).find(isTarball);
 
 if (!tarball) {
-    throw new Error('npm pack no dejó ningún cordova-khipu-*.tgz en example/');
+    throw new Error('npm pack left no cordova-khipu-*.tgz in example/');
 }
 
 execFileSync('npx', ['cordova', 'plugin', 'add', `file:${join(example, tarball)}`, '--nosave'], {
@@ -1106,15 +1121,15 @@ execFileSync('npx', ['cordova', 'plugin', 'add', `file:${join(example, tarball)}
 });
 ```
 
-- [ ] **Step 1c: Agregar el campo `files` al `package.json` de la RAÍZ del repositorio**
+- [ ] **Step 1c: Add the `files` field to the repository ROOT's `package.json`**
 
-No es cosmético y por eso va acá y no más adelante: el ejemplo se instala desde un tarball de
-`npm pack`, y hoy `package.json` no tiene `files` ni hay `.npmignore`, así que ese tarball se
-lleva todo el repositorio. El spike ya lo comprobó: apareció `.husky/` dentro de
-`plugins/cordova-khipu`. En cuanto exista `example/`, el tarball que instala el ejemplo
-contendría además una copia del ejemplo y los 3.000 y pico de líneas de `docs/`.
+This is not cosmetic, which is why it goes here and not later: the example gets installed from
+an `npm pack` tarball, and today `package.json` has no `files` and there is no `.npmignore`,
+so that tarball carries the whole repository. The spike already showed it: `.husky/` showed up
+inside `plugins/cordova-khipu`. Once `example/` exists, the tarball that installs the example
+would also contain a copy of the example itself and the 3,000-odd lines under `docs/`.
 
-En `/Users/edavis/git/cordova-khipu/package.json`, después de `"homepage"`, agregar:
+In `/Users/edavis/git/cordova-khipu/package.json`, after `"homepage"`, add:
 
 ```json
   "files": [
@@ -1129,20 +1144,20 @@ En `/Users/edavis/git/cordova-khipu/package.json`, después de `"homepage"`, agr
   ],
 ```
 
-`tests/` **tiene que estar**: `Package.swift` declara un target en `tests/ios` y SPM falla si esa
-ruta no existe en el paquete instalado. Son unos pocos KB. `LICENSE` todavía no existe; npm
-avisa y sigue, y el archivo lo crea la Task 12.
+`tests/` **has to be there**: `Package.swift` declares a target at `tests/ios` and SPM fails
+if that path does not exist in the installed package. It is a few KB. `LICENSE` does not exist
+yet; npm warns and continues, and Task 12 creates the file.
 
-Run: `npm pack --dry-run 2>&1 | grep -cE "docs/|\.husky/|example/" || echo "no se publica docs/, .husky/ ni example/: OK"`
-Expected: `no se publica docs/, .husky/ ni example/: OK`
+Run: `npm pack --dry-run 2>&1 | grep -cE "docs/|\.husky/|example/" || echo "docs/, .husky/ and example/ are not published: OK"`
+Expected: `docs/, .husky/ and example/ are not published: OK`
 
-- [ ] **Step 2: Crear `example/config.xml`**
+- [ ] **Step 2: Create `example/config.xml`**
 
 ```xml
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.khipu.cordova.example" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>Khipu Example</name>
-    <description>App de ejemplo del plugin cordova-khipu</description>
+    <description>Example app for the cordova-khipu plugin</description>
     <author email="developers@khipu.com" href="https://khipu.com">Khipu</author>
     <content src="index.html" />
     <allow-intent href="http://*/*" />
@@ -1154,9 +1169,10 @@ Expected: `no se publica docs/, .husky/ ni example/: OK`
 </widget>
 ```
 
-No se declara `GradlePluginKotlinEnabled`: la idea es que el ejemplo ejercite el hook del plugin, no que lo tape.
+`GradlePluginKotlinEnabled` is not declared: the idea is that the example exercises the
+plugin's hook, not that it papers over it.
 
-- [ ] **Step 3: Crear `example/.gitignore`**
+- [ ] **Step 3: Create `example/.gitignore`**
 
 ```
 platforms/
@@ -1165,13 +1181,14 @@ node_modules/
 cordova-khipu-*.tgz
 ```
 
-- [ ] **Step 4: Crear `example/www/index.html` mínimo**
+- [ ] **Step 4: Create a minimal `example/www/index.html`**
 
-Este archivo es provisorio: sirve para probar la cañería antes de invertir en la interfaz. La Task 6 lo reemplaza.
+This file is provisional: it serves to test the plumbing before investing in the interface.
+Task 6 replaces it.
 
 ```html
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -1179,65 +1196,69 @@ Este archivo es provisorio: sirve para probar la cañería antes de invertir en 
   </head>
   <body>
     <h1>cordova-khipu</h1>
-    <p id="estado">Esperando <code>deviceready</code>…</p>
+    <p id="status">Waiting for <code>deviceready</code>…</p>
     <script src="cordova.js"></script>
     <script>
       document.addEventListener('deviceready', function () {
-        document.getElementById('estado').textContent =
-          'deviceready OK · window.Khipu es ' + typeof window.Khipu;
+        document.getElementById('status').textContent =
+          'deviceready OK · window.Khipu is ' + typeof window.Khipu;
       });
     </script>
   </body>
 </html>
 ```
 
-- [ ] **Step 5: Verificar el camino SPM**
+- [ ] **Step 5: Verify the SPM path**
 
 Run: `cd example && npm install && npm run ios:spm`
-Expected: la app arranca en el simulador y muestra `deviceready OK · window.Khipu es object`.
+Expected: the app launches in the simulator and shows `deviceready OK · window.Khipu is object`.
 
-- [ ] **Step 6: Verificar el camino CocoaPods**
+- [ ] **Step 6: Verify the CocoaPods path**
 
 Run: `cd example && npm run ios:pods`
-Expected: mismo resultado en pantalla.
+Expected: same result on screen.
 
-- [ ] **Step 7: Verificar Android**
+- [ ] **Step 7: Verify Android**
 
 Run: `cd example && npm run android`
-Expected: mismo resultado en pantalla.
+Expected: same result on screen.
 
-Si falla el build de Gradle, **no arreglarlo acá**: anotar el error y seguir. La Task 11 se ocupa de Android.
+If the Gradle build fails, **do not fix it here**: note the error and move on. Task 11 deals with Android.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add package.json example/package.json example/config.xml example/.gitignore \
   example/www/index.html example/scripts/install-plugin.mjs example/package-lock.json
-git commit -m "feat(example): esqueleto de la app de ejemplo
+git commit -m "feat(example): example app skeleton
 
-Scripts ios:pods, ios:spm y android, que pinnean el major de la
-plataforma porque es el major el que decide el gestor de paquetes."
+ios:pods, ios:spm and android scripts, which pin the platform's
+major version because the major is what decides the package manager."
 ```
 
 ---
 
-### Task 6: Harness — estructura HTML y estilos
+### Task 6: Harness — HTML structure and styles
 
 **Files:**
 - Modify: `example/www/index.html`
 - Create: `example/www/css/harness.css`
 
 **Interfaces:**
-- Consumes: el esqueleto de la Task 5.
-- Produces: los ids del DOM que consume `harness.js` en la Task 7: `#estado`, `#operationId`, `#campos-texto`, `#campos-switch`, `#campos-color`, `#incluir-colors`, `#presets`, `#preview`, `#lanzar`, `#resultado`.
+- Consumes: Task 5's skeleton.
+- Produces: the DOM ids Task 7's `harness.js` consumes: `#status`, `#operationId`, `#text-fields`, `#switch-fields`, `#color-fields`, `#include-colors`, `#presets`, `#preview`, `#launch`, `#result`.
 
-Los campos se generan desde JavaScript en vez de escribirse a mano: son 12 colores, 5 interruptores, 3 campos de texto y un selector de tema, o sea 21 controles que en HTML serían otros tantos bloques casi idénticos. Esos 21 cubren exactamente las 10 claves que el plugin expone (`title`, `titleImageUrl`, `locale`, `theme`, los cinco booleanos y `colors` con sus 12 campos), verificado contra `KhipuPlugin.swift` y `KhipuPlugin.java`.
+The fields get generated from JavaScript instead of written by hand: there are 12 colours, 5
+switches, 3 text fields and a theme selector, i.e. 21 controls that in HTML would be that many
+near-identical blocks. Those 21 cover exactly the 10 keys the plugin exposes (`title`,
+`titleImageUrl`, `locale`, `theme`, the five booleans, and `colors` with its 12 fields),
+verified against `KhipuPlugin.swift` and `KhipuPlugin.java`.
 
-- [ ] **Step 1: Reemplazar `example/www/index.html`**
+- [ ] **Step 1: Replace `example/www/index.html`**
 
 ```html
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -1248,58 +1269,58 @@ Los campos se generan desde JavaScript en vez de escribirse a mano: son 12 color
   <body>
     <header>
       <h1>cordova-khipu</h1>
-      <p id="estado" class="estado estado--esperando">Esperando <code>deviceready</code>…</p>
+      <p id="status" class="status status--waiting">Waiting for <code>deviceready</code>…</p>
     </header>
 
     <main>
-      <section class="tarjeta">
-        <h2>Operación</h2>
-        <label class="campo campo--obligatorio">
-          <span class="campo__nombre">operationId</span>
+      <section class="card">
+        <h2>Operation</h2>
+        <label class="field field--required">
+          <span class="field__name">operationId</span>
           <input id="operationId" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="9sy0aufujsgq" />
         </label>
       </section>
 
-      <section class="tarjeta">
+      <section class="card">
         <h2>Presets</h2>
         <div id="presets" class="presets"></div>
       </section>
 
-      <section class="tarjeta">
-        <h2>Opciones de texto</h2>
-        <p class="nota">
-          La casilla <strong>incluir</strong> decide si la clave viaja en el
-          payload. Sin marcar, el SDK aplica su propio valor por omisión, que no
-          es lo mismo que mandar un valor vacío.
+      <section class="card">
+        <h2>Text options</h2>
+        <p class="note">
+          The <strong>include</strong> checkbox decides whether the key travels
+          in the payload. Left unchecked, the SDK applies its own default,
+          which is not the same as sending an empty value.
         </p>
-        <div id="campos-texto"></div>
+        <div id="text-fields"></div>
       </section>
 
-      <section class="tarjeta">
-        <h2>Interruptores</h2>
-        <div id="campos-switch"></div>
+      <section class="card">
+        <h2>Switches</h2>
+        <div id="switch-fields"></div>
       </section>
 
-      <section class="tarjeta">
-        <h2>Colores</h2>
-        <label class="campo campo--maestro">
-          <input id="incluir-colors" type="checkbox" />
-          <span class="campo__nombre">incluir el objeto <code>colors</code></span>
+      <section class="card">
+        <h2>Colors</h2>
+        <label class="field field--master">
+          <input id="include-colors" type="checkbox" />
+          <span class="field__name">include the <code>colors</code> object</span>
         </label>
-        <div id="campos-color"></div>
+        <div id="color-fields"></div>
       </section>
 
-      <section class="tarjeta">
+      <section class="card">
         <h2>Payload</h2>
         <pre id="preview" class="preview"></pre>
-        <button id="lanzar" type="button" class="boton" disabled>
-          Iniciar operación
+        <button id="launch" type="button" class="button" disabled>
+          Start operation
         </button>
       </section>
 
-      <section class="tarjeta">
-        <h2>Resultado</h2>
-        <div id="resultado" class="resultado">Todavía no se ha ejecutado nada.</div>
+      <section class="card">
+        <h2>Result</h2>
+        <div id="result" class="result">Nothing has run yet.</div>
       </section>
     </main>
 
@@ -1309,29 +1330,29 @@ Los campos se generan desde JavaScript en vez de escribirse a mano: son 12 color
 </html>
 ```
 
-- [ ] **Step 2: Crear `example/www/css/harness.css`**
+- [ ] **Step 2: Create `example/www/css/harness.css`**
 
 ```css
-/* Paleta de marca Khipu: púrpura #8347AD y cian #3CB4E5. */
+/* Khipu brand palette: purple #8347AD and cyan #3CB4E5. */
 :root {
-  --purpura: #8347ad;
-  --cian: #3cb4e5;
-  --fondo: #f6f4f9;
-  --superficie: #ffffff;
-  --texto: #1a1a1a;
-  --texto-tenue: #5f5f6b;
-  --borde: #ded8e6;
+  --purple: #8347ad;
+  --cyan: #3cb4e5;
+  --background: #f6f4f9;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #5f5f6b;
+  --border: #ded8e6;
   --ok: #1f8a4c;
   --error: #c0392b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #101014;
-    --superficie: #1b1b22;
-    --texto: #e8e8ee;
-    --texto-tenue: #a0a0ae;
-    --borde: #33333f;
+    --background: #101014;
+    --surface: #1b1b22;
+    --text: #e8e8ee;
+    --text-muted: #a0a0ae;
+    --border: #33333f;
   }
 }
 
@@ -1342,14 +1363,14 @@ Los campos se generan desde JavaScript en vez de escribirse a mano: son 12 color
 body {
   margin: 0;
   padding: 0 0 3rem;
-  background: var(--fondo);
-  color: var(--texto);
+  background: var(--background);
+  color: var(--text);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   padding-top: env(safe-area-inset-top);
 }
 
 header {
-  background: var(--purpura);
+  background: var(--purple);
   color: #fff;
   padding: 1.25rem 1rem;
   padding-top: calc(1.25rem + env(safe-area-inset-top));
@@ -1360,18 +1381,18 @@ header h1 {
   font-size: 1.25rem;
 }
 
-.estado {
+.status {
   margin: 0;
   font-size: 0.85rem;
   opacity: 0.9;
 }
 
-.estado--listo::before {
+.status--ready::before {
   content: "● ";
-  color: var(--cian);
+  color: var(--cyan);
 }
 
-.estado--esperando::before {
+.status--waiting::before {
   content: "○ ";
 }
 
@@ -1383,88 +1404,88 @@ main {
   margin: 0 auto;
 }
 
-.tarjeta {
-  background: var(--superficie);
-  border: 1px solid var(--borde);
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem;
 }
 
-.tarjeta h2 {
+.card h2 {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.nota {
+.note {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.campo {
+.field {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--borde);
+  border-bottom: 1px solid var(--border);
 }
 
-.campo:last-child {
+.field:last-child {
   border-bottom: none;
 }
 
-.campo__nombre {
+.field__name {
   flex: 1 1 auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.82rem;
 }
 
-.campo--obligatorio {
+.field--required {
   flex-direction: column;
   align-items: stretch;
   border-bottom: none;
 }
 
-.campo--maestro {
-  border-bottom: 2px solid var(--borde);
+.field--master {
+  border-bottom: 2px solid var(--border);
   margin-bottom: 0.5rem;
 }
 
-.campo input[type="text"] {
+.field input[type="text"] {
   flex: 1 1 8rem;
   min-width: 0;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--fondo);
-  color: var(--texto);
-  font-size: 16px; /* menos de 16px hace que iOS haga zoom al enfocar */
+  background: var(--background);
+  color: var(--text);
+  font-size: 16px; /* less than 16px makes iOS zoom in on focus */
 }
 
-.campo input[type="color"] {
+.field input[type="color"] {
   width: 3rem;
   height: 2rem;
   padding: 0;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: none;
 }
 
-.campo select {
+.field select {
   padding: 0.45rem;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--fondo);
-  color: var(--texto);
+  background: var(--background);
+  color: var(--text);
   font-size: 16px;
 }
 
-.campo--apagado .campo__nombre,
-.campo--apagado input,
-.campo--apagado select {
+.field--off .field__name,
+.field--off input,
+.field--off select {
   opacity: 0.45;
 }
 
@@ -1476,10 +1497,10 @@ main {
 
 .presets button {
   padding: 0.45rem 0.8rem;
-  border: 1px solid var(--purpura);
+  border: 1px solid var(--purple);
   border-radius: 999px;
   background: none;
-  color: var(--purpura);
+  color: var(--purple);
   font-size: 0.82rem;
 }
 
@@ -1487,8 +1508,8 @@ main {
   margin: 0 0 0.9rem;
   padding: 0.75rem;
   border-radius: 8px;
-  background: var(--fondo);
-  border: 1px solid var(--borde);
+  background: var(--background);
+  border: 1px solid var(--border);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
   white-space: pre-wrap;
@@ -1497,120 +1518,122 @@ main {
   overflow: auto;
 }
 
-.boton {
+.button {
   width: 100%;
   padding: 0.85rem;
   border: none;
   border-radius: 10px;
-  background: var(--purpura);
+  background: var(--purple);
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
 }
 
-.boton:disabled {
-  background: var(--borde);
-  color: var(--texto-tenue);
+.button:disabled {
+  background: var(--border);
+  color: var(--text-muted);
 }
 
-.resultado {
+.result {
   font-size: 0.85rem;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.resultado table {
+.result table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0.5rem;
   font-size: 0.78rem;
 }
 
-.resultado th,
-.resultado td {
+.result th,
+.result td {
   text-align: left;
   padding: 0.3rem 0.4rem;
-  border-bottom: 1px solid var(--borde);
-  color: var(--texto);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
 }
 
-.resultado__campo {
+.result__field {
   display: flex;
   gap: 0.5rem;
   padding: 0.25rem 0;
 }
 
-.resultado__campo dt {
+.result__field dt {
   flex: 0 0 9rem;
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.resultado__campo dd {
+.result__field dd {
   margin: 0;
-  color: var(--texto);
+  color: var(--text);
   word-break: break-word;
 }
 
-.resultado--ok {
+.result--ok {
   border-left: 3px solid var(--ok);
   padding-left: 0.6rem;
 }
 
-.resultado--error {
+.result--error {
   border-left: 3px solid var(--error);
   padding-left: 0.6rem;
 }
 ```
 
-- [ ] **Step 3: Verificar que la página carga**
+- [ ] **Step 3: Verify the page loads**
 
 Run: `cd example && npm run ios:spm`
-Expected: la app muestra el encabezado púrpura, las seis tarjetas y el botón deshabilitado. Las secciones de campos están vacías: las llena la Task 7.
+Expected: the app shows the purple header, the six cards, and the disabled button. The field
+sections are empty: Task 7 fills them in.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add example/www/index.html example/www/css/harness.css
-git commit -m "feat(example): estructura y estilos del harness"
+git commit -m "feat(example): harness structure and styles"
 ```
 
 ---
 
-### Task 7: Harness — lógica
+### Task 7: Harness — logic
 
 **Files:**
 - Create: `example/www/js/harness.js`
 
 **Interfaces:**
-- Consumes: los ids del DOM de la Task 6 y `window.Khipu.startOperation(call, success, error)` de `www/cordova-khipu.js`.
-- Produces: nada que consuman otras tareas.
+- Consumes: Task 6's DOM ids and `window.Khipu.startOperation(call, success, error)` from `www/cordova-khipu.js`.
+- Produces: nothing consumed by other tasks.
 
-- [ ] **Step 1: Crear `example/www/js/harness.js`**
+- [ ] **Step 1: Create `example/www/js/harness.js`**
 
 ```js
 /*
- * Harness de prueba de cordova-khipu.
+ * Test harness for cordova-khipu.
  *
- * El punto central es el tri-estado por campo: cada opción tiene una casilla
- * "incluir" además de su control. El plugin distingue "clave ausente" de
- * `false` — ver `options!["showFooter"] != nil` en KhipuPlugin.swift y
- * `options.has("showFooter")` en KhipuPlugin.java — y el SDK nativo aplica sus
- * propios valores por omisión. Si el harness mandara siempre los booleanos,
- * sería imposible probar el comportamiento que ve un comercio que no configura
- * nada.
+ * The central point is the per-field tri-state: every option has an
+ * "include" checkbox in addition to its own control. The plugin
+ * distinguishes "key absent" from `false` — see
+ * `options!["showFooter"] != nil` in KhipuPlugin.swift and
+ * `options.has("showFooter")` in KhipuPlugin.java — and the native SDK
+ * applies its own defaults. If the harness always sent the booleans, it
+ * would be impossible to test the behaviour a merchant who configures
+ * nothing actually sees.
  */
 
-var CLAVE_ALMACENAMIENTO = 'cordova-khipu-harness';
+var STORAGE_KEY = 'cordova-khipu-harness';
 
-var CAMPOS_TEXTO = [
-  { clave: 'title', ejemplo: 'Demo Cordova' },
-  { clave: 'titleImageUrl', ejemplo: 'https://s3.amazonaws.com/static.khipu.com/logo-khipu-color.png' },
-  { clave: 'locale', ejemplo: 'es_CL' }
+var TEXT_FIELDS = [
+  { key: 'title', example: 'Demo Cordova' },
+  { key: 'titleImageUrl', example: 'https://s3.amazonaws.com/static.khipu.com/logo-khipu-color.png' },
+  { key: 'locale', example: 'es_CL' }
 ];
 
-var CAMPOS_SWITCH = [
+var SWITCH_FIELDS = [
   'skipExitPage',
   'skipExitSuccessPage',
   'showFooter',
@@ -1618,7 +1641,7 @@ var CAMPOS_SWITCH = [
   'showPaymentDetails'
 ];
 
-var CLAVES_COLOR = [
+var COLOR_KEYS = [
   'lightBackground',
   'lightOnBackground',
   'lightPrimary',
@@ -1633,20 +1656,20 @@ var CLAVES_COLOR = [
   'darkOnTopBarContainer'
 ];
 
-var TEMAS = ['light', 'dark', 'system'];
+var THEMES = ['light', 'dark', 'system'];
 
 var PRESETS = {
-  'Todo por defecto': {
-    texto: {},
-    interruptores: {},
-    tema: null,
-    colores: null
+  'All defaults': {
+    text: {},
+    switches: {},
+    theme: null,
+    colors: null
   },
-  'Marca Khipu': {
-    texto: { title: 'Demo Cordova', locale: 'es_CL' },
-    interruptores: { showFooter: true, showMerchantLogo: true, showPaymentDetails: true },
-    tema: 'light',
-    colores: {
+  'Khipu brand': {
+    text: { title: 'Demo Cordova', locale: 'es_CL' },
+    switches: { showFooter: true, showMerchantLogo: true, showPaymentDetails: true },
+    theme: 'light',
+    colors: {
       lightBackground: '#ffffff',
       lightOnBackground: '#1a1a1a',
       lightPrimary: '#8347ad',
@@ -1661,23 +1684,23 @@ var PRESETS = {
       darkOnTopBarContainer: '#e8eaed'
     }
   },
-  'Todo activado': {
-    texto: { title: 'Demo Cordova', locale: 'es_CL' },
-    interruptores: {
+  'Everything on': {
+    text: { title: 'Demo Cordova', locale: 'es_CL' },
+    switches: {
       skipExitPage: true,
       skipExitSuccessPage: true,
       showFooter: true,
       showMerchantLogo: true,
       showPaymentDetails: true
     },
-    tema: 'system',
-    colores: null
+    theme: 'system',
+    colors: null
   },
-  'Modo oscuro': {
-    texto: {},
-    interruptores: {},
-    tema: 'dark',
-    colores: {
+  'Dark mode': {
+    text: {},
+    switches: {},
+    theme: 'dark',
+    colors: {
       darkBackground: '#101418',
       darkOnBackground: '#e8eaed',
       darkPrimary: '#3cb4e5',
@@ -1688,556 +1711,570 @@ var PRESETS = {
   }
 };
 
-var controles = {
-  texto: {},
-  interruptores: {},
-  colores: {},
-  tema: null
+var controls = {
+  text: {},
+  switches: {},
+  colors: {},
+  theme: null
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-  construirCampos();
-  construirPresets();
-  restaurar();
-  escuchar();
-  refrescarPreview();
+  buildFields();
+  buildPresets();
+  restore();
+  listen();
+  refreshPreview();
 });
 
 document.addEventListener('deviceready', function () {
-  var estado = document.getElementById('estado');
-  var disponible = typeof window.Khipu !== 'undefined';
+  var status = document.getElementById('status');
+  var available = typeof window.Khipu !== 'undefined';
 
-  estado.className = 'estado ' + (disponible ? 'estado--listo' : 'estado--esperando');
-  estado.textContent = disponible
-    ? 'Listo · window.Khipu disponible'
-    : 'deviceready llegó pero window.Khipu no está: revisa la instalación del plugin.';
+  status.className = 'status ' + (available ? 'status--ready' : 'status--waiting');
+  status.textContent = available
+    ? 'Ready · window.Khipu available'
+    : 'deviceready fired but window.Khipu is missing: check the plugin installation.';
 
-  document.getElementById('lanzar').disabled = !disponible;
+  document.getElementById('launch').disabled = !available;
 });
 
-/* ---------- construcción de la interfaz ---------- */
+/* ---------- interface construction ---------- */
 
-function construirCampos () {
-  var contenedorTexto = document.getElementById('campos-texto');
+function buildFields () {
+  var textContainer = document.getElementById('text-fields');
 
-  CAMPOS_TEXTO.forEach(function (campo) {
-    var entrada = document.createElement('input');
-    entrada.type = 'text';
-    entrada.placeholder = campo.ejemplo;
-    entrada.autocapitalize = 'off';
-    entrada.autocorrect = 'off';
-    entrada.spellcheck = false;
+  TEXT_FIELDS.forEach(function (field) {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = field.example;
+    input.autocapitalize = 'off';
+    input.autocorrect = 'off';
+    input.spellcheck = false;
 
-    controles.texto[campo.clave] = agregarFila(contenedorTexto, campo.clave, entrada);
+    controls.text[field.key] = addRow(textContainer, field.key, input);
   });
 
-  // `theme` es de texto pero con valores cerrados, así que va como selector.
-  var selectorTema = document.createElement('select');
-  TEMAS.forEach(function (tema) {
-    var opcion = document.createElement('option');
-    opcion.value = tema;
-    opcion.textContent = tema;
-    selectorTema.appendChild(opcion);
+  // `theme` is a text field but with a closed set of values, so it goes as a
+  // <select>.
+  var themeSelect = document.createElement('select');
+  THEMES.forEach(function (theme) {
+    var option = document.createElement('option');
+    option.value = theme;
+    option.textContent = theme;
+    themeSelect.appendChild(option);
   });
-  controles.tema = agregarFila(contenedorTexto, 'theme', selectorTema);
+  controls.theme = addRow(textContainer, 'theme', themeSelect);
 
-  var contenedorSwitch = document.getElementById('campos-switch');
-  CAMPOS_SWITCH.forEach(function (clave) {
-    var interruptor = document.createElement('input');
-    interruptor.type = 'checkbox';
-    controles.interruptores[clave] = agregarFila(contenedorSwitch, clave, interruptor);
+  var switchContainer = document.getElementById('switch-fields');
+  SWITCH_FIELDS.forEach(function (key) {
+    var toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    controls.switches[key] = addRow(switchContainer, key, toggle);
   });
 
-  var contenedorColor = document.getElementById('campos-color');
-  CLAVES_COLOR.forEach(function (clave) {
-    var selectorColor = document.createElement('input');
-    selectorColor.type = 'color';
-    selectorColor.value = clave.indexOf('dark') === 0 ? '#101418' : '#ffffff';
-    controles.colores[clave] = agregarFila(contenedorColor, clave, selectorColor);
+  var colorContainer = document.getElementById('color-fields');
+  COLOR_KEYS.forEach(function (key) {
+    var colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.value = key.indexOf('dark') === 0 ? '#101418' : '#ffffff';
+    controls.colors[key] = addRow(colorContainer, key, colorPicker);
   });
 }
 
-// Cada fila es control + casilla "incluir". El valor del control solo llega al
-// payload si la casilla está marcada.
-function agregarFila (contenedor, clave, control) {
-  var fila = document.createElement('label');
-  fila.className = 'campo campo--apagado';
+// Each row is a control plus an "include" checkbox. The control's value only
+// reaches the payload if the checkbox is checked.
+function addRow (container, key, control) {
+  var row = document.createElement('label');
+  row.className = 'field field--off';
 
-  var incluir = document.createElement('input');
-  incluir.type = 'checkbox';
+  var include = document.createElement('input');
+  include.type = 'checkbox';
 
-  var nombre = document.createElement('span');
-  nombre.className = 'campo__nombre';
-  nombre.textContent = clave;
+  var name = document.createElement('span');
+  name.className = 'field__name';
+  name.textContent = key;
 
-  fila.appendChild(incluir);
-  fila.appendChild(nombre);
-  fila.appendChild(control);
-  contenedor.appendChild(fila);
+  row.appendChild(include);
+  row.appendChild(name);
+  row.appendChild(control);
+  container.appendChild(row);
 
-  return { fila: fila, incluir: incluir, control: control };
+  return { row: row, include: include, control: control };
 }
 
-function construirPresets () {
-  var contenedor = document.getElementById('presets');
+function buildPresets () {
+  var container = document.getElementById('presets');
 
-  Object.keys(PRESETS).forEach(function (nombre) {
-    var boton = document.createElement('button');
-    boton.type = 'button';
-    boton.textContent = nombre;
-    boton.addEventListener('click', function () {
-      aplicarPreset(PRESETS[nombre]);
+  Object.keys(PRESETS).forEach(function (name) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = name;
+    button.addEventListener('click', function () {
+      applyPreset(PRESETS[name]);
     });
-    contenedor.appendChild(boton);
+    container.appendChild(button);
   });
 }
 
-/* ---------- estado ---------- */
+/* ---------- state ---------- */
 
-function escuchar () {
-  document.addEventListener('input', alCambiar);
-  document.addEventListener('change', alCambiar);
-  document.getElementById('lanzar').addEventListener('click', lanzar);
+function listen () {
+  document.addEventListener('input', onChange);
+  document.addEventListener('change', onChange);
+  document.getElementById('launch').addEventListener('click', launch);
 }
 
-function alCambiar () {
-  sincronizarOpacidad();
-  refrescarPreview();
-  guardar();
+function onChange () {
+  syncOpacity();
+  refreshPreview();
+  save();
 }
 
-function sincronizarOpacidad () {
-  var todos = []
-    .concat(Object.keys(controles.texto).map(function (k) { return controles.texto[k]; }))
-    .concat(Object.keys(controles.interruptores).map(function (k) { return controles.interruptores[k]; }))
-    .concat(Object.keys(controles.colores).map(function (k) { return controles.colores[k]; }))
-    .concat([controles.tema]);
+function syncOpacity () {
+  var all = []
+    .concat(Object.keys(controls.text).map(function (k) { return controls.text[k]; }))
+    .concat(Object.keys(controls.switches).map(function (k) { return controls.switches[k]; }))
+    .concat(Object.keys(controls.colors).map(function (k) { return controls.colors[k]; }))
+    .concat([controls.theme]);
 
-  todos.forEach(function (entrada) {
-    entrada.fila.className = 'campo' + (entrada.incluir.checked ? '' : ' campo--apagado');
+  all.forEach(function (entry) {
+    entry.row.className = 'field' + (entry.include.checked ? '' : ' field--off');
   });
 
-  var incluirColores = document.getElementById('incluir-colors').checked;
-  document.getElementById('campos-color').style.display = incluirColores ? '' : 'none';
+  var includeColors = document.getElementById('include-colors').checked;
+  document.getElementById('color-fields').style.display = includeColors ? '' : 'none';
 }
 
-function construirPayload () {
-  var opciones = {};
+function buildPayload () {
+  var options = {};
 
-  Object.keys(controles.texto).forEach(function (clave) {
-    var entrada = controles.texto[clave];
-    if (entrada.incluir.checked) {
-      opciones[clave] = entrada.control.value;
+  Object.keys(controls.text).forEach(function (key) {
+    var entry = controls.text[key];
+    if (entry.include.checked) {
+      options[key] = entry.control.value;
     }
   });
 
-  if (controles.tema.incluir.checked) {
-    opciones.theme = controles.tema.control.value;
+  if (controls.theme.include.checked) {
+    options.theme = controls.theme.control.value;
   }
 
-  Object.keys(controles.interruptores).forEach(function (clave) {
-    var entrada = controles.interruptores[clave];
-    if (entrada.incluir.checked) {
-      opciones[clave] = entrada.control.checked;
+  Object.keys(controls.switches).forEach(function (key) {
+    var entry = controls.switches[key];
+    if (entry.include.checked) {
+      options[key] = entry.control.checked;
     }
   });
 
-  if (document.getElementById('incluir-colors').checked) {
-    var colores = {};
-    Object.keys(controles.colores).forEach(function (clave) {
-      var entrada = controles.colores[clave];
-      if (entrada.incluir.checked) {
-        colores[clave] = entrada.control.value;
+  if (document.getElementById('include-colors').checked) {
+    var colors = {};
+    Object.keys(controls.colors).forEach(function (key) {
+      var entry = controls.colors[key];
+      if (entry.include.checked) {
+        colors[key] = entry.control.value;
       }
     });
-    opciones.colors = colores;
+    options.colors = colors;
   }
 
   var payload = { operationId: document.getElementById('operationId').value.trim() };
 
-  // `options` solo viaja si tiene algo adentro: mandarlo vacío no es lo mismo
-  // que no mandarlo, y acá queremos poder probar las dos cosas.
-  if (Object.keys(opciones).length > 0) {
-    payload.options = opciones;
+  // `options` only travels if it has something inside: sending it empty is
+  // not the same as not sending it, and here we want to be able to test both.
+  if (Object.keys(options).length > 0) {
+    payload.options = options;
   }
 
   return payload;
 }
 
-function refrescarPreview () {
+function refreshPreview () {
   document.getElementById('preview').textContent =
-    JSON.stringify(construirPayload(), null, 2);
+    JSON.stringify(buildPayload(), null, 2);
 }
 
-function aplicarPreset (preset) {
-  Object.keys(controles.texto).forEach(function (clave) {
-    var entrada = controles.texto[clave];
-    var valor = preset.texto[clave];
-    entrada.incluir.checked = valor !== undefined;
-    if (valor !== undefined) {
-      entrada.control.value = valor;
+function applyPreset (preset) {
+  Object.keys(controls.text).forEach(function (key) {
+    var entry = controls.text[key];
+    var value = preset.text[key];
+    entry.include.checked = value !== undefined;
+    if (value !== undefined) {
+      entry.control.value = value;
     }
   });
 
-  controles.tema.incluir.checked = preset.tema !== null;
-  if (preset.tema !== null) {
-    controles.tema.control.value = preset.tema;
+  controls.theme.include.checked = preset.theme !== null;
+  if (preset.theme !== null) {
+    controls.theme.control.value = preset.theme;
   }
 
-  Object.keys(controles.interruptores).forEach(function (clave) {
-    var entrada = controles.interruptores[clave];
-    var valor = preset.interruptores[clave];
-    entrada.incluir.checked = valor !== undefined;
-    entrada.control.checked = valor === true;
+  Object.keys(controls.switches).forEach(function (key) {
+    var entry = controls.switches[key];
+    var value = preset.switches[key];
+    entry.include.checked = value !== undefined;
+    entry.control.checked = value === true;
   });
 
-  document.getElementById('incluir-colors').checked = preset.colores !== null;
-  Object.keys(controles.colores).forEach(function (clave) {
-    var entrada = controles.colores[clave];
-    var valor = preset.colores ? preset.colores[clave] : undefined;
-    entrada.incluir.checked = valor !== undefined;
-    if (valor !== undefined) {
-      entrada.control.value = valor;
+  document.getElementById('include-colors').checked = preset.colors !== null;
+  Object.keys(controls.colors).forEach(function (key) {
+    var entry = controls.colors[key];
+    var value = preset.colors ? preset.colors[key] : undefined;
+    entry.include.checked = value !== undefined;
+    if (value !== undefined) {
+      entry.control.value = value;
     }
   });
 
-  alCambiar();
+  onChange();
 }
 
-/* ---------- persistencia ---------- */
+/* ---------- persistence ---------- */
 
-// Probando en dispositivo se recarga mucho, y retipear el operationId cada vez
-// es fricción real.
-function guardar () {
-  var estado = {
+// Testing on device reloads a lot, and retyping the operationId every time is
+// real friction.
+function save () {
+  var state = {
     operationId: document.getElementById('operationId').value,
-    incluirColores: document.getElementById('incluir-colors').checked,
-    texto: {},
-    tema: { incluir: controles.tema.incluir.checked, valor: controles.tema.control.value },
-    interruptores: {},
-    colores: {}
+    includeColors: document.getElementById('include-colors').checked,
+    text: {},
+    theme: { include: controls.theme.include.checked, value: controls.theme.control.value },
+    switches: {},
+    colors: {}
   };
 
-  Object.keys(controles.texto).forEach(function (clave) {
-    estado.texto[clave] = {
-      incluir: controles.texto[clave].incluir.checked,
-      valor: controles.texto[clave].control.value
+  Object.keys(controls.text).forEach(function (key) {
+    state.text[key] = {
+      include: controls.text[key].include.checked,
+      value: controls.text[key].control.value
     };
   });
 
-  Object.keys(controles.interruptores).forEach(function (clave) {
-    estado.interruptores[clave] = {
-      incluir: controles.interruptores[clave].incluir.checked,
-      valor: controles.interruptores[clave].control.checked
+  Object.keys(controls.switches).forEach(function (key) {
+    state.switches[key] = {
+      include: controls.switches[key].include.checked,
+      value: controls.switches[key].control.checked
     };
   });
 
-  Object.keys(controles.colores).forEach(function (clave) {
-    estado.colores[clave] = {
-      incluir: controles.colores[clave].incluir.checked,
-      valor: controles.colores[clave].control.value
+  Object.keys(controls.colors).forEach(function (key) {
+    state.colors[key] = {
+      include: controls.colors[key].include.checked,
+      value: controls.colors[key].control.value
     };
   });
 
   try {
-    window.localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
-    // Sin almacenamiento el harness igual funciona; solo pierde la memoria.
+    // Without storage the harness still works; it just loses its memory.
   }
 }
 
-function restaurar () {
-  var crudo;
+function restore () {
+  var raw;
 
   try {
-    crudo = window.localStorage.getItem(CLAVE_ALMACENAMIENTO);
+    raw = window.localStorage.getItem(STORAGE_KEY);
   } catch (error) {
     return;
   }
 
-  if (!crudo) {
+  if (!raw) {
     return;
   }
 
-  var estado;
+  var state;
   try {
-    estado = JSON.parse(crudo);
+    state = JSON.parse(raw);
   } catch (error) {
     return;
   }
 
-  document.getElementById('operationId').value = estado.operationId || '';
-  document.getElementById('incluir-colors').checked = estado.incluirColores === true;
+  document.getElementById('operationId').value = state.operationId || '';
+  document.getElementById('include-colors').checked = state.includeColors === true;
 
-  if (estado.tema) {
-    controles.tema.incluir.checked = estado.tema.incluir === true;
-    controles.tema.control.value = estado.tema.valor || 'system';
+  if (state.theme) {
+    controls.theme.include.checked = state.theme.include === true;
+    controls.theme.control.value = state.theme.value || 'system';
   }
 
-  aplicarGuardado(controles.texto, estado.texto, 'value');
-  aplicarGuardado(controles.interruptores, estado.interruptores, 'checked');
-  aplicarGuardado(controles.colores, estado.colores, 'value');
+  applySaved(controls.text, state.text, 'value');
+  applySaved(controls.switches, state.switches, 'checked');
+  applySaved(controls.colors, state.colors, 'value');
 
-  sincronizarOpacidad();
+  syncOpacity();
 }
 
-function aplicarGuardado (grupo, guardado, propiedad) {
-  if (!guardado) {
+function applySaved (group, saved, property) {
+  if (!saved) {
     return;
   }
 
-  Object.keys(grupo).forEach(function (clave) {
-    var entrada = guardado[clave];
-    if (!entrada) {
+  Object.keys(group).forEach(function (key) {
+    var entry = saved[key];
+    if (!entry) {
       return;
     }
-    grupo[clave].incluir.checked = entrada.incluir === true;
-    grupo[clave].control[propiedad] = entrada.valor;
+    group[key].include.checked = entry.include === true;
+    group[key].control[property] = entry.value;
   });
 }
 
-/* ---------- ejecución ---------- */
+/* ---------- execution ---------- */
 
-function lanzar () {
-  var payload = construirPayload();
+function launch () {
+  var payload = buildPayload();
 
   if (!payload.operationId) {
-    mostrarError('Falta el operationId.');
+    showError('Missing operationId.');
     return;
   }
 
-  var boton = document.getElementById('lanzar');
-  boton.disabled = true;
-  document.getElementById('resultado').textContent = 'Ejecutando…';
+  var button = document.getElementById('launch');
+  button.disabled = true;
+  document.getElementById('result').textContent = 'Running…';
 
   window.Khipu.startOperation(
     payload,
-    function (resultado) {
-      boton.disabled = false;
-      mostrarResultado(resultado, 'ok');
+    function (result) {
+      button.disabled = false;
+      showResult(result, 'ok');
     },
     function (error) {
-      boton.disabled = false;
-      // El callback de error recibe un KhipuResult cuando el SDK terminó en
-      // ERROR, y un string cuando el plugin rechazó antes de arrancar.
+      button.disabled = false;
+      // The error callback receives a KhipuResult when the SDK finished in
+      // ERROR, and a string when the plugin rejected before starting.
       if (typeof error === 'string') {
-        mostrarError(error);
+        showError(error);
       } else {
-        mostrarResultado(error, 'error');
+        showResult(error, 'error');
       }
     }
   );
 }
 
-function mostrarError (mensaje) {
-  var contenedor = document.getElementById('resultado');
-  contenedor.className = 'resultado resultado--error';
-  contenedor.textContent = mensaje;
+function showError (message) {
+  var container = document.getElementById('result');
+  container.className = 'result result--error';
+  container.textContent = message;
 }
 
-function mostrarResultado (resultado, clase) {
-  var contenedor = document.getElementById('resultado');
-  contenedor.className = 'resultado resultado--' + clase;
-  contenedor.textContent = '';
+function showResult (result, kind) {
+  var container = document.getElementById('result');
+  container.className = 'result result--' + kind;
+  container.textContent = '';
 
-  var lista = document.createElement('dl');
+  var list = document.createElement('dl');
   ['operationId', 'result', 'exitTitle', 'exitMessage', 'exitUrl', 'failureReason', 'continueUrl']
-    .forEach(function (clave) {
-      var fila = document.createElement('div');
-      fila.className = 'resultado__campo';
+    .forEach(function (key) {
+      var row = document.createElement('div');
+      row.className = 'result__field';
 
-      var nombre = document.createElement('dt');
-      nombre.textContent = clave;
+      var name = document.createElement('dt');
+      name.textContent = key;
 
-      var valor = document.createElement('dd');
-      valor.textContent = resultado[clave] === null || resultado[clave] === undefined
+      var value = document.createElement('dd');
+      value.textContent = result[key] === null || result[key] === undefined
         ? '—'
-        : String(resultado[clave]);
+        : String(result[key]);
 
-      fila.appendChild(nombre);
-      fila.appendChild(valor);
-      lista.appendChild(fila);
+      row.appendChild(name);
+      row.appendChild(value);
+      list.appendChild(row);
     });
-  contenedor.appendChild(lista);
+  container.appendChild(list);
 
-  var eventos = resultado.events || [];
-  if (eventos.length === 0) {
+  var events = result.events || [];
+  if (events.length === 0) {
     return;
   }
 
-  var tabla = document.createElement('table');
-  tabla.innerHTML =
+  var table = document.createElement('table');
+  table.innerHTML =
     '<thead><tr><th>name</th><th>type</th><th>timestamp</th></tr></thead>';
 
-  var cuerpo = document.createElement('tbody');
-  eventos.forEach(function (evento) {
-    var fila = document.createElement('tr');
-    [evento.name, evento.type, evento.timestamp].forEach(function (celda) {
+  var body = document.createElement('tbody');
+  events.forEach(function (event) {
+    var row = document.createElement('tr');
+    [event.name, event.type, event.timestamp].forEach(function (cell) {
       var td = document.createElement('td');
-      td.textContent = celda === null || celda === undefined ? '—' : String(celda);
-      fila.appendChild(td);
+      td.textContent = cell === null || cell === undefined ? '—' : String(cell);
+      row.appendChild(td);
     });
-    cuerpo.appendChild(fila);
+    body.appendChild(row);
   });
 
-  tabla.appendChild(cuerpo);
-  contenedor.appendChild(tabla);
+  table.appendChild(body);
+  container.appendChild(table);
 }
 ```
 
-- [ ] **Step 2: Verificar el tri-estado**
+- [ ] **Step 2: Verify the tri-state**
 
 Run: `cd example && npm run ios:spm`
 
-Comprobar en el simulador:
-1. Con todo sin marcar y un `operationId` escrito, el preview muestra exactamente `{ "operationId": "..." }`, **sin** la clave `options`.
-2. Al marcar `showFooter` sin activar el interruptor, el preview muestra `"showFooter": false`. Marcar la casilla y dejar el interruptor apagado **no** es lo mismo que no marcarla.
-3. Al marcar `incluir el objeto colors` sin marcar ningún color, el preview muestra `"colors": {}`.
+Check in the simulator:
+1. With everything unchecked and an `operationId` typed in, the preview shows exactly
+   `{ "operationId": "..." }`, with **no** `options` key.
+2. Checking `showFooter`'s include box without turning the switch on, the preview shows
+   `"showFooter": false`. Checking the box and leaving the switch off is **not** the same as
+   not checking it.
+3. Checking "include the colors object" with no color checked, the preview shows
+   `"colors": {}`.
 
-- [ ] **Step 3: Verificar los presets y la persistencia**
+- [ ] **Step 3: Verify the presets and persistence**
 
-1. Tocar *Marca Khipu*: se marcan los 12 colores con la paleta púrpura/cian y el preview los refleja.
-2. Tocar *Todo por defecto*: el preview vuelve a tener solo `operationId`.
-3. Escribir un `operationId`, recargar la app (`Cmd+R` en el simulador) y verificar que el valor sigue ahí.
+1. Tap *Khipu brand*: all 12 colours get checked with the purple/cyan palette and the preview
+   reflects them.
+2. Tap *All defaults*: the preview goes back to only `operationId`.
+3. Type an `operationId`, reload the app (`Cmd+R` in the simulator) and verify the value is
+   still there.
 
-- [ ] **Step 4: Verificar una operación real**
+- [ ] **Step 4: Verify a real operation**
 
-Con un `operationId` válido, tocar *Iniciar operación*: se abre la vista de Khipu y al terminar el resultado aparece formateado con su tabla de eventos.
+With a valid `operationId`, tap *Start operation*: Khipu's view opens and when it finishes the
+result shows up formatted, with its events table.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add example/www/js/harness.js
-git commit -m "feat(example): lógica del harness con tri-estado por campo
+git commit -m "feat(example): harness logic with a tri-state per field
 
-Cada opción tiene casilla de inclusión además de su control, porque el
-plugin distingue clave ausente de false y el SDK aplica sus propios
-valores por omisión."
+Every option has an include checkbox in addition to its own control,
+because the plugin distinguishes an absent key from false and the SDK
+applies its own defaults."
 ```
 
 ---
 
-### Task 8: `example/README.md` con la matriz de verificación
+### Task 8: `example/README.md` with the verification matrix
 
 **Files:**
 - Create: `example/README.md`
 
 **Interfaces:**
-- Consumes: los scripts de la Task 5 y la decisión de la Task 4.
-- Produces: la documentación de la verificación manual, que reemplaza al CI que quedó fuera de alcance.
+- Consumes: Task 5's scripts and Task 4's decision.
+- Produces: the manual verification documentation, which replaces the CI that was ruled out of scope.
 
-- [ ] **Step 1: Crear `example/README.md`**
+- [ ] **Step 1: Create `example/README.md`**
 
 ```markdown
-# App de ejemplo de `cordova-khipu`
+# `cordova-khipu` example app
 
-Ejercita el plugin en los tres escenarios que soporta, y es la forma de
-verificarlo: el repositorio no tiene CI por decisión de diseño.
+Exercises the plugin against the three scenarios it supports, and is the way
+to verify it: the repository has no CI by design.
 
-## Requisitos
+## Requirements
 
-- Node 20 o superior
-- Xcode 15 o superior, con un simulador de iOS instalado
-- CocoaPods, **solo** para el escenario de cordova-ios 7
-- Android SDK con un emulador o un dispositivo conectado
+- Node 20 or later
+- Xcode 15 or later, with an iOS simulator installed
+- CocoaPods, **only** for the cordova-ios 7 scenario
+- Android SDK with an emulator or a connected device
 
-## Cómo se instala el plugin
+## How the plugin gets installed
 
-El plugin se empaqueta con `npm pack` y se instala desde el tarball, con
-`scripts/install-plugin.mjs`. Se probaron los tres métodos posibles contra un
-clon desechable del repositorio, y los otros dos se descartaron con evidencia:
+The plugin is packaged with `npm pack` and installed from the tarball, via
+`scripts/install-plugin.mjs`. All three possible methods were tried against a
+throwaway clone of the repository, and the other two were ruled out with
+evidence:
 
-| Método | Qué pasa |
+| Method | What happens |
 | --- | --- |
-| `cordova plugin add ../` | Falla con `EINVAL: cp ... subdirectory of self`. El destino (`example/plugins/`) es hijo del origen (el repo). |
-| `cordova plugin add ../ --link` | Compila, pero deja al plugin dependiendo de `apache/cordova-ios` por git en vez de la CordovaLib local. SwiftPM lo tolera dedupeando y avisa: *"Conflicting identity for cordova-ios … will be escalated to an error in future versions of SwiftPM"*. |
-| **Tarball** | Compila limpio, sin advertencias de identidad. |
+| `cordova plugin add ../` | Fails with `EINVAL: cp ... subdirectory of self`. The destination (`example/plugins/`) is a child of the source (the repo). |
+| `cordova plugin add ../ --link` | Compiles, but leaves the plugin depending on `apache/cordova-ios` via git instead of the local CordovaLib. SwiftPM tolerates it by deduping and warns: *"Conflicting identity for cordova-ios … will be escalated to an error in future versions of SwiftPM"*. |
+| **Tarball** | Compiles clean, with no identity warnings. |
 
-Dos detalles del script que no son adorno: usa el prefijo `file:` con **ruta
-absoluta**, porque `cordova plugin add ./algo.tgz` falla por un bug de parseo de
-`cordova-lib` 13.0.0; y borra los tarballs viejos antes de empaquetar, para que
-no quede eligiendo el de una versión anterior.
+Two details of the script are not cosmetic: it uses the `file:` prefix with an
+**absolute path**, because `cordova plugin add ./thing.tgz` fails on a parsing
+bug in `cordova-lib` 13.0.0; and it deletes old tarballs before packaging, so
+it does not end up picking an earlier version's.
 
-El efecto secundario es bueno: se instala exactamente el mismo artefacto que
-recibe un comercio desde npm, así que el campo `files` de `package.json` queda
-verificado de paso.
+The side effect is a good one: it installs exactly the same artifact a
+merchant gets from npm, so `package.json`'s `files` field gets verified along
+the way.
 
-## Matriz de verificación
+## Verification matrix
 
-Correr los tres antes de publicar una versión.
+Run all three before publishing a version.
 
-| Escenario | Comando | Qué prueba |
+| Scenario | Command | What it tests |
 | --- | --- | --- |
-| cordova-ios 7 + CocoaPods | `npm run ios:pods` | `<podspec>` + `<source-file>` y el hook `configure-swift-ios.js` |
-| cordova-ios 8 + SPM | `npm run ios:spm` | `Package.swift`, sin CocoaPods |
-| cordova-android 15 | `npm run android` | `khipu.gradle` y el hook `enable-gradle-kotlin-plugin.js` |
+| cordova-ios 7 + CocoaPods | `npm run ios:pods` | `<podspec>` + `<source-file>` and the `configure-swift-ios.js` hook |
+| cordova-ios 8 + SPM | `npm run ios:spm` | `Package.swift`, no CocoaPods |
+| cordova-android 15 | `npm run android` | `khipu.gradle` and the `enable-gradle-kotlin-plugin.js` hook |
 
-Cada script borra `platforms/` y `plugins/` antes de empezar: el gestor de
-paquetes de iOS lo decide el major de la plataforma y no se puede cambiar en
-caliente.
+Each script deletes `platforms/` and `plugins/` before starting: which iOS
+package manager gets used is decided by the platform's major version and
+cannot be switched on the fly.
 
-### La corrida que de verdad prueba SPM
+### The run that actually proves SPM
 
-Al menos una vez, correr `npm run ios:spm` con CocoaPods fuera del `PATH`:
+At least once, run `npm run ios:spm` with CocoaPods off `PATH`:
 
 ```bash
 PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) npm run ios:spm
 ```
 
-Es lo único que demuestra que el camino de cordova-ios 8 no necesita CocoaPods.
+It is the only thing that proves the cordova-ios 8 path does not need CocoaPods.
 
-## Qué revisar en el harness
+## What to check in the harness
 
-- **Tri-estado.** Con todo sin marcar, el preview muestra solo `operationId`,
-  sin la clave `options`. Es el caso del comercio que no configura nada, y es el
-  que más se rompe sin querer.
-- **`false` explícito.** Marcar `showFooter` con el interruptor apagado manda
-  `"showFooter": false`, que no es lo mismo que no mandar la clave.
-- **Presets.** *Marca Khipu* usa púrpura `#8347AD` y cian `#3CB4E5`.
-- **Recursos en el camino CocoaPods.** El plugin ya no declara `use_frameworks!`, así que los
-  pods se enlazan estáticos. Corriendo `npm run ios:pods`, confirmar que la vista de Khipu
-  muestra **imágenes y tipografías**, no cuadros vacíos ni texto con la fuente del sistema. Un
-  recurso que no resuelve falla al mostrarse, no al compilar, así que el build verde no basta.
-- **Persistencia.** El `operationId` sobrevive a una recarga.
-- **Resultado.** Al terminar la operación aparecen los campos de `KhipuResult`
-  y la tabla de eventos.
+- **Tri-state.** With everything unchecked, the preview shows only
+  `operationId`, with no `options` key. This is the case of a merchant who
+  configures nothing, and it is the one that breaks most easily by accident.
+- **Explicit `false`.** Checking `showFooter`'s include box with the switch
+  off sends `"showFooter": false`, which is not the same as not sending the
+  key at all.
+- **Presets.** *Khipu brand* uses purple `#8347AD` and cyan `#3CB4E5`.
+- **Resources on the CocoaPods path.** The plugin no longer declares `use_frameworks!`, so
+  pods link statically. Running `npm run ios:pods`, confirm that Khipu's view shows **real
+  images and fonts**, not empty boxes or system-font text. A resource that fails to resolve
+  breaks at display time, not at compile time, so a green build is not enough.
+- **Persistence.** The `operationId` survives a reload.
+- **Result.** When the operation finishes, `KhipuResult`'s fields and the
+  events table show up.
 
-## Fricciones conocidas del entorno
+## Known environment friction
 
-Ninguna es del plugin, pero cuestan tiempo si no se saben:
+None of this is the plugin's fault, but it costs time if you do not know
+about it:
 
-- **`cordova run ios` en el camino de CocoaPods** puede fallar buscando un runtime que el
-  simulador por defecto no tiene. Se resuelve con `cordova run ios --target=<simIdentifier>`.
-  Ojo: `cordova-ios` 7 espera un identificador tipo `iPhone-17`, **no** un UDID.
-- **`adb install` puede fallar por falta de espacio** en la partición `/data` del emulador, sin
-  que el build de Gradle tenga nada que ver. Se resuelve arrancando el AVD con
+- **`cordova run ios` on the CocoaPods path** can fail looking for a runtime the default
+  simulator does not have. Fixed with `cordova run ios --target=<simIdentifier>`. Watch out:
+  `cordova-ios` 7 expects an identifier like `iPhone-17`, **not** a UDID.
+- **`adb install` can fail from lack of space** on the emulator's `/data` partition, with
+  nothing to do with the Gradle build. Fixed by starting the AVD with
   `-wipe-data -partition-size 8192`.
-- **`[ios-sim] Simulator already running`** si quedó un simulador abierto de una corrida
-  anterior. Se resuelve con `xcrun simctl shutdown all` antes de reintentar.
+- **`[ios-sim] Simulator already running`** if a simulator was left open from an earlier run.
+  Fixed with `xcrun simctl shutdown all` before retrying.
 
-## Limitaciones
+## Limitations
 
-Cordova no tiene fallback web: `window.Khipu` solo existe después de
-`deviceready`. Abrir `www/index.html` en un navegador muestra la interfaz pero
-el botón queda deshabilitado.
+Cordova has no web fallback: `window.Khipu` only exists after `deviceready`.
+Opening `www/index.html` in a browser shows the interface but the button
+stays disabled.
 ```
 
-- [ ] **Step 2: Ajustar si la Task 4 decidió otra cosa**
+- [ ] **Step 2: Adjust if Task 4 decided otherwise**
 
-Si el spike concluyó que `cordova plugin add ../` o `--link` son seguros, reescribir la sección *Cómo se instala el plugin* con lo que efectivamente se hizo y por qué. El texto de arriba asume el método del tarball.
+If the spike concluded that `cordova plugin add ../` or `--link` are safe, rewrite the *How
+the plugin gets installed* section with what was actually done and why. The text above assumes
+the tarball method.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add example/README.md
-git commit -m "docs(example): matriz de verificación manual"
+git commit -m "docs(example): manual verification matrix"
 ```
 
 ---
 
-### Task 9: `KhipuOptionsMapper` con tests
+### Task 9: `KhipuOptionsMapper` with tests
 
-Hoy el mapeo de opciones fuerza el cast con `as!` en unos veinte lugares: un comercio que mande `title: 123` **crashea la app** en vez de recibir un error.
+Today the options mapping forces the cast with `as!` in about twenty places: a merchant who
+sends `title: 123` **crashes the app** instead of getting an error back.
 
 **Files:**
 - Create: `src/ios/KhipuOptionsMapper.swift`
@@ -2247,15 +2284,23 @@ Hoy el mapeo de opciones fuerza el cast con `as!` en unos veinte lugares: un com
 - Modify: `src/ios/KhipuPlugin.swift`
 
 **Interfaces:**
-- Consumes: el target `CordovaKhipu` de la Task 1.
-- Produces: `struct KhipuOptionsInput: Equatable` y `enum KhipuOptionsMapper` con `parse(_ call: [String: Any]) -> KhipuOptionsInput`, `makeOptions(from input: KhipuOptionsInput) -> KhipuOptions`, `makeColors(from colors: [String: String]) -> KhipuColors` y `static let colorKeys: [String]`. Ninguna otra tarea las consume.
+- Consumes: Task 1's `CordovaKhipu` target.
+- Produces: `struct KhipuOptionsInput: Equatable` and `enum KhipuOptionsMapper` with
+  `parse(_ call: [String: Any]) -> KhipuOptionsInput`,
+  `makeOptions(from input: KhipuOptionsInput) -> KhipuOptions`,
+  `makeColors(from colors: [String: String]) -> KhipuColors` and
+  `static let colorKeys: [String]`. No other task consumes them.
 
-> **Por qué existe `KhipuOptionsInput` y no se testea `KhipuOptions` directamente:** las propiedades de `KhipuOptions` están declaradas `let` **sin `public`**, así que son internas al módulo `KhipuClientIOS` y un test nuestro no puede leerlas. Separar el parseo (nuestro, testeable) de la aplicación sobre el Builder (trivial) resuelve eso y además aísla lo único que puede fallar de verdad.
+> **Why `KhipuOptionsInput` exists and `KhipuOptions` is not tested directly:** `KhipuOptions`'s
+> properties are declared `let` **without `public`**, so they are internal to the
+> `KhipuClientIOS` module and a test of ours cannot read them. Separating the parsing (ours,
+> testable) from applying it onto the Builder (trivial) solves that and also isolates the only
+> part that can genuinely fail.
 
-- [ ] **Step 1: Agregar el target de tests a `Package.swift`**
+- [ ] **Step 1: Add the test target to `Package.swift`**
 
-Agregar el `.testTarget` al array `targets`. **Reemplazar el array completo** por
-esto, en vez de insertar líneas sueltas:
+Add the `.testTarget` to the `targets` array. **Replace the whole array** with this, instead
+of inserting loose lines:
 
 ```swift
     targets: [
@@ -2275,9 +2320,9 @@ esto, en vez de insertar líneas sueltas:
     ]
 ```
 
-- [ ] **Step 2: Escribir los tests que fallan**
+- [ ] **Step 2: Write the failing tests**
 
-Crear `tests/ios/KhipuOptionsMapperTests.swift`:
+Create `tests/ios/KhipuOptionsMapperTests.swift`:
 
 ```swift
 import XCTest
@@ -2286,13 +2331,13 @@ import KhipuClientIOS
 
 final class KhipuOptionsMapperTests: XCTestCase {
 
-    func testSinClaveOptionsDevuelveTodoNil() {
+    func testMissingOptionsKeyReturnsAllNil() {
         let input = KhipuOptionsMapper.parse(["operationId": "abc"])
 
         XCTAssertEqual(input, KhipuOptionsInput())
     }
 
-    func testMapeaTodosLosCamposEscalares() {
+    func testMapsAllScalarFields() {
         let input = KhipuOptionsMapper.parse([
             "operationId": "abc",
             "options": [
@@ -2319,9 +2364,9 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertEqual(input.theme, .dark)
     }
 
-    /// El plugin tiene que poder distinguir "no me mandaron la clave" de
-    /// "me mandaron false": el SDK aplica sus propios valores por omisión.
-    func testClaveAusenteNoSeConfundeConFalse() {
+    /// The plugin has to be able to distinguish "the key was not sent" from
+    /// "false was sent": the SDK applies its own defaults.
+    func testAbsentKeyIsNotConfusedWithFalse() {
         let input = KhipuOptionsMapper.parse(["options": ["title": "Demo"]])
 
         XCTAssertNil(input.showFooter)
@@ -2331,12 +2376,12 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertNil(input.skipExitSuccessPage)
     }
 
-    /// Este es el caso que hoy crashea la app.
-    func testTipoEquivocadoSeDescartaEnVezDeCrashear() {
+    /// This is the case that crashes the app today.
+    func testWrongTypeIsDiscardedInsteadOfCrashing() {
         let input = KhipuOptionsMapper.parse([
             "options": [
                 "title": 123,
-                "showFooter": "sí",
+                "showFooter": "yes",
                 "locale": ["es", "CL"]
             ]
         ])
@@ -2346,72 +2391,72 @@ final class KhipuOptionsMapperTests: XCTestCase {
         XCTAssertNil(input.locale)
     }
 
-    func testThemeDesconocidoSeDescarta() {
-        XCTAssertNil(KhipuOptionsMapper.parse(["options": ["theme": "neón"]]).theme)
+    func testUnknownThemeIsDiscarded() {
+        XCTAssertNil(KhipuOptionsMapper.parse(["options": ["theme": "neon"]]).theme)
     }
 
-    func testMapeaLasDoceClavesDeColor() {
-        var colores: [String: Any] = [:]
-        for (indice, clave) in KhipuOptionsMapper.colorKeys.enumerated() {
-            colores[clave] = String(format: "#%06X", indice)
+    func testMapsAllTwelveColorKeys() {
+        var colors: [String: Any] = [:]
+        for (index, key) in KhipuOptionsMapper.colorKeys.enumerated() {
+            colors[key] = String(format: "#%06X", index)
         }
 
-        let input = KhipuOptionsMapper.parse(["options": ["colors": colores]])
+        let input = KhipuOptionsMapper.parse(["options": ["colors": colors]])
 
         XCTAssertEqual(input.colors?.count, 12)
         XCTAssertEqual(input.colors?["lightPrimary"], "#000002")
     }
 
-    func testDescartaClavesDeColorDesconocidas() {
+    func testDiscardsUnknownColorKeys() {
         let input = KhipuOptionsMapper.parse([
-            "options": ["colors": ["lightPrimary": "#8347AD", "morado": "#8347AD"]]
+            "options": ["colors": ["lightPrimary": "#8347AD", "purple": "#8347AD"]]
         ])
 
         XCTAssertEqual(input.colors, ["lightPrimary": "#8347AD"])
     }
 
-    func testColorsVacioSigueSiendoDistintoDeAusente() {
+    func testEmptyColorsStaysDifferentFromAbsent() {
         XCTAssertEqual(KhipuOptionsMapper.parse(["options": ["colors": [String: Any]()]]).colors, [:])
         XCTAssertNil(KhipuOptionsMapper.parse(["options": [String: Any]()]).colors)
     }
 
-    /// `KhipuColors` tiene propiedades internas pero es `Codable`, así que se
-    /// puede verificar el objeto que efectivamente recibe el SDK.
-    func testLosColoresLleganAlObjetoDelSdk() throws {
+    /// `KhipuColors` has internal properties but is `Codable`, so the object
+    /// the SDK actually receives can be checked.
+    func testColorsReachTheSdkObject() throws {
         let colors = KhipuOptionsMapper.makeColors(from: [
             "lightPrimary": "#8347AD",
             "darkPrimary": "#3CB4E5"
         ])
 
-        let datos = try JSONEncoder().encode(colors)
-        let decodificado = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: datos) as? [String: Any])
+        let data = try JSONEncoder().encode(colors)
+        let decoded = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        XCTAssertEqual(decodificado["lightPrimary"] as? String, "#8347AD")
-        XCTAssertEqual(decodificado["darkPrimary"] as? String, "#3CB4E5")
-        XCTAssertNil(decodificado["lightBackground"])
+        XCTAssertEqual(decoded["lightPrimary"] as? String, "#8347AD")
+        XCTAssertEqual(decoded["darkPrimary"] as? String, "#3CB4E5")
+        XCTAssertNil(decoded["lightBackground"])
     }
 }
 ```
 
-- [ ] **Step 3: Correr los tests y verificar que fallan**
+- [ ] **Step 3: Run the tests and verify they fail**
 
 Run: `xcodebuild -list`
-Expected: aparecen los schemes `cordova-khipu` y `KhipuClientIOS`. El de los tests es **`cordova-khipu`**,
-no `cordova-khipu-Package`: Xcode genera ese sufijo solo en algunas configuraciones y acá no
-aplica. Anotar lo que reporte y usar eso.
+Expected: the `cordova-khipu` and `KhipuClientIOS` schemes show up. The tests' scheme is
+**`cordova-khipu`**, not `cordova-khipu-Package`: Xcode only generates that suffix under some
+configurations, and it does not apply here. Note whatever it reports and use that.
 
 Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
-Expected: FAIL con `cannot find 'KhipuOptionsMapper' in scope`.
+Expected: FAIL with `cannot find 'KhipuOptionsMapper' in scope`.
 
-El `OS=18.5` no es decorativo: sin él, `xcodebuild` toma el runtime más nuevo instalado (26.5),
-donde no existe ningún dispositivo llamado "iPhone 16" y la corrida falla por el destino, no por
-los tests. Listar los disponibles con `xcrun simctl list devices available` y usar un par
-nombre/OS que exista de verdad en la máquina.
+The `OS=18.5` is not decorative: without it, `xcodebuild` picks the newest installed runtime
+(26.5), where no device named "iPhone 16" exists and the run fails on the destination, not on
+the tests. List the available ones with `xcrun simctl list devices available` and use a
+name/OS pair that actually exists on the machine.
 
-- [ ] **Step 4: Escribir el mapper**
+- [ ] **Step 4: Write the mapper**
 
-Crear `src/ios/KhipuOptionsMapper.swift`:
+Create `src/ios/KhipuOptionsMapper.swift`:
 
 ```swift
 #if canImport(Cordova)
@@ -2419,17 +2464,17 @@ import Cordova
 #endif
 import KhipuClientIOS
 
-/// Representación tipada de las opciones que llegan desde JavaScript.
+/// Typed representation of the options that arrive from JavaScript.
 ///
-/// Existe separada de `KhipuOptions` por dos razones. La primera es práctica:
-/// las propiedades de `KhipuOptions` son internas a `KhipuClientIOS`, así que
-/// un test no puede leerlas. La segunda es de diseño: separa lo que puede
-/// fallar —interpretar un diccionario que arma un tercero— de lo que no,
-/// que es aplicar valores ya validados sobre el Builder.
+/// It exists separately from `KhipuOptions` for two reasons. The first is
+/// practical: `KhipuOptions`'s properties are internal to `KhipuClientIOS`,
+/// so a test cannot read them. The second is a design one: it separates what
+/// can fail — interpreting a dictionary a third party built — from what
+/// cannot, which is applying already-validated values onto the Builder.
 ///
-/// `nil` significa "el JavaScript no mandó esta clave", que no es lo mismo que
-/// mandarla en `false`: el SDK aplica sus propios valores por omisión y el
-/// plugin tiene que dejarlo hacerlo.
+/// `nil` means "JavaScript did not send this key", which is not the same as
+/// sending it as `false`: the SDK applies its own defaults and the plugin
+/// has to let it.
 struct KhipuOptionsInput: Equatable {
     var topBarTitle: String?
     var topBarImageUrl: String?
@@ -2445,9 +2490,9 @@ struct KhipuOptionsInput: Equatable {
 
 enum KhipuOptionsMapper {
 
-    /// Las doce claves que acepta `KhipuColors`. Una clave que no esté acá se
-    /// descarta en vez de propagarse, para que un typo en el JavaScript del
-    /// comercio no llegue silenciosamente al SDK.
+    /// The twelve keys `KhipuColors` accepts. A key not in here gets
+    /// discarded instead of propagated, so a typo in the merchant's
+    /// JavaScript does not silently reach the SDK.
     static let colorKeys: [String] = [
         "lightBackground",
         "lightOnBackground",
@@ -2463,8 +2508,9 @@ enum KhipuOptionsMapper {
         "darkOnTopBarContainer"
     ]
 
-    /// Interpreta el diccionario que llega desde JavaScript. No lanza ni cae:
-    /// un valor con el tipo equivocado se descarta como si no hubiera venido.
+    /// Interprets the dictionary that arrives from JavaScript. It neither
+    /// throws nor traps: a value of the wrong type is discarded as if it had
+    /// never arrived.
     static func parse(_ call: [String: Any]) -> KhipuOptionsInput {
         guard let options = call["options"] as? [String: Any] else {
             return KhipuOptionsInput()
@@ -2485,34 +2531,34 @@ enum KhipuOptionsMapper {
         }
 
         if let colors = options["colors"] as? [String: Any] {
-            var validos: [String: String] = [:]
-            for clave in colorKeys {
-                if let valor = colors[clave] as? String {
-                    validos[clave] = valor
+            var valid: [String: String] = [:]
+            for key in colorKeys {
+                if let value = colors[key] as? String {
+                    valid[key] = value
                 }
             }
-            input.colors = validos
+            input.colors = valid
         }
 
         return input
     }
 
-    /// Aplica un input ya validado sobre el Builder del SDK.
+    /// Applies an already-validated input onto the SDK's Builder.
     static func makeOptions(from input: KhipuOptionsInput) -> KhipuOptions {
         var builder = KhipuOptions.Builder()
 
-        if let valor = input.topBarTitle { builder = builder.topBarTitle(valor) }
-        if let valor = input.topBarImageUrl { builder = builder.topBarImageUrl(valor) }
-        if let valor = input.skipExitPage { builder = builder.skipExitPage(valor) }
-        if let valor = input.skipExitSuccessPage { builder = builder.skipExitSuccessPage(valor) }
-        if let valor = input.showFooter { builder = builder.showFooter(valor) }
-        if let valor = input.showMerchantLogo { builder = builder.showMerchantLogo(valor) }
-        if let valor = input.showPaymentDetails { builder = builder.showPaymentDetails(valor) }
-        if let valor = input.locale { builder = builder.locale(valor) }
-        if let valor = input.theme { builder = builder.theme(valor) }
+        if let value = input.topBarTitle { builder = builder.topBarTitle(value) }
+        if let value = input.topBarImageUrl { builder = builder.topBarImageUrl(value) }
+        if let value = input.skipExitPage { builder = builder.skipExitPage(value) }
+        if let value = input.skipExitSuccessPage { builder = builder.skipExitSuccessPage(value) }
+        if let value = input.showFooter { builder = builder.showFooter(value) }
+        if let value = input.showMerchantLogo { builder = builder.showMerchantLogo(value) }
+        if let value = input.showPaymentDetails { builder = builder.showPaymentDetails(value) }
+        if let value = input.locale { builder = builder.locale(value) }
+        if let value = input.theme { builder = builder.theme(value) }
 
-        if let colores = input.colors {
-            builder = builder.colors(makeColors(from: colores))
+        if let colors = input.colors {
+            builder = builder.colors(makeColors(from: colors))
         }
 
         return builder.build()
@@ -2521,56 +2567,59 @@ enum KhipuOptionsMapper {
     static func makeColors(from colors: [String: String]) -> KhipuColors {
         var builder = KhipuColors.Builder()
 
-        if let valor = colors["lightBackground"] { builder = builder.lightBackground(valor) }
-        if let valor = colors["lightOnBackground"] { builder = builder.lightOnBackground(valor) }
-        if let valor = colors["lightPrimary"] { builder = builder.lightPrimary(valor) }
-        if let valor = colors["lightOnPrimary"] { builder = builder.lightOnPrimary(valor) }
-        if let valor = colors["lightTopBarContainer"] { builder = builder.lightTopBarContainer(valor) }
-        if let valor = colors["lightOnTopBarContainer"] { builder = builder.lightOnTopBarContainer(valor) }
-        if let valor = colors["darkBackground"] { builder = builder.darkBackground(valor) }
-        if let valor = colors["darkOnBackground"] { builder = builder.darkOnBackground(valor) }
-        if let valor = colors["darkPrimary"] { builder = builder.darkPrimary(valor) }
-        if let valor = colors["darkOnPrimary"] { builder = builder.darkOnPrimary(valor) }
-        if let valor = colors["darkTopBarContainer"] { builder = builder.darkTopBarContainer(valor) }
-        if let valor = colors["darkOnTopBarContainer"] { builder = builder.darkOnTopBarContainer(valor) }
+        if let value = colors["lightBackground"] { builder = builder.lightBackground(value) }
+        if let value = colors["lightOnBackground"] { builder = builder.lightOnBackground(value) }
+        if let value = colors["lightPrimary"] { builder = builder.lightPrimary(value) }
+        if let value = colors["lightOnPrimary"] { builder = builder.lightOnPrimary(value) }
+        if let value = colors["lightTopBarContainer"] { builder = builder.lightTopBarContainer(value) }
+        if let value = colors["lightOnTopBarContainer"] { builder = builder.lightOnTopBarContainer(value) }
+        if let value = colors["darkBackground"] { builder = builder.darkBackground(value) }
+        if let value = colors["darkOnBackground"] { builder = builder.darkOnBackground(value) }
+        if let value = colors["darkPrimary"] { builder = builder.darkPrimary(value) }
+        if let value = colors["darkOnPrimary"] { builder = builder.darkOnPrimary(value) }
+        if let value = colors["darkTopBarContainer"] { builder = builder.darkTopBarContainer(value) }
+        if let value = colors["darkOnTopBarContainer"] { builder = builder.darkOnTopBarContainer(value) }
 
         return builder.build()
     }
 }
 ```
 
-- [ ] **Step 5: Correr los tests y verificar que pasan**
+- [ ] **Step 5: Run the tests and verify they pass**
 
 Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
-Expected: PASS, 9 tests, 0 fallas.
+Expected: PASS, 9 tests, 0 failures.
 
-- [ ] **Step 6: Usar el mapper desde `KhipuPlugin.swift`**
+- [ ] **Step 6: Use the mapper from `KhipuPlugin.swift`**
 
-Borrar el método `getOptions(call:)` completo (desde `func getOptions(call: [String: Any]) -> KhipuOptions {` hasta su llave de cierre, unas 100 líneas).
+Delete the whole `getOptions(call:)` method (from
+`func getOptions(call: [String: Any]) -> KhipuOptions {` to its closing brace, about 100
+lines).
 
-Y en `startOperation`, reemplazar:
+And in `startOperation`, replace:
 
 ```swift
         let options = getOptions(call: call)
 ```
 
-por:
+with:
 
 ```swift
         let options = KhipuOptionsMapper.makeOptions(from: KhipuOptionsMapper.parse(call))
 ```
 
-- [ ] **Step 7: Declarar el archivo nuevo en `plugin.xml`**
+- [ ] **Step 7: Declare the new file in `plugin.xml`**
 
-Dentro de `<platform name="ios" package="swift">`, después del `<source-file>` existente:
+Inside `<platform name="ios" package="swift">`, after the existing `<source-file>`:
 
 ```xml
     <source-file src="src/ios/KhipuOptionsMapper.swift"/>
 ```
 
-Es necesario para cordova-ios 7, que compila archivo por archivo. cordova-ios 8 lo ignora porque toma el target completo desde `Package.swift`.
+This is needed for cordova-ios 7, which compiles file by file. cordova-ios 8 ignores it
+because it takes the whole target from `Package.swift`.
 
-- [ ] **Step 8: Verificar que todo sigue compilando y pasando**
+- [ ] **Step 8: Verify everything still compiles and passes**
 
 Run: `xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build`
 Expected: PASS
@@ -2578,61 +2627,76 @@ Expected: PASS
 Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 9: Verificar en la app de ejemplo que un tipo equivocado ya no crashea**
+- [ ] **Step 9: Verify in the example app that a wrong type no longer crashes**
 
 Run: `cd example && npm run ios:spm`
 
-En el simulador, abrir la consola de Safari (Develop → Simulator → index.html) y ejecutar:
+In the simulator, open the Safari console (Develop → Simulator → index.html) and run:
 
 ```js
 window.Khipu.startOperation(
-  { operationId: 'no-existe', options: { title: 123 } },
+  { operationId: 'does-not-exist', options: { title: 123 } },
   function (ok) { console.log('ok', ok); },
   function (err) { console.log('error', err); }
 );
 ```
 
-Expected: la app **no** se cae. Antes de este cambio, el `as!` la mataba.
+Expected: the app does **not** crash. Before this change, the `as!` killed it.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add src/ios/KhipuOptionsMapper.swift tests/ios/KhipuOptionsMapperTests.swift Package.swift plugin.xml src/ios/KhipuPlugin.swift
-git commit -m "fix(ios): mapear opciones con casts seguros en vez de as!
+git commit -m "fix(ios): map options with safe casts instead of as!
 
-Un comercio que mandaba title: 123 crasheaba la app. El mapeo pasa a una
-función pura sobre un tipo propio, con tests: las propiedades de
-KhipuOptions son internas al SDK y no se pueden verificar directamente."
+A merchant sending title: 123 crashed the app. The mapping moves to a
+pure function over our own type, with tests: KhipuOptions's properties
+are internal to the SDK and cannot be checked directly."
 ```
 
 ---
 
-### Task 10: Presenter correcto y `dismiss` no destructivo
+### Task 10: Correct presenter and non-destructive `dismiss`
 
 **Files:**
 - Modify: `src/ios/KhipuPlugin.swift`
 
 **Interfaces:**
-- Consumes: el `KhipuPlugin.swift` de la Task 9.
-- Produces: `private func presenter() -> UIViewController?` en `KhipuPlugin`. Ninguna otra tarea la consume.
+- Consumes: Task 9's `KhipuPlugin.swift`.
+- Produces: `private func presenter() -> UIViewController?` in `KhipuPlugin`. No other task consumes it.
 
-Hay dos defectos acá, los dos verificados, y la corrección es la misma para ambos.
+There are two defects here, both verified, and the fix is the same for both.
 
-**a) `UIApplication.shared.windows` está deprecado desde iOS 15, y el compilador no lo dice.** A un deployment target de iOS 13 no emite ninguna advertencia, porque a ese piso la API todavía no estaba deprecada. Medido con `swiftc -typecheck`:
+**a) `UIApplication.shared.windows` has been deprecated since iOS 15, and the compiler does
+not say so.** At an iOS 13 deployment target it emits no warning at all, because at that floor
+the API was not yet deprecated. Measured with `swiftc -typecheck`:
 
 ```
-iOS 13.0 → (sin advertencia)
+iOS 13.0 → (no warning)
 iOS 15.0 → warning: 'windows' was deprecated in iOS 15.0: Use UIWindowScene.windows on a relevant window scene instead
-iOS 18.0 → ídem
+iOS 18.0 → same
 ```
 
-Como `Package.swift` declara `.iOS(.v13)`, **un `grep "was deprecated"` sobre el build no sirve de test**: no encuentra nada ni antes ni después del cambio. Aparte del aviso, `windows` devuelve ventanas de todas las escenas conectadas, así que en una app con varias escenas puede entregar la que no está en pantalla.
+Since `Package.swift` declares `.iOS(.v13)`, **`grep "was deprecated"` over the build is
+useless as a test**: it finds nothing either before or after the change. Besides the warning,
+`windows` returns windows from every connected scene, so in an app with several scenes it can
+hand back one that is not on screen.
 
-**b) Presentar sobre un controller que ya está presentando no hace nada.** UIKit lo rechaza en silencio. El código actual esquiva eso con `presenter.presentedViewController?.dismiss(animated: false)`, o sea **cerrándole el modal al comercio sin avisar**, y después esperando un segundo fijo a que el cierre termine. Un comercio que llame al plugin con su propio modal en pantalla ve desaparecer su interfaz.
+**b) Presenting over a controller that is already presenting does nothing.** UIKit silently
+rejects it. The current code dodges that with
+`presenter.presentedViewController?.dismiss(animated: false)`, i.e. **dismissing the
+merchant's modal without asking**, then waiting a fixed second for the dismissal to finish. A
+merchant who calls the plugin with their own modal on screen sees their interface disappear.
 
-La corrección: Cordova ya entrega el controller correcto en `self.viewController` de `CDVPlugin`. Existe en cordova-ios 7 (`@property (nonatomic, weak) UIViewController* viewController;`) y en cordova-ios 8 (`@property (nonatomic, weak) CDVViewController *viewController;`), y **no está deprecado** en ninguna de las dos — a diferencia de `scrollView` y otras del mismo header, que sí llevan `CDV_DEPRECATED(8.0.0, ...)`. Desde ahí se baja por la cadena de presentados en vez de destruirla.
+The fix: Cordova already hands over the right controller in `CDVPlugin`'s
+`self.viewController`. It exists on cordova-ios 7
+(`@property (nonatomic, weak) UIViewController* viewController;`) and on cordova-ios 8
+(`@property (nonatomic, weak) CDVViewController *viewController;`), and **is not deprecated**
+on either — unlike `scrollView` and others in the same header, which do carry
+`CDV_DEPRECATED(8.0.0, ...)`. From there it walks down the presented-controller chain instead
+of destroying it.
 
-- [ ] **Step 1: Confirmar que la deprecación existe pero está oculta al piso actual**
+- [ ] **Step 1: Confirm the deprecation exists but is hidden at the current floor**
 
 ```bash
 cd /tmp && cat > dep.swift <<'EOF'
@@ -2648,18 +2712,18 @@ for t in 13.0 15.0; do
 done
 rm /tmp/dep.swift
 ```
-Expected: `0` para iOS 13.0 y un número mayor que cero para iOS 15.0.
+Expected: `0` for iOS 13.0 and a number greater than zero for iOS 15.0.
 
-Esto es lo que justifica no usar el log del build como verificación.
+This is what justifies not using the build log as verification.
 
-- [ ] **Step 2: Confirmar el estado del código**
+- [ ] **Step 2: Confirm the code's current state**
 
 Run: `grep -n "UIApplication.shared.windows\|presentedViewController?.dismiss\|asyncAfter" src/ios/KhipuPlugin.swift`
-Expected: las tres líneas aparecen.
+Expected: all three lines show up.
 
-- [ ] **Step 3: Reemplazar `startKhipuOperation` y agregar `presenter()`**
+- [ ] **Step 3: Replace `startKhipuOperation` and add `presenter()`**
 
-Reemplazar el método `startKhipuOperation(operationId:options:completion:)` completo por:
+Replace the whole `startKhipuOperation(operationId:options:completion:)` method with:
 
 ```swift
     func startKhipuOperation(operationId: String, options: KhipuOptions, completion: @escaping ([String: Any]?, String?) -> Void) {
@@ -2692,44 +2756,47 @@ Reemplazar el método `startKhipuOperation(operationId:options:completion:)` com
         }
     }
 
-    /// El controller sobre el que presentar la vista de Khipu.
+    /// The controller to present Khipu's view over.
     ///
-    /// Se parte de `self.viewController`, que es el que Cordova asocia al
-    /// webview desde el que llegó la llamada. Es mejor punto de partida que
-    /// `UIApplication.shared.windows`: esa API está deprecada desde iOS 15
-    /// —sin que el compilador avise a un piso de iOS 13— y devuelve ventanas
-    /// de todas las escenas conectadas, incluida alguna que no esté en
-    /// pantalla.
+    /// It starts from `self.viewController`, which is the one Cordova
+    /// associates with the webview the call came from. It is a better
+    /// starting point than `UIApplication.shared.windows`: that API has been
+    /// deprecated since iOS 15 — with no compiler warning at an iOS 13 floor
+    /// — and returns windows from every connected scene, including one that
+    /// might not be on screen.
     ///
-    /// Después se baja por la cadena de presentados. UIKit rechaza presentar
-    /// sobre un controller que ya está presentando algo, así que un comercio
-    /// que llame al plugin con su propio modal arriba no vería nada. Antes esto
-    /// se resolvía haciendo `dismiss` de lo que hubiera, es decir cerrándole el
-    /// modal al comercio, y esperando un segundo fijo a que terminara; bajar
-    /// por la cadena no destruye nada y no necesita esperar.
+    /// It then walks down the presented-controller chain. UIKit refuses to
+    /// present over a controller that is already presenting something, so a
+    /// merchant calling the plugin with their own modal on top would see
+    /// nothing. This used to be solved by dismissing whatever was there,
+    /// i.e. dismissing the merchant's modal for them, and waiting a fixed
+    /// second for it to finish; walking down the chain destroys nothing and
+    /// needs no wait.
     ///
-    /// Se deja privado al plugin en vez de como extensión de `UIViewController`:
-    /// el plugin se enlaza estáticamente dentro de la app del comercio, donde
-    /// una extensión con un nombre así puede chocar con la suya.
+    /// Kept private to the plugin rather than as an extension on
+    /// `UIViewController`: the plugin links statically inside the
+    /// merchant's app, where an extension with this name could collide with
+    /// theirs.
     private func presenter() -> UIViewController? {
         var controller: UIViewController? = self.viewController
 
-        while let presentado = controller?.presentedViewController {
-            controller = presentado
+        while let presented = controller?.presentedViewController {
+            controller = presented
         }
 
         return controller
     }
 ```
 
-Notar que desaparecen el `dismiss`, el `asyncAfter(deadline: .now() + 1)` y la búsqueda por `UIApplication`.
+Note that the `dismiss`, the `asyncAfter(deadline: .now() + 1)` and the `UIApplication` lookup
+all disappear.
 
-- [ ] **Step 4: Verificar que ya no queda ninguna de las tres cosas**
+- [ ] **Step 4: Verify none of the three remain**
 
-Run: `grep -n "UIApplication.shared.windows\|presentedViewController?.dismiss\|asyncAfter" src/ios/KhipuPlugin.swift || echo "las tres eliminadas: OK"`
-Expected: `las tres eliminadas: OK`
+Run: `grep -n "UIApplication.shared.windows\|presentedViewController?.dismiss\|asyncAfter" src/ios/KhipuPlugin.swift || echo "all three removed: OK"`
+Expected: `all three removed: OK`
 
-- [ ] **Step 5: Compilar y correr los tests**
+- [ ] **Step 5: Compile and run the tests**
 
 Run: `xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build`
 Expected: PASS
@@ -2737,13 +2804,13 @@ Expected: PASS
 Run: `xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 6: Probe temporal para ver qué controller se resuelve**
+- [ ] **Step 6: Temporary probe to see which controller gets resolved**
 
-Agregar temporalmente al final de `presenter()`, justo antes del `return controller`:
+Temporarily add to the end of `presenter()`, right before `return controller`:
 
 ```swift
-        // PROBE TEMPORAL — borrar en el Step 8
-        NSLog("cordova-khipu probe: viewController=%@ presenter=%@ yaPresentaba=%@",
+        // TEMPORARY PROBE — delete in Step 8
+        NSLog("cordova-khipu probe: viewController=%@ presenter=%@ wasAlreadyPresenting=%@",
               String(describing: type(of: self.viewController)),
               String(describing: controller.map { type(of: $0) }),
               String(describing: self.viewController?.presentedViewController != nil))
@@ -2751,70 +2818,85 @@ Agregar temporalmente al final de `presenter()`, justo antes del `return control
 
 Run: `cd example && npm run ios:spm`
 
-Lanzar una operación y leer la consola de Xcode o `xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "cordova-khipu probe"'`.
+Launch an operation and read Xcode's console or
+`xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "cordova-khipu probe"'`.
 
-Expected en el camino feliz: `viewController` y `presenter` son el mismo tipo y `yaPresentaba=false`. Eso confirma que el cambio no altera el caso normal — es exactamente lo que resolvía el código viejo.
+Expected on the happy path: `viewController` and `presenter` are the same type and
+`wasAlreadyPresenting=false`. That confirms the change does not alter the normal case — exactly
+what the old code was solving for.
 
-- [ ] **Step 7: Verificar el caso que antes fallaba**
+- [ ] **Step 7: Verify the case that used to fail**
 
-Con el probe todavía puesto, lanzar una operación, dejar que termine, y lanzar una segunda sin cerrar la app.
+With the probe still in place, launch an operation, let it finish, and launch a second one
+without closing the app.
 
-Expected: la vista de Khipu se abre las dos veces, sin pantalla en blanco y sin el segundo de demora que antes había entre el cierre y la reapertura.
+Expected: Khipu's view opens both times, with no blank screen and no second-long delay between
+the close and the reopen that there used to be.
 
-El caso del modal propio del comercio no se puede reproducir desde el harness, porque Cordova no expone una forma de presentar un `UIViewController` desde JavaScript. Queda cubierto por la regla de UIKit y por la medición que hizo la sesión de `flutter_khipu` sobre el mismo patrón (`oldCodeWouldReturn = FlutterViewController, alreadyPresenting=true`). Si se quiere comprobar acá, hay que agregar un probe nativo que presente un controller vacío antes de lanzar, y eso queda fuera de esta tarea.
+The merchant's-own-modal case cannot be reproduced from the harness, because Cordova exposes
+no way to present a `UIViewController` from JavaScript. It is covered by UIKit's rule and by
+the measurement the `flutter_khipu` session made on the same pattern
+(`oldCodeWouldReturn = FlutterViewController, alreadyPresenting=true`). To check it here would
+need a native probe that presents an empty controller before launching, which is out of scope
+for this task.
 
-- [ ] **Step 8: Sacar el probe**
+- [ ] **Step 8: Remove the probe**
 
-Borrar el bloque `// PROBE TEMPORAL` completo.
+Delete the whole `// TEMPORARY PROBE` block.
 
-Run: `grep -c "PROBE TEMPORAL" src/ios/KhipuPlugin.swift || echo "probe eliminado: OK"`
-Expected: `probe eliminado: OK`
+Run: `grep -c "TEMPORARY PROBE" src/ios/KhipuPlugin.swift || echo "probe removed: OK"`
+Expected: `probe removed: OK`
 
-- [ ] **Step 9: Verificar el camino de CocoaPods**
+- [ ] **Step 9: Verify the CocoaPods path**
 
 Run: `cd example && npm run ios:pods`
-Expected: mismo comportamiento que en SPM. Este paso importa porque `self.viewController` está tipado distinto en cordova-ios 7 (`UIViewController*`) y en 8 (`CDVViewController*`); el código no usa nada específico de `CDVViewController`, pero hay que verlo compilar en los dos.
+Expected: same behaviour as under SPM. This step matters because `self.viewController` is
+typed differently on cordova-ios 7 (`UIViewController*`) and on 8 (`CDVViewController*`); the
+code uses nothing specific to `CDVViewController`, but it still needs to be seen compiling on
+both.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add src/ios/KhipuPlugin.swift
-git commit -m "fix(ios): presentar sobre el controller correcto sin cerrar el del comercio
+git commit -m "fix(ios): present over the correct controller without dismissing the merchant's
 
-Se parte de self.viewController, que Cordova asocia al webview que hizo
-la llamada, y se baja por la cadena de presentados. UIKit rechaza
-presentar sobre un controller que ya presenta algo: antes eso se
-esquivaba haciendo dismiss del modal del comercio y esperando un segundo
-fijo. De paso sale UIApplication.shared.windows, deprecado desde iOS 15
-aunque el compilador no avise a un piso de iOS 13."
+Starts from self.viewController, which Cordova associates with the
+webview that made the call, and walks down the presented-controller
+chain. UIKit refuses to present over a controller that is already
+presenting something: this used to be dodged by dismissing the
+merchant's modal and waiting a fixed second. This also removes
+UIApplication.shared.windows, deprecated since iOS 15 even though the
+compiler stays silent at an iOS 13 floor."
 ```
 
 ---
 
-### Task 11: Android al día con cordova-android 15
+### Task 11: Android up to date with cordova-android 15
 
 **Files:**
 - Modify: `src/android/khipu.gradle`
 
 **Interfaces:**
-- Consumes: la app de ejemplo de las Tasks 5-7.
-- Produces: nada que consuman otras tareas.
+- Consumes: the example app from Tasks 5-7.
+- Produces: nothing consumed by other tasks.
 
-- [ ] **Step 1: Confirmar el estado actual**
+- [ ] **Step 1: Confirm the current state**
 
 Run: `grep -n "jcenter\|packagingOptions\|mavenCentral" src/android/khipu.gradle`
-Expected: aparece `jcenter()` y `packagingOptions`, no aparece `mavenCentral()`.
+Expected: `jcenter()` and `packagingOptions` show up, `mavenCentral()` does not.
 
-- [ ] **Step 2: Reescribir `src/android/khipu.gradle` sin los excludes**
+- [ ] **Step 2: Rewrite `src/android/khipu.gradle` without the excludes**
 
-Primero se prueba si los excludes siguen haciendo falta. AGP moderno ya excluye varios `META-INF/*` por su cuenta.
+First check whether the excludes are still needed at all. Modern AGP already excludes several
+`META-INF/*` entries on its own.
 
 ```groovy
 repositories {
     google()
-    // jcenter() está apagado desde 2022. El plugin funcionaba porque el
-    // template de cordova-android declara mavenCentral() en el root, no
-    // porque jcenter sirviera.
+    // jcenter() has been dead since 2022. The plugin worked because the
+    // cordova-android template declares mavenCentral() in the root, not
+    // because jcenter actually served anything.
     mavenCentral()
     maven { url 'https://dev.khipu.com/nexus/content/repositories/khenshin' }
 }
@@ -2824,31 +2906,31 @@ dependencies {
 }
 ```
 
-- [ ] **Step 3: Compilar el ejemplo en Android**
+- [ ] **Step 3: Compile the example on Android**
 
-Este paso es además el primer ejercicio real de `khipu-client-android` 2.27.0 con Kotlin
-2.1.21, el default de cordova-android 15 — el riesgo 4 del spec. No hay precedente:
-`flutter_khipu` usa ese mismo 2.27.0 pero fijando `ext.kotlin_version = "1.9.0"`, dos majors
-más abajo. `khipu-client-android` usa Jetpack Compose, cuyo compilador va atado a la versión
-de Kotlin.
+This step also doubles as the first real exercise of `khipu-client-android` 2.27.0 with Kotlin
+2.1.21, cordova-android 15's default — the spec's risk 4. There is no precedent: `flutter_khipu`
+uses that same 2.27.0 but pins `ext.kotlin_version = "1.9.0"`, two majors below.
+`khipu-client-android` uses Jetpack Compose, whose compiler is tied to the Kotlin version.
 
 Run: `cd example && npm run android`
-Expected: la app arranca en el emulador y muestra `deviceready OK · window.Khipu es object`.
+Expected: the app launches on the emulator and shows `deviceready OK · window.Khipu is object`.
 
-Si falla con un error del compilador de Compose o un choque de versiones de Kotlin,
-**detenerse y reportar**: no es algo que se arregle desde este plugin, hay que escalarlo al
-equipo del SDK de Android. Como dato para ese reporte, anotar la versión de Kotlin efectiva
-con `grep KOTLIN_VERSION example/platforms/android/cdv-gradle-config.json`.
+If it fails with a Compose compiler error or a Kotlin version clash, **stop and report**: this
+is not something to fix from this plugin, it needs escalating to the Android SDK team. For
+that report, note the effective Kotlin version with
+`grep KOTLIN_VERSION example/platforms/android/cdv-gradle-config.json`.
 
-- [ ] **Step 4: Si el build falla por recursos duplicados, reponer los excludes con la sintaxis de AGP 8**
+- [ ] **Step 4: If the build fails on duplicate resources, bring back the excludes with the AGP 8 syntax**
 
-Solo si el paso 3 falló con un error del tipo `2 files found with path 'META-INF/NOTICE'`, agregar al final de `src/android/khipu.gradle`:
+Only if step 3 failed with an error like `2 files found with path 'META-INF/NOTICE'`, add to
+the end of `src/android/khipu.gradle`:
 
 ```groovy
 android {
-    // `packagingOptions { exclude ... }` quedó deprecado en AGP 8; esta es la
-    // forma equivalente. Requiere AGP 8, que es cordova-android 12 en
-    // adelante, y el <engines> del plugin ya pide 13.
+    // `packagingOptions { exclude ... }` was deprecated in AGP 8; this is the
+    // equivalent form. Requires AGP 8, which is cordova-android 12 onward,
+    // and the plugin's <engines> already asks for 13.
     packaging {
         resources {
             excludes += ['META-INF/NOTICE', 'META-INF/LICENSE']
@@ -2857,53 +2939,58 @@ android {
 }
 ```
 
-Volver a correr `npm run android` y verificar que pasa.
+Run `npm run android` again and verify it passes.
 
-Si el paso 3 pasó sin esto, **no agregarlo**: el bloque se elimina definitivamente.
+If step 3 passed without this, **do not add it**: the block gets permanently dropped.
 
-- [ ] **Step 5: Verificar que el hook de Kotlin sigue haciendo su trabajo**
+- [ ] **Step 5: Verify the Kotlin hook still does its job**
 
 Run: `grep IS_GRADLE_PLUGIN_KOTLIN_ENABLED example/platforms/android/cdv-gradle-config.json`
 Expected: `"IS_GRADLE_PLUGIN_KOTLIN_ENABLED": true`
 
-Ese `true` lo pone `scripts/enable-gradle-kotlin-plugin.js`; el default de cordova-android 15 es `false`.
+That `true` is set by `scripts/enable-gradle-kotlin-plugin.js`; cordova-android 15's default is
+`false`.
 
-- [ ] **Step 6: Anotar las versiones efectivas para el README**
+- [ ] **Step 6: Note the effective versions for the README**
 
 ```bash
 grep -E "KOTLIN_VERSION|GRADLE_VERSION|AGP_VERSION|SDK_VERSION|MIN_SDK_VERSION" example/platforms/android/cdv-gradle-config.json
 ```
 
-Guardar la salida: la Task 13 la usa para escribir la sección de Android del README con números reales en vez de recordados.
+Save the output: Task 13 uses it to write the README's Android section with real numbers
+instead of remembered ones.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add src/android/khipu.gradle
-git commit -m "fix(android): reemplazar jcenter por mavenCentral
+git commit -m "fix(android): replace jcenter with mavenCentral
 
-JCenter está apagado desde 2022; declarar mavenCentral explícitamente
-deja de depender de que el template de cordova-android lo traiga."
+JCenter has been dead since 2022; declaring mavenCentral explicitly
+stops depending on the cordova-android template bringing it in."
 ```
 
 ---
 
-### Task 12: Empaquetado npm y check de sincronía de versiones
+### Task 12: npm packaging and the version-sync check
 
 **Files:**
 - Create: `scripts/check-native-versions.js`
 - Create: `tests/scripts/check-native-versions.test.js`
 - Create: `CHANGELOG.md`
-- Create: `LICENSE` (**bloqueado**, ver Step 7)
+- Create: `LICENSE` (**blocked**, see Step 7)
 - Modify: `package.json`
 
 **Interfaces:**
-- Consumes: `Package.swift` y `plugin.xml`.
-- Produces: `scripts/check-native-versions.js` exporta `compare(packageSwift, pluginXml) -> { ok: boolean, message: string }` para los tests, y corre la comparación cuando se ejecuta directo. `package.json` gana el script `verify:versions`.
+- Consumes: `Package.swift` and `plugin.xml`.
+- Produces: `scripts/check-native-versions.js` exports
+  `compare(packageSwift, pluginXml) -> { ok: boolean, message: string }` for the tests, and
+  runs the comparison when executed directly. `package.json` gains the `verify:versions`
+  script.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [ ] **Step 1: Write the failing tests**
 
-Crear `tests/scripts/check-native-versions.test.js`:
+Create `tests/scripts/check-native-versions.test.js`:
 
 ```js
 const test = require('node:test');
@@ -2914,79 +3001,80 @@ const { compare } = require('../../scripts/check-native-versions.js');
 const PACKAGE_SWIFT = version =>
     `.package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "${version}")`;
 
-// El atributo que cordova-ios lee es `spec`, no `version`: Podfile.js solo emite la
-// restricción si encuentra `spec`. Un `version=` se ignora en silencio y el pod queda sin pin.
+// The attribute cordova-ios reads is `spec`, not `version`: Podfile.js only emits the
+// constraint if it finds `spec`. A `version=` is silently ignored and the pod ends up unpinned.
 const PLUGIN_XML = version =>
     `<pod name="KhipuClientIOS" spec="${version}" swift-version="5.1" nospm="true"/>`;
 
-test('acepta versiones iguales', () => {
-    const resultado = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.5'));
+test('accepts matching versions', () => {
+    const result = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.5'));
 
-    assert.strictEqual(resultado.ok, true);
-    assert.match(resultado.message, /2\.16\.5/);
+    assert.strictEqual(result.ok, true);
+    assert.match(result.message, /2\.16\.5/);
 });
 
-test('rechaza versiones distintas', () => {
-    const resultado = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.2'));
+test('rejects differing versions', () => {
+    const result = compare(PACKAGE_SWIFT('2.16.5'), PLUGIN_XML('2.16.2'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /2\.16\.5/);
-    assert.match(resultado.message, /2\.16\.2/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /2\.16\.5/);
+    assert.match(result.message, /2\.16\.2/);
 });
 
-test('rechaza si falta la versión en Package.swift', () => {
-    const resultado = compare('let package = Package(name: "cordova-khipu")', PLUGIN_XML('2.16.5'));
+test('rejects when the version is missing from Package.swift', () => {
+    const result = compare('let package = Package(name: "cordova-khipu")', PLUGIN_XML('2.16.5'));
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /Package\.swift/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /Package\.swift/);
 });
 
-test('rechaza si falta el pod en plugin.xml', () => {
-    const resultado = compare(PACKAGE_SWIFT('2.16.5'), '<plugin id="cordova-khipu"></plugin>');
+test('rejects when the pod is missing from plugin.xml', () => {
+    const result = compare(PACKAGE_SWIFT('2.16.5'), '<plugin id="cordova-khipu"></plugin>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /plugin\.xml/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /plugin\.xml/);
 });
 
-test('tolera que los atributos del pod vengan en otro orden', () => {
-    const resultado = compare(
+test('tolerates the pod attributes coming in a different order', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<pod spec="2.16.5" name="KhipuClientIOS" nospm="true"/>');
 
-    assert.strictEqual(resultado.ok, true);
+    assert.strictEqual(result.ok, true);
 });
 
-// Regresión del bug que encontró la Task 3: con `version=` el pod queda sin pin y cada
-// comercio recibe la versión que CocoaPods resuelva. El check tiene que gritar, no pasar.
-test('rechaza version= en vez de spec=, que cordova-ios ignora', () => {
-    const resultado = compare(
+// Regression for the bug Task 3 found: with `version=` the pod ends up unpinned and every
+// merchant gets whatever version CocoaPods resolves. The check has to shout, not pass.
+test('rejects version= instead of spec=, which cordova-ios ignores', () => {
+    const result = compare(
         PACKAGE_SWIFT('2.16.5'),
         '<pod name="KhipuClientIOS" version="2.16.5" nospm="true"/>');
 
-    assert.strictEqual(resultado.ok, false);
-    assert.match(resultado.message, /plugin\.xml/);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /plugin\.xml/);
 });
 ```
 
-El último test importa: `scripts/update-plugin-version.js` reescribe `plugin.xml` con el Builder de `xml2js` en cada release, y no hay garantía de que preserve el orden de los atributos.
+The last test matters: `scripts/update-plugin-version.js` rewrites `plugin.xml` with
+`xml2js`'s Builder on every release, and there is no guarantee it preserves attribute order.
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [ ] **Step 2: Run the tests and verify they fail**
 
 Run: `npm test`
-Expected: FAIL con `Cannot find module '../../scripts/check-native-versions.js'`
+Expected: FAIL with `Cannot find module '../../scripts/check-native-versions.js'`
 
-- [ ] **Step 3: Escribir el script**
+- [ ] **Step 3: Write the script**
 
-Crear `scripts/check-native-versions.js`:
+Create `scripts/check-native-versions.js`:
 
 ```js
 const fs = require('node:fs');
 const path = require('node:path');
 
-// La versión de KhipuClientIOS vive en dos manifests porque el plugin soporta
-// CocoaPods (cordova-ios 7) y SPM (cordova-ios 8) a la vez. Sin CI, esto es lo
-// único que impide publicar una versión donde los dos caminos instalen SDKs
-// distintos.
+// The KhipuClientIOS version lives in two manifests because the plugin
+// supports CocoaPods (cordova-ios 7) and SPM (cordova-ios 8) at the same
+// time. With no CI, this is the only thing that stops a release from
+// shipping where the two paths install different SDKs.
 
 function compare (packageSwift, pluginXml) {
     const spm = packageSwift.match(/KhipuClientIOS\.git"\s*,\s*exact:\s*"([^"]+)"/);
@@ -2994,52 +3082,52 @@ function compare (packageSwift, pluginXml) {
     if (!spm) {
         return {
             ok: false,
-            message: 'no se encontró la versión de KhipuClientIOS en Package.swift'
+            message: 'could not find the KhipuClientIOS version in Package.swift'
         };
     }
 
-    // Se aísla la etiqueta <pod> primero y después se extrae la versión, para
-    // no depender del orden de los atributos: update-plugin-version.js
-    // reescribe plugin.xml con el Builder de xml2js en cada release.
+    // The <pod> tag is isolated first and the version extracted afterward, so
+    // this does not depend on attribute order: update-plugin-version.js
+    // rewrites plugin.xml with xml2js's Builder on every release.
     const podTag = pluginXml.match(/<pod\b[^>]*name="KhipuClientIOS"[^>]*>/);
-    // `spec`, no `version`: Podfile.js de cordova-ios solo emite la restricción de versión si
-    // encuentra `spec`. Un `version=` se ignora en silencio y el pod queda sin pin, que es
-    // exactamente el bug que tenía el plugin publicado.
+    // `spec`, not `version`: cordova-ios's Podfile.js only emits the version constraint if it
+    // finds `spec`. A `version=` is silently ignored and the pod ends up unpinned, which is
+    // exactly the bug the published plugin had.
     const pod = podTag && podTag[0].match(/spec="([^"]+)"/);
 
     if (!pod) {
         return {
             ok: false,
-            message: 'no se encontró `spec` de KhipuClientIOS en plugin.xml (¿quedó como `version=`, que cordova-ios ignora?)'
+            message: 'could not find KhipuClientIOS\'s `spec` in plugin.xml (did it end up as `version=`, which cordova-ios ignores?)'
         };
     }
 
     if (spm[1] !== pod[1]) {
         return {
             ok: false,
-            message: `KhipuClientIOS difiere: Package.swift dice ${spm[1]} y plugin.xml dice ${pod[1]}`
+            message: `KhipuClientIOS differs: Package.swift says ${spm[1]} and plugin.xml says ${pod[1]}`
         };
     }
 
     return {
         ok: true,
-        message: `KhipuClientIOS ${spm[1]} sincronizado entre Package.swift y plugin.xml`
+        message: `KhipuClientIOS ${spm[1]} synced between Package.swift and plugin.xml`
     };
 }
 
 function main () {
     const root = path.resolve(__dirname, '..');
-    const resultado = compare(
+    const result = compare(
         fs.readFileSync(path.join(root, 'Package.swift'), 'utf-8'),
         fs.readFileSync(path.join(root, 'plugin.xml'), 'utf-8')
     );
 
-    if (!resultado.ok) {
-        console.error(`check-native-versions: ${resultado.message}`);
+    if (!result.ok) {
+        console.error(`check-native-versions: ${result.message}`);
         process.exit(1);
     }
 
-    console.log(`check-native-versions: ${resultado.message}.`);
+    console.log(`check-native-versions: ${result.message}.`);
 }
 
 module.exports = { compare };
@@ -3049,26 +3137,26 @@ if (require.main === module) {
 }
 ```
 
-- [ ] **Step 4: Correr los tests y verificar que pasan**
+- [ ] **Step 4: Run the tests and verify they pass**
 
 Run: `npm test`
-Expected: PASS, 15 tests (9 del hook + 6 de este script), 0 fallas.
+Expected: PASS, 15 tests (9 from the hook + 6 from this script), 0 failures.
 
-- [ ] **Step 5: Verificar el script contra los archivos reales**
+- [ ] **Step 5: Verify the script against the real files**
 
 Run: `node scripts/check-native-versions.js`
-Expected: `check-native-versions: KhipuClientIOS 2.16.5 sincronizado entre Package.swift y plugin.xml.`
+Expected: `check-native-versions: KhipuClientIOS 2.16.5 synced between Package.swift and plugin.xml.`
 
-- [ ] **Step 6: Actualizar `package.json`**
+- [ ] **Step 6: Update `package.json`**
 
-El campo `files` ya lo agregó la Task 5, porque sin él el tarball que instala el ejemplo se
-llevaba el repositorio entero. Verificar que sigue ahí y que no perdió `tests/`, que es el que
-más fácil se cae porque parece prescindible y no lo es:
+The `files` field was already added by Task 5, because without it the tarball that installs
+the example carried the whole repository. Verify it is still there and did not lose `tests/`,
+which is the one most likely to fall off because it looks dispensable and is not:
 
-Run: `node -e "const f=require('./package.json').files; if(!f) throw new Error('falta files'); if(!f.includes('tests/')) throw new Error('falta tests/ en files'); console.log('files OK:', f.join(', '))"`
+Run: `node -e "const f=require('./package.json').files; if(!f) throw new Error('missing files'); if(!f.includes('tests/')) throw new Error('missing tests/ in files'); console.log('files OK:', f.join(', '))"`
 Expected: `files OK: plugin.xml, Package.swift, www/, src/, tests/, scripts/, README.md, LICENSE`
 
-Dejar `scripts` así:
+Leave `scripts` like this:
 
 ```json
   "scripts": {
@@ -3079,7 +3167,7 @@ Dejar `scripts` así:
   },
 ```
 
-En el bloque `release-it`, reemplazar `hooks` por:
+In the `release-it` block, replace `hooks` with:
 
 ```json
     "hooks": {
@@ -3088,7 +3176,7 @@ En el bloque `release-it`, reemplazar `hooks` por:
     }
 ```
 
-Y en `plugins`, agregar el `infile`:
+And in `plugins`, add the `infile`:
 
 ```json
     "plugins": {
@@ -3099,22 +3187,23 @@ Y en `plugins`, agregar el `infile`:
     },
 ```
 
-- [ ] **Step 7: Crear `LICENSE` — BLOQUEADO, requiere confirmación**
+- [ ] **Step 7: Create `LICENSE` — BLOCKED, needs confirmation**
 
-Hay una inconsistencia que no se puede resolver sin preguntar:
+There is an inconsistency that cannot be resolved without asking:
 
-| Repo | `license` declarado | Archivo `LICENSE` |
+| Repo | Declared `license` | `LICENSE` file |
 | --- | --- | --- |
-| `cordova-khipu` | MIT | no existe |
-| `capacitor-khipu` | MIT | no existe |
+| `cordova-khipu` | MIT | does not exist |
+| `capacitor-khipu` | MIT | does not exist |
 | `flutter_khipu` | — | **LGPL-3.0** |
 
-**No inventar el archivo.** Preguntar cuál corresponde y con qué razón social. Si se confirma MIT, este es el contenido, reemplazando `<RAZÓN SOCIAL>`:
+**Do not invent the file.** Ask which one applies and under what legal entity name. If MIT is
+confirmed, this is the content, replacing `<LEGAL ENTITY NAME>`:
 
 ```
 MIT License
 
-Copyright (c) 2026 <RAZÓN SOCIAL>
+Copyright (c) 2026 <LEGAL ENTITY NAME>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3135,60 +3224,63 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Si al llegar acá no hay respuesta: **sacar `"LICENSE"` del campo `files`**, seguir con el resto de la tarea, y reportar el pendiente al cerrar el plan. No bloquear las demás tareas por esto.
+If there is no answer by the time this is reached: **drop `"LICENSE"` from the `files`
+field**, continue with the rest of the task, and report the pending item when closing the
+plan. Do not block the other tasks over this.
 
-- [ ] **Step 7b: Crear `.nvmrc`**
+- [ ] **Step 7b: Create `.nvmrc`**
 
-Contenido, una sola línea:
+Content, a single line:
 
 ```
 v20.19.4
 ```
 
-Hoy el repositorio no tiene `.nvmrc` y hereda el del directorio padre, que en la máquina de
-desarrollo apunta a `v20.12.2`. Eso **no cumple** el engine de `cordova-ios` 8.1.1
-(`^20.17.0 || >=22.9.0`), así que `cordova platform add ios@8` corre con una versión de Node
-que el propio cordova declara insuficiente. Fijarlo en el repo lo hace explícito y
-reproducible para cualquiera.
+Today the repository has no `.nvmrc` and inherits the parent directory's, which on the
+development machine points at `v20.12.2`. That **does not meet** `cordova-ios` 8.1.1's engine
+(`^20.17.0 || >=22.9.0`), so `cordova platform add ios@8` runs with a Node version cordova
+itself declares insufficient. Pinning it in the repo makes it explicit and reproducible for
+anyone.
 
 Run: `cat .nvmrc`
 Expected: `v20.19.4`
 
-- [ ] **Step 8: Crear `CHANGELOG.md`**
+- [ ] **Step 8: Create `CHANGELOG.md`**
 
 ```markdown
 # Changelog
 
-Este archivo lo mantiene `@release-it/conventional-changelog` a partir de los
-mensajes de commit. Las entradas anteriores a la 2.10.0 no están: el changelog
-se empezó a generar recién en esa versión, y las releases previas están en
+This file is maintained by `@release-it/conventional-changelog` from commit
+messages. Entries before 2.10.0 are not here: the changelog only started
+being generated at that version, and the earlier releases are at
 https://github.com/khipu/cordova-khipu/releases
 ```
 
-- [ ] **Step 9: Verificar qué se publicaría**
+- [ ] **Step 9: Verify what would get published**
 
-Run: `npm pack --dry-run 2>&1 | grep -E "example/|node_modules|docs/" || echo "ni example/ ni docs/ se publican: OK"`
-Expected: `ni example/ ni docs/ se publican: OK`
+Run: `npm pack --dry-run 2>&1 | grep -E "example/|node_modules|docs/" || echo "neither example/ nor docs/ get published: OK"`
+Expected: `neither example/ nor docs/ get published: OK`
 
 Run: `npm pack --dry-run 2>&1 | grep -E "tests/ios|Package.swift"`
-Expected: aparecen `tests/ios/KhipuOptionsMapperTests.swift` y `Package.swift`.
+Expected: `tests/ios/KhipuOptionsMapperTests.swift` and `Package.swift` show up.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add package.json scripts/check-native-versions.js tests/scripts/check-native-versions.test.js CHANGELOG.md
-git commit -m "chore: acotar lo que se publica y verificar la sincronía de versiones
+git commit -m "chore: narrow what gets published and check version sync
 
-El campo files evita publicar example/ y docs/. check-native-versions
-falla el release si KhipuClientIOS difiere entre Package.swift y
-plugin.xml, que es lo que se rompe solo al mantener dos gestores."
+The files field keeps example/ and docs/ out of the tarball.
+check-native-versions fails the release if KhipuClientIOS differs
+between Package.swift and plugin.xml, which is exactly what breaks
+only by maintaining two managers."
 ```
 
-Si la licencia quedó confirmada, agregar `LICENSE` a ese `git add`.
+If the license got confirmed, add `LICENSE` to that `git add`.
 
 ---
 
-### Task 13: README y preparación de la versión 2.10.0
+### Task 13: README and preparing version 2.10.0
 
 **Files:**
 - Modify: `README.md`
@@ -3196,45 +3288,46 @@ Si la licencia quedó confirmada, agregar `LICENSE` a ese `git add`.
 - Modify: `plugin.xml`
 
 **Interfaces:**
-- Consumes: las versiones efectivas anotadas en el Step 6 de la Task 11.
-- Produces: el repositorio listo para `npm run release`. **Este plan no publica.**
+- Consumes: the effective versions noted in Task 11's Step 6.
+- Produces: the repository ready for `npm run release`. **This plan does not publish.**
 
-- [ ] **Step 1: Reemplazar las secciones de setup del README**
+- [ ] **Step 1: Replace the README's setup sections**
 
-Reemplazar todo lo que va desde `## iOS pre setup` hasta `## Android setup` (inclusive, hasta justo antes de `## Usage`) por:
+Replace everything from `## iOS pre setup` to `## Android setup` (inclusive, up to just before
+`## Usage`) with:
 
 ```markdown
-## Requisitos
+## Requirements
 
-| | Mínimo | Probado con |
+| | Minimum | Tested with |
 | --- | --- | --- |
 | `cordova` (CLI) | 13.0.0 | 13.0.0 |
-| `cordova-ios` | 7.0.0 | 7.1.1 y 8.1.1 |
+| `cordova-ios` | 7.0.0 | 7.1.1 and 8.1.1 |
 | `cordova-android` | 13.0.0 | 15.1.0 |
 | iOS | 13.0 | |
 | Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
-Estos mínimos están declarados en `<engines>`, así que `cordova plugin add`
-falla con un mensaje claro en vez de romper más adelante.
+These minimums are declared in `<engines>`, so `cordova plugin add` fails
+with a clear message instead of breaking further down the line.
 
-## Instalación
+## Installation
 
 ```bash
 cordova plugin add cordova-khipu
 ```
 
-## Setup de iOS
+## iOS setup
 
-El plugin soporta los dos gestores de paquetes, y **el que se use lo decide la
-versión de `cordova-ios`**, no una opción:
+The plugin supports both package managers, and **which one gets used is
+decided by the `cordova-ios` version**, not an option:
 
-| Versión | Gestor | Qué necesitas instalado |
+| Version | Manager | What you need installed |
 | --- | --- | --- |
-| `cordova-ios` 8 y superior | Swift Package Manager | nada extra |
+| `cordova-ios` 8 and above | Swift Package Manager | nothing extra |
 | `cordova-ios` 7 | CocoaPods | CocoaPods |
 
-Lo único que hay que configurar es el deployment target, porque el default de
-`cordova-ios` 7 es 11.0 y Khipu necesita 13.0. En `config.xml`:
+The only thing to configure is the deployment target, because
+`cordova-ios` 7's default is 11.0 and Khipu needs 13.0. In `config.xml`:
 
 ```xml
     <platform name="ios">
@@ -3242,12 +3335,12 @@ Lo único que hay que configurar es el deployment target, porque el default de
     </platform>
 ```
 
-`cordova-ios` 8 ya usa 13.0 por defecto, así que ahí es opcional.
+`cordova-ios` 8 already uses 13.0 by default, so there it is optional.
 
-### Versión de Swift
+### Swift version
 
-El plugin configura `SWIFT_VERSION` por su cuenta cuando hace falta. Si
-necesitas otra, declárala y el plugin la respeta:
+The plugin configures `SWIFT_VERSION` on its own when needed. If you need a
+different one, declare it and the plugin honours it:
 
 ```xml
     <platform name="ios">
@@ -3255,15 +3348,14 @@ necesitas otra, declárala y el plugin la respeta:
     </platform>
 ```
 
-## Setup de Android
+## Android setup
 
-No requiere pasos adicionales: el plugin habilita el plugin de Kotlin de Gradle
-por su cuenta.
+No extra steps needed: the plugin enables Gradle's Kotlin plugin on its own.
 
-Estas son las versiones que trae `cordova-android` 15.1.0 por defecto, con las
-que el plugin está probado:
+These are the versions `cordova-android` 15.1.0 ships by default, which the
+plugin is tested against:
 
-| | Valor |
+| | Value |
 | --- | --- |
 | Kotlin | 2.1.21 |
 | Gradle | 8.14.2 |
@@ -3271,30 +3363,32 @@ que el plugin está probado:
 | `compileSdk` / `targetSdk` | 36 |
 | `minSdk` | 24 |
 
-Si tu app las sobreescribe, mantenlas en esos valores o superiores.
+If your app overrides them, keep them at those values or higher.
 
-## App de ejemplo
+## Example app
 
-En [`example/`](example/) hay una app que ejercita todas las opciones del
-plugin con un harness de prueba, y que corre en los tres escenarios soportados.
-Ver [`example/README.md`](example/README.md).
+[`example/`](example/) has an app that exercises every plugin option with a
+test harness, and runs on all three supported scenarios. See
+[`example/README.md`](example/README.md).
 ```
 
-- [ ] **Step 2: Reemplazar los valores por los reales**
+- [ ] **Step 2: Replace the values with the real ones**
 
-Los números de la tabla de Android son los defaults de `cordova-android` 15.1.0. Contrastarlos con la salida guardada en el Step 6 de la Task 11 y corregir cualquier diferencia. Si difieren, mandan los observados.
+The numbers in the Android table are `cordova-android` 15.1.0's defaults. Cross-check them
+against the output saved in Task 11's Step 6 and fix any difference. If they differ, the
+observed ones win.
 
-- [ ] **Step 3: Verificar que no quedaron referencias viejas**
+- [ ] **Step 3: Verify no stale references remain**
 
-Run: `grep -n -i "cordova 11\|kotlin-android-extensions\|jcenter\|deployment-target.*12\|1\.9\.10\|SDK 34" README.md || echo "sin referencias obsoletas: OK"`
-Expected: `sin referencias obsoletas: OK`
+Run: `grep -n -i "cordova 11\|kotlin-android-extensions\|jcenter\|deployment-target.*12\|1\.9\.10\|SDK 34" README.md || echo "no stale references: OK"`
+Expected: `no stale references: OK`
 
-- [ ] **Step 4: Verificar que los enlaces del README apuntan a archivos que existen**
+- [ ] **Step 4: Verify the README's links point at files that exist**
 
-Run: `test -f example/README.md && test -d example && echo "enlaces OK"`
-Expected: `enlaces OK`
+Run: `test -f example/README.md && test -d example && echo "links OK"`
+Expected: `links OK`
 
-- [ ] **Step 5: Correr la verificación completa una última vez**
+- [ ] **Step 5: Run the full verification one last time**
 
 ```bash
 npm test
@@ -3302,59 +3396,67 @@ npm run verify:versions
 xcodebuild -scheme cordova-khipu -destination 'generic/platform=iOS' build
 xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
 ```
-Expected: los cuatro pasan.
+Expected: all four pass.
 
 ```bash
 cd example
-npm run ios:spm    # verificar el harness completo en el simulador
-npm run ios:pods   # verificar el harness completo en el simulador
-npm run android    # verificar el harness completo en el emulador
+npm run ios:spm    # verify the full harness in the simulator
+npm run ios:pods   # verify the full harness in the simulator
+npm run android    # verify the full harness in the emulator
 ```
-Expected: los tres arrancan y el harness funciona.
+Expected: all three launch and the harness works.
 
-Y la corrida que de verdad prueba que SPM no necesita CocoaPods, que el spec §12 pide hacer al
-menos una vez. **No se filtra por la palabra "cocoapods"**: el binario `pod` puede vivir en
-`~/.rbenv/shims`, en el RubyGems del sistema o donde lo deje Homebrew, y ninguna de esas rutas
-contiene esa palabra — el filtro no sacaría nada y la prueba pasaría sin haber quitado nada. Se
-ubica el directorio real con `command -v`:
+And the run that actually proves SPM does not need CocoaPods, which spec §12 asks to do at
+least once. **Do not filter by the word "cocoapods"**: the `pod` binary can live in
+`~/.rbenv/shims`, in the system's RubyGems, or wherever Homebrew put it, and none of those
+paths contain that word — the filter would strip nothing and the test would pass without
+having removed anything. The real directory gets located with `command -v`:
 
 ```bash
 cd example
 PATH=$(echo "$PATH" | tr ':' '\n' | grep -v -x -F "$(dirname "$(command -v pod)")" | paste -sd: -) npm run ios:spm
 ```
-Expected: `BUILD SUCCEEDED` y la app corriendo. Si falla con `pod: command not
-found`, es que algo del camino de cordova-ios 8 todavía llama a CocoaPods:
-revisar que el `<pod>` tenga `nospm="true"`.
+Expected: `BUILD SUCCEEDED` and the app running. If it fails with `pod: command not
+found`, something on the cordova-ios 8 path is still calling CocoaPods: check that the
+`<pod>` has `nospm="true"`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add README.md
-git commit -m "docs: reescribir el setup de iOS y Android
+git commit -m "docs: rewrite iOS and Android setup
 
-iOS documenta los dos gestores y que el major de cordova-ios decide cuál
-se usa. Android pasa de los valores de cordova 11 a los defaults reales
-de cordova-android 15.1.0."
+iOS documents both managers and that the cordova-ios major decides
+which one is used. Android moves from cordova 11's values to
+cordova-android 15.1.0's real defaults."
 ```
 
-- [ ] **Step 7: Dejar la release preparada, sin ejecutarla**
+- [ ] **Step 7: Leave the release prepared, without running it**
 
-`release-it` se encarga del bump, el tag, el changelog y el publish. El comando es:
+`release-it` handles the bump, the tag, the changelog and the publish. The command is:
 
 ```bash
 npm run release -- --increment minor
 ```
 
-Eso lleva a `2.10.0`, corre `verify:versions` y `npm test` antes de empezar, sincroniza `plugin.xml` y publica a npm.
+That leads to `2.10.0`, runs `verify:versions` and `npm test` before starting, syncs
+`plugin.xml`, and publishes to npm.
 
-**No ejecutarlo dentro de este plan.** Publicar a npm es una acción hacia afuera e irreversible: requiere confirmación explícita. Reportar que el repositorio quedó listo y esperar el visto bueno.
+**Do not run it within this plan.** Publishing to npm is an outward-facing, irreversible
+action: it needs explicit confirmation. Report that the repository is ready and wait for the
+go-ahead.
 
 ---
 
-## Notas de cierre para quien ejecute
+## Closing notes for whoever executes this
 
-- **Las tasks 3 y 4 son gates.** Si la Task 3 muestra que cordova-ios 7 no compila con el Xcode actual, detenerse y reportar: el soporte dual pierde sentido y hay que reabrir la decisión. Si la Task 4 muestra que los tres métodos de instalación local corrompen el repo, detenerse igual.
-- **Pendientes conocidos que este plan no toca**, y que hay que repetir al cerrar:
-  - La licencia del repositorio (Task 12, Step 7).
-  - La compatibilidad de `khipu-client-android` 2.27.0 con Kotlin 2.1.21, que hay que confirmar con el equipo del SDK de Android.
-  - El patrón `Objects.requireNonNull` / `assert` de `KhipuPlugin.java`, que tiene el mismo problema que se arregló en Swift.
+- **Tasks 3 and 4 are gates.** If Task 3 shows that cordova-ios 7 does not compile with the
+  current Xcode, stop and report: dual support loses its point and the decision needs
+  reopening. If Task 4 shows that all three local-install methods corrupt the repo, stop just
+  the same.
+- **Known pending items this plan does not touch**, which need repeating when closing it out:
+  - The repository's license (Task 12, Step 7).
+  - `khipu-client-android` 2.27.0's compatibility with Kotlin 2.1.21, which needs confirming
+    with the Android SDK team.
+  - The `Objects.requireNonNull` / `assert` pattern in `KhipuPlugin.java`, which has the same
+    problem that got fixed in Swift.

@@ -1,23 +1,23 @@
-/* Paleta de marca Khipu: púrpura #8347AD y cian #3CB4E5. */
+/* Khipu brand palette: purple #8347AD and cyan #3CB4E5. */
 :root {
-  --purpura: #8347ad;
-  --cian: #3cb4e5;
-  --fondo: #f6f4f9;
-  --superficie: #ffffff;
-  --texto: #1a1a1a;
-  --texto-tenue: #5f5f6b;
-  --borde: #ded8e6;
+  --purple: #8347ad;
+  --cyan: #3cb4e5;
+  --background: #f6f4f9;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #5f5f6b;
+  --border: #ded8e6;
   --ok: #1f8a4c;
   --error: #c0392b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #101014;
-    --superficie: #1b1b22;
-    --texto: #e8e8ee;
-    --texto-tenue: #a0a0ae;
-    --borde: #33333f;
+    --background: #101014;
+    --surface: #1b1b22;
+    --text: #e8e8ee;
+    --text-muted: #a0a0ae;
+    --border: #33333f;
   }
 }
 
@@ -28,14 +28,14 @@
 body {
   margin: 0;
   padding: 0 0 3rem;
-  background: var(--fondo);
-  color: var(--texto);
+  background: var(--background);
+  color: var(--text);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   padding-top: env(safe-area-inset-top);
 }
 
 header {
-  background: var(--purpura);
+  background: var(--purple);
   color: #fff;
   padding: 1.25rem 1rem;
   padding-top: calc(1.25rem + env(safe-area-inset-top));
@@ -46,18 +46,18 @@ header h1 {
   font-size: 1.25rem;
 }
 
-.estado {
+.status {
   margin: 0;
   font-size: 0.85rem;
   opacity: 0.9;
 }
 
-.estado--listo::before {
+.status--ready::before {
   content: "● ";
-  color: var(--cian);
+  color: var(--cyan);
 }
 
-.estado--esperando::before {
+.status--waiting::before {
   content: "○ ";
 }
 
@@ -69,88 +69,88 @@ main {
   margin: 0 auto;
 }
 
-.tarjeta {
-  background: var(--superficie);
-  border: 1px solid var(--borde);
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem;
 }
 
-.tarjeta h2 {
+.card h2 {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.nota {
+.note {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.campo {
+.field {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--borde);
+  border-bottom: 1px solid var(--border);
 }
 
-.campo:last-child {
+.field:last-child {
   border-bottom: none;
 }
 
-.campo__nombre {
+.field__name {
   flex: 1 1 auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.82rem;
 }
 
-.campo--obligatorio {
+.field--required {
   flex-direction: column;
   align-items: stretch;
   border-bottom: none;
 }
 
-.campo--maestro {
-  border-bottom: 2px solid var(--borde);
+.field--master {
+  border-bottom: 2px solid var(--border);
   margin-bottom: 0.5rem;
 }
 
-.campo input[type="text"] {
+.field input[type="text"] {
   flex: 1 1 8rem;
   min-width: 0;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--fondo);
-  color: var(--texto);
-  font-size: 16px; /* menos de 16px hace que iOS haga zoom al enfocar */
+  background: var(--background);
+  color: var(--text);
+  font-size: 16px; /* less than 16px makes iOS zoom in on focus */
 }
 
-.campo input[type="color"] {
+.field input[type="color"] {
   width: 3rem;
   height: 2rem;
   padding: 0;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: none;
 }
 
-.campo select {
+.field select {
   padding: 0.45rem;
-  border: 1px solid var(--borde);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--fondo);
-  color: var(--texto);
+  background: var(--background);
+  color: var(--text);
   font-size: 16px;
 }
 
-.campo--apagado .campo__nombre,
-.campo--apagado input,
-.campo--apagado select {
+.field--off .field__name,
+.field--off input,
+.field--off select {
   opacity: 0.45;
 }
 
@@ -162,10 +162,10 @@ main {
 
 .presets button {
   padding: 0.45rem 0.8rem;
-  border: 1px solid var(--purpura);
+  border: 1px solid var(--purple);
   border-radius: 999px;
   background: none;
-  color: var(--purpura);
+  color: var(--purple);
   font-size: 0.82rem;
 }
 
@@ -173,8 +173,8 @@ main {
   margin: 0 0 0.9rem;
   padding: 0.75rem;
   border-radius: 8px;
-  background: var(--fondo);
-  border: 1px solid var(--borde);
+  background: var(--background);
+  border: 1px solid var(--border);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.75rem;
   white-space: pre-wrap;
@@ -183,73 +183,73 @@ main {
   overflow: auto;
 }
 
-.boton {
+.button {
   width: 100%;
   padding: 0.85rem;
   border: none;
   border-radius: 10px;
-  background: var(--purpura);
+  background: var(--purple);
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
 }
 
-.boton:disabled {
-  background: var(--borde);
-  color: var(--texto-tenue);
+.button:disabled {
+  background: var(--border);
+  color: var(--text-muted);
 }
 
-.resultado {
+.result {
   font-size: 0.85rem;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.resultado table {
+.result table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0.5rem;
   font-size: 0.78rem;
 }
 
-.resultado th,
-.resultado td {
+.result th,
+.result td {
   text-align: left;
   padding: 0.3rem 0.4rem;
-  border-bottom: 1px solid var(--borde);
-  color: var(--texto);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
 }
 
-.resultado__campo {
+.result__field {
   display: flex;
   gap: 0.5rem;
   padding: 0.25rem 0;
 }
 
-.resultado__campo dt {
+.result__field dt {
   flex: 0 0 9rem;
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
-  color: var(--texto-tenue);
+  color: var(--text-muted);
 }
 
-.resultado__campo dd {
+.result__field dd {
   margin: 0;
-  color: var(--texto);
+  color: var(--text);
   word-break: break-word;
 }
 
-.resultado__ausente {
-  color: var(--texto-tenue);
+.result__absent {
+  color: var(--text-muted);
   font-style: italic;
 }
 
-.resultado--ok {
+.result--ok {
   border-left: 3px solid var(--ok);
   padding-left: 0.6rem;
 }
 
-.resultado--error {
+.result--error {
   border-left: 3px solid var(--error);
   padding-left: 0.6rem;
 }

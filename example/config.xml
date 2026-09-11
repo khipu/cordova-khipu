@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.khipu.cordova.example" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>Khipu Example</name>
-    <description>App de ejemplo del plugin cordova-khipu</description>
+    <description>Example app for the cordova-khipu plugin</description>
     <author email="developers@khipu.com" href="https://khipu.com">Khipu</author>
     <content src="index.html" />
     <allow-intent href="http://*/*" />
@@ -9,5 +9,19 @@
     <preference name="DisallowOverscroll" value="true" />
     <platform name="ios">
         <preference name="deployment-target" value="13.0" />
+        <config-file target="*-Info.plist" parent="LSApplicationQueriesSchemes">
+          <array>
+            <!-- the nine entries from Khipu's integration documentation -->
+            <string>bancochilemipass2</string>
+            <string>BciPassApp</string>
+            <string>BICEPassApp</string>
+            <string>scotiabankgo</string>
+            <string>SantanderPassApp</string>
+            <string>tupass</string>
+            <string>bancoestado</string>
+            <string>itau.cl</string>
+            <string>SecurityPass</string>
+          </array>
+        </config-file>
     </platform>
 </widget>

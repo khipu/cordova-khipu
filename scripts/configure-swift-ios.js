@@ -2,13 +2,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
-// cordova-ios 8 define SWIFT_VERSION y SWIFT_OBJC_BRIDGING_HEADER en su
-// plantilla; cordova-ios 7 no define ninguno de los dos, así que un plugin
-// escrito en Swift no compila sin esto. Este hook cubre solo ese hueco.
+// cordova-ios 8 defines SWIFT_VERSION and SWIFT_OBJC_BRIDGING_HEADER in its
+// template; cordova-ios 7 defines neither, so a plugin written in Swift will
+// not compile without this. This hook covers just that gap.
 //
-// Reemplaza a cordova-plugin-add-swift-support, que arma la ruta del proyecto
-// como `<config.name()>.xcodeproj` y por eso revienta con ENOENT en
-// cordova-ios 8, donde el proyecto se llama siempre App.xcodeproj.
+// Replaces cordova-plugin-add-swift-support, which builds the project path
+// as `<config.name()>.xcodeproj` and so blows up with ENOENT on cordova-ios
+// 8, where the project is always named App.xcodeproj.
 
 const DEFAULT_SWIFT_VERSION = '5.0';
 
@@ -26,13 +26,13 @@ module.exports = function (context) {
         }
         configureLegacyProject(projectRoot, platformPath);
     } catch (error) {
-        // Un problema configurando Swift no debe voltear el build entero: se
-        // avisa y se deja al comercio la salida manual.
+        // A problem configuring Swift must not take down the whole build: warn
+        // and leave the manual fix to the merchant.
         console.warn(
-            `cordova-khipu: no se pudo configurar Swift para iOS (${error.message}). ` +
-            'Si el build falla con "Cannot determine Swift version", agrega ' +
-            '<preference name="SwiftVersion" value="5.0" /> dentro de la sección ' +
-            'ios de tu config.xml.'
+            `cordova-khipu: could not configure Swift for iOS (${error.message}). ` +
+            'If the build fails with "Cannot determine Swift version", add ' +
+            '<preference name="SwiftVersion" value="5.0" /> inside the ios ' +
+            'section of your config.xml.'
         );
     }
 };
@@ -47,29 +47,29 @@ function getCordovaIosMajor (platformPath) {
             return Number(match[1]);
         }
     } catch (_) {
-        // Sin el script de version, cae al heurístico de abajo.
+        // Without the version script, fall back to the heuristic below.
     }
 
-    // cordova-ios 8 renombró el proyecto a App.xcodeproj de forma fija: su presencia es señal
-    // positiva de 8.
+    // cordova-ios 8 renamed the project to a fixed App.xcodeproj: its presence is a
+    // positive signal for 8.
     if (fs.existsSync(path.join(platformPath, 'App.xcodeproj'))) {
         return 8;
     }
 
-    // Que exista un .xcodeproj con OTRO nombre sí es señal positiva de cordova-ios 7 (solo
-    // cordova-ios 8 fuerza App.xcodeproj), pero que no exista ninguno no prueba nada: antes
-    // ese caso caía igual a 7, que es el camino que escribe en el pbxproj. Ahora cae a 8, que
-    // es el que no hace nada. Fallar hacia el lado inerte.
-    const hayOtroXcodeproj = fs.existsSync(platformPath) &&
+    // A .xcodeproj with a DIFFERENT name is a positive signal for cordova-ios 7 (only
+    // cordova-ios 8 forces App.xcodeproj), but none existing at all proves nothing:
+    // this case used to fall back to 7, the path that writes into the pbxproj. It now
+    // falls back to 8, the one that does nothing. Fail toward the inert side.
+    const hasOtherXcodeproj = fs.existsSync(platformPath) &&
         fs.readdirSync(platformPath).some(entry => entry.endsWith('.xcodeproj'));
 
-    return hayOtroXcodeproj ? 7 : 8;
+    return hasOtherXcodeproj ? 7 : 8;
 }
 
 function configureLegacyProject (projectRoot, platformPath) {
-    // `xcode` es dependencia de cordova-ios, así que resuelve desde el
-    // node_modules del proyecto. Es el mismo mecanismo que usaba
-    // cordova-plugin-add-swift-support.
+    // `xcode` is a dependency of cordova-ios, so it resolves from the
+    // project's node_modules. This is the same mechanism
+    // cordova-plugin-add-swift-support used.
     const xcode = require('xcode');
 
     const projectName = findXcodeProjectName(platformPath);
@@ -77,7 +77,7 @@ function configureLegacyProject (projectRoot, platformPath) {
     const bridgingHeader = path.join(platformPath, projectName, 'Bridging-Header.h');
 
     if (!fs.existsSync(bridgingHeader)) {
-        throw new Error(`no existe ${bridgingHeader}`);
+        throw new Error(`${bridgingHeader} does not exist`);
     }
 
     const swiftVersion = readSwiftVersionPreference(projectRoot) || DEFAULT_SWIFT_VERSION;
@@ -94,24 +94,24 @@ function configureLegacyProject (projectRoot, platformPath) {
 
     fs.writeFileSync(pbxprojPath, project.writeSync(), 'utf-8');
 
-    console.log(`cordova-khipu: SWIFT_VERSION=${swiftVersion} configurado para cordova-ios < 8.`);
+    console.log(`cordova-khipu: SWIFT_VERSION=${swiftVersion} configured for cordova-ios < 8.`);
 }
 
-// Se busca el .xcodeproj en disco en vez de derivarlo del nombre en config.xml:
-// es el mismo dato y evita depender de que cordova-common resuelva desde el
-// node_modules del proyecto.
+// The .xcodeproj is looked up on disk instead of derived from the name in config.xml:
+// it is the same piece of information, and this avoids depending on cordova-common
+// resolving from the project's node_modules.
 function findXcodeProjectName (platformPath) {
     const found = fs.readdirSync(platformPath).filter(entry => entry.endsWith('.xcodeproj'));
 
     if (found.length !== 1) {
-        throw new Error(`se esperaba un .xcodeproj en ${platformPath}, hay ${found.length}`);
+        throw new Error(`expected one .xcodeproj in ${platformPath}, found ${found.length}`);
     }
 
     return path.basename(found[0], '.xcodeproj');
 }
 
-// Lectura deliberadamente simple: alcanza para la única preferencia que nos
-// interesa y no arrastra cordova-common a un hook.
+// Deliberately simple read: it is enough for the one preference we care about, and it
+// does not drag cordova-common into a hook.
 function readSwiftVersionPreference (projectRoot) {
     const configPath = path.join(projectRoot, 'config.xml');
 
@@ -126,7 +126,7 @@ function readSwiftVersionPreference (projectRoot) {
     return match ? match[1] : null;
 }
 
-// Exportados para los tests.
+// Exported for the tests.
 module.exports.getCordovaIosMajor = getCordovaIosMajor;
 module.exports.findXcodeProjectName = findXcodeProjectName;
 module.exports.readSwiftVersionPreference = readSwiftVersionPreference;

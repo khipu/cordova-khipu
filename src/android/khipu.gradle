@@ -1,8 +1,8 @@
 repositories {
     google()
-    // jcenter() está apagado desde 2022. El plugin funcionaba porque el
-    // template de cordova-android declara mavenCentral() en el root, no
-    // porque jcenter sirviera.
+    // jcenter() has been dead since 2022. The plugin worked because the
+    // cordova-android template declares mavenCentral() in the root, not
+    // because jcenter actually served anything.
     mavenCentral()
     maven { url 'https://dev.khipu.com/nexus/content/repositories/khenshin' }
 }
