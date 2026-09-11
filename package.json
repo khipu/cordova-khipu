@@ -43,7 +43,7 @@
     "verify:keys": "node scripts/check-option-keys.js",
     "verify:ios": "xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16'",
     "verify:android": "cd tests/android && ./gradlew test",
-    "prepublishOnly": "npm run verify:versions && npm test",
+    "prepublishOnly": "npm run verify",
     "release": "release-it",
     "prepare": "husky"
   },
@@ -80,7 +80,7 @@
       }
     },
     "hooks": {
-      "before:init": "npm run verify:versions && npm test",
+      "before:init": "npm run verify",
       "after:bump": "node scripts/update-plugin-version.js && git add plugin.xml && (git diff --cached --quiet || git commit -m 'chore: sync version to plugin.xml')"
     }
   }
