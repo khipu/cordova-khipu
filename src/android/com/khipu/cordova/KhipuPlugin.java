@@ -99,9 +99,14 @@ public class KhipuPlugin extends CordovaPlugin {
             // app with it. The class of failure matters more than any particular
             // exception: if the activity never starts, no result will ever arrive, and
             // that is exactly the condition that hangs a callback forever.
+            // Throwable, not RuntimeException: NoClassDefFoundError and its siblings are
+            // Errors, and an Error escaping here reaches the same default handler and kills
+            // the merchant's app just as surely. Answering the callback and letting their app
+            // live is strictly better than dying; if the process is genuinely broken it will
+            // fail again a moment later anyway.
             try {
                 launcher.launch(getKhipuLauncherIntent(cordova.getContext(), id, options));
-            } catch (RuntimeException error) {
+            } catch (Throwable error) {
                 CallbackContext pending = pendingCall.getAndSet(null);
                 if (pending != null) {
                     pending.error("Could not start the Khipu operation: " + error);
@@ -113,6 +118,14 @@ public class KhipuPlugin extends CordovaPlugin {
     @Override
     public void pluginInitialize() {
         super.pluginInitialize();
+        // This runs on whatever thread Cordova dispatched the first exec on, usually the
+        // WebView bridge thread, and ActivityResultRegistry's maps are unsynchronized. Our
+        // own entries are safe — runOnUiThread's post publishes the registration before any
+        // launch reads it — but a different activity-result library dispatching at the exact
+        // moment of this plugin's first exec could see a half-written map. Moving this into
+        // runOnUiThread was considered and rejected: it would let a first startOperation
+        // arrive before the post runs and fail on a null launcher, trading a theoretical race
+        // for a reachable one.
         launcher = cordova.getActivity().getActivityResultRegistry().register(
                 "cordova_khipu_plugin",
                 new ActivityResultContracts.StartActivityForResult(),
@@ -139,8 +152,9 @@ public class KhipuPlugin extends CordovaPlugin {
             // Reached when the host activity was destroyed during the operation: Cordova
             // rebuilt the plugin and the new instance has no callbackId, so there is
             // nobody to answer. Logging and dropping is all that is left — the previous
-            // code raised an NPE here and took the app down. The README tells merchants
-            // to confirm the operation's status server-side for this reason.
+            // code raised an NPE here and took the app down. A merchant cannot treat a
+            // missing callback as a missing outcome, which is why the operation's status
+            // has to be confirmed server-side.
             Log.w(TAG, "A Khipu result arrived with no pending call; the host activity was "
                     + "probably recreated during the operation.");
             return;
@@ -159,7 +173,7 @@ public class KhipuPlugin extends CordovaPlugin {
             } else {
                 callbackContext.success(json);
             }
-        } catch (Exception error) {
+        } catch (Throwable error) {
             callbackContext.error("Could not read the Khipu result: " + error);
         }
     }
