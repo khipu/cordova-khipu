@@ -47,24 +47,34 @@ public class KhipuPlugin: CDVPlugin {
             KhipuLauncher.launch(presenter: presenter,
                                  operationId: operationId,
                                  options: options) { result in
-                completion([
-                    "operationId": result.operationId,
-                    "result": result.result,
-                    "exitTitle": result.exitTitle,
-                    "exitMessage": result.exitMessage,
-                    "exitUrl": Self.jsonValue(result.exitUrl),
-                    "failureReason": Self.jsonValue(result.failureReason),
-                    "continueUrl": Self.jsonValue(result.continueUrl),
-                    "events": result.events.map { event in
-                        return [
-                            "name": event.name,
-                            "type": event.type,
-                            "timestamp": event.timestamp
-                        ]
-                    }
-                ], nil)
+                completion(Self.makeResult(from: result), nil)
             }
         }
+    }
+
+    /// The result dictionary handed to JavaScript.
+    ///
+    /// Extracted from the launch closure so a test can reach it. These eight keys are one
+    /// half of a cross-platform contract — `KhipuResultMapper.toJson` on Android builds the
+    /// same eight, and a guard compares the two — so they are worth pinning by a test rather
+    /// than only by review.
+    static func makeResult(from result: KhipuResult) -> [String: Any] {
+        return [
+            "operationId": result.operationId,
+            "result": result.result,
+            "exitTitle": result.exitTitle,
+            "exitMessage": result.exitMessage,
+            "exitUrl": jsonValue(result.exitUrl),
+            "failureReason": jsonValue(result.failureReason),
+            "continueUrl": jsonValue(result.continueUrl),
+            "events": result.events.map { event in
+                return [
+                    "name": event.name,
+                    "type": event.type,
+                    "timestamp": event.timestamp
+                ]
+            }
+        ]
     }
 
     /// `NSNull` rather than a bridged `nil`.
