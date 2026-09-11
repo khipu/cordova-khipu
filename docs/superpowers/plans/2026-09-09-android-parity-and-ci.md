@@ -3256,6 +3256,18 @@ outside the repo, apply exactly the instruction you wrote, and confirm that a wr
 a `startOperation` call is REPORTED. An instruction that does not produce checking is worse than no
 instruction, because a merchant will believe they are covered.
 
+- [ ] **Step 6c: Document what the promise rejects with**
+
+The two call styles report the same local failure differently, and a merchant writing one error
+path for both needs it stated. In the usage section, after the promise is introduced:
+
+```markdown
+The promise rejects with an `Error` when the call itself is malformed — a missing `operationId`,
+say — and with the `KhipuResult` object when the operation reached Khipu and failed there. The
+callback form receives the same two cases as a plain string and as a `KhipuResult` respectively.
+So a `catch` that assumes one shape will be wrong half the time; check what you got.
+```
+
 - [ ] **Step 7: Translate the rest of the README**
 
 The whole file goes to English, including the sections that are already partly there. Preserve every hard-won note: the `locale` divergence between SDKs with its evidence, the `exitUrl: ""` versus `null` warning, the CI network note, the deployment-target section, the Swift-version section.
