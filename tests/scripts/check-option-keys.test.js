@@ -71,7 +71,7 @@ function sources (overrides = {}) {
             ...TEXT_KEYS.map(key => `  { key: '${key}', example: 'x' },`),
             '];',
             '',
-            "controles.tema = agregarFila(contenedorTexto, 'theme', selectorTema);",
+            "controles.tema = addRow(contenedorTexto, 'theme', selectorTema);",
             '',
             'var SWITCH_FIELDS = [',
             ...SWITCH_KEYS.map(key => `  '${key}',`),
@@ -135,7 +135,7 @@ test('catches a colour key missing from the harness', () => {
 
 test('catches the harness losing the theme field', () => {
     const broken = sources().harness.replace(
-        "controles.tema = agregarFila(contenedorTexto, 'theme', selectorTema);", ''
+        "controles.tema = addRow(contenedorTexto, 'theme', selectorTema);", ''
     );
 
     const result = compareSurfaces(sources({ harness: broken }));

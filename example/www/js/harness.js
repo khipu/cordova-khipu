@@ -141,7 +141,7 @@ function buildFields () {
     input.autocorrect = 'off';
     input.spellcheck = false;
 
-    controls.text[field.key] = agregarFila(textContainer, field.key, input);
+    controls.text[field.key] = addRow(textContainer, field.key, input);
   });
 
   // `theme` is a text field but with a closed set of values, so it goes as a
@@ -153,13 +153,13 @@ function buildFields () {
     option.textContent = theme;
     themeSelect.appendChild(option);
   });
-  controls.theme = agregarFila(textContainer, 'theme', themeSelect);
+  controls.theme = addRow(textContainer, 'theme', themeSelect);
 
   var switchContainer = document.getElementById('switch-fields');
   SWITCH_FIELDS.forEach(function (key) {
     var toggle = document.createElement('input');
     toggle.type = 'checkbox';
-    controls.switches[key] = agregarFila(switchContainer, key, toggle);
+    controls.switches[key] = addRow(switchContainer, key, toggle);
   });
 
   var colorContainer = document.getElementById('color-fields');
@@ -167,17 +167,18 @@ function buildFields () {
     var colorPicker = document.createElement('input');
     colorPicker.type = 'color';
     colorPicker.value = key.indexOf('dark') === 0 ? '#101418' : '#ffffff';
-    controls.colors[key] = agregarFila(colorContainer, key, colorPicker);
+    controls.colors[key] = addRow(colorContainer, key, colorPicker);
   });
 }
 
 // Each row is a control plus an "include" checkbox. The control's value only
 // reaches the payload if the checkbox is checked.
 //
-// Kept as `agregarFila` on purpose, not translated: scripts/check-option-keys.js
-// locates the `theme` key with the regex agregarFila\([^,]+,\s*'(\w+)',, so this
-// literal function name is part of that guard's contract, not free prose.
-function agregarFila (container, key, control) {
+// This function's name is load-bearing: scripts/check-option-keys.js locates
+// the `theme` option key with the regex addRow\([^,]+,\s*'(\w+)',, since
+// `theme` is built as a <select> and never passes through TEXT_FIELDS or
+// SWITCH_FIELDS. Renaming this function again means updating that regex too.
+function addRow (container, key, control) {
   var row = document.createElement('label');
   row.className = 'field field--off';
 

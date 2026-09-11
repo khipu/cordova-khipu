@@ -99,8 +99,8 @@ function compareSurfaces (sources) {
                     ...keysMatching(sources.harness, /^\s{2}'(\w+)',?$/gm),
                     // `theme` is built as a <select>, not through TEXT_FIELDS or
                     // SWITCH_FIELDS, so its key only appears as a literal argument to
-                    // the shared row-builder: agregarFila(container, 'theme', control).
-                    ...keysMatching(sources.harness, /agregarFila\([^,]+,\s*'(\w+)',/g)
+                    // the shared row-builder: addRow(container, 'theme', control).
+                    ...keysMatching(sources.harness, /addRow\([^,]+,\s*'(\w+)',/g)
                 ])
             }
         },
