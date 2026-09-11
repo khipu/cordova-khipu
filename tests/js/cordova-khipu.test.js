@@ -90,3 +90,21 @@ test('the promise rejects on invalid input without crossing to native', async ()
 test('returns undefined when callbacks are given', () => {
     assert.strictEqual(Khipu.startOperation({ operationId: 'op-1' }, () => {}, () => {}), undefined);
 });
+
+test('throws when the call is invalid and there is no error callback to tell', () => {
+    assert.throws(
+        () => Khipu.startOperation({}, () => {}),
+        { name: 'TypeError', message: 'operationId must be provided and must be a string.' }
+    );
+
+    assert.strictEqual(calls.length, 0, 'nothing should have reached the native side');
+});
+
+test('does not throw when an error callback is there to receive it', () => {
+    let failure = null;
+
+    assert.doesNotThrow(() => Khipu.startOperation({}, () => {}, (reason) => { failure = reason; }));
+
+    assert.strictEqual(failure, 'operationId must be provided and must be a string.');
+    assert.strictEqual(calls.length, 0);
+});

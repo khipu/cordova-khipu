@@ -19,6 +19,8 @@ var ACTION = 'startOperation';
  * @param {function(object|string):void} [error] Called with a KhipuResult whose `result`
  *   is 'ERROR', or with a string when the failure happened before the operation started.
  * @returns {Promise<object>|undefined} A promise when no callbacks were given.
+ * @throws {TypeError} When the call is invalid and only a success callback was given, so
+ *   there is no error channel to report through.
  */
 function startOperation (call, success, error) {
     // Validated here rather than in native, so a mistake in a merchant's own code is
@@ -39,8 +41,13 @@ function startOperation (call, success, error) {
     if (invalid) {
         if (typeof error === 'function') {
             error(invalid);
+            return undefined;
         }
-        return undefined;
+
+        // Reached only when a caller passed a success callback and no error callback — a
+        // shape the declarations do not offer. There is no channel left to report on, and
+        // returning quietly would make the mistake disappear, so it is thrown instead.
+        throw new TypeError(invalid);
     }
 
     exec(success, error, SERVICE, ACTION, [call]);
