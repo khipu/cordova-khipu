@@ -2,81 +2,87 @@
 
 Cordova plugin for Khipu
 
+> ### Upgrading to 2.11.0 from 2.10.x — read this if you support Android
+>
+> Four things changed in what Android hands your callbacks. All four bring it in line
+> with iOS and with what this README always documented, but if your code depended on the
+> old behaviour it needs a one-line change.
+>
+> | Before, on Android | Now | What to do |
+> | --- | --- | --- |
+> | The result arrived as a **JSON string** | An object, as on iOS | Delete your `JSON.parse(...)`. If you support both platforms you were probably already doing `typeof x === 'string' ? JSON.parse(x) : x` — that keeps working. |
+> | `exitUrl`, `continueUrl` and `failureReason` were **absent** when null | Present, as `null` | Nothing, unless you tested with `'continueUrl' in result` |
+> | A cancellation after the app was backgrounded for over three minutes arrived as the string `"Activity cancelled or failed"` | Your **error** callback, with a full result object whose `result` is `'ERROR'` and `failureReason` is `'USER_CANCELED'` | Handle it like any other cancellation — an ordinary cancellation from the exit page arrives the same way |
+> | An option of the wrong type was silently coerced to `false` | Discarded, so the SDK's own default applies | Send the right type. `showFooter: 'true'` was never doing what it looked like |
 
-## Requisitos
+## Requirements
 
-| | Mínimo | Probado con |
+| | Minimum | Tested with |
 | --- | --- | --- |
 | `cordova` (CLI) | 13.0.0 | 13.0.0 |
-| `cordova-ios` | 7.0.0 | 7.1.1 y 8.1.1 |
-| `cordova-android` | 13.0.0 | 13.0.0, 14.0.0 y 15.1.0 |
+| `cordova-ios` | 7.0.0 | 7.1.1 and 8.1.1 |
+| `cordova-android` | 13.0.0 | 13.0.0, 14.0.0 and 15.1.0 |
 | iOS | 13.0 | |
 | Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
 
-De esta tabla, solo `cordova-ios` y `cordova-android` están declarados en el
-`<engines>` de `plugin.xml`. Ojo con lo que eso hace: si la plataforma
-instalada no cumple el mínimo, `cordova plugin add` **no falla**. Cordova
-avisa y omite el plugin para esa plataforma —un `warn` del tipo `Plugin
-doesn't support this project's cordova-ios version` seguido de `Skipping
-'cordova-khipu' for ios`— y la instalación igual termina bien, con código de
-salida 0 (verificado en `checkEngines()` y en el `catch` que la rodea,
-`cordova-lib/src/plugman/install.js`). Un comercio en una versión de
-`cordova-ios` por debajo del mínimo ve una instalación en verde, el plugin
-queda anotado en su `package.json`, no se instala nada nativo, y recién
-descubre el problema en runtime con `window.Khipu === undefined`. Lo que
-protege al comercio es leer ese warning, no un error que Cordova nunca
-lanza. Las otras tres filas (`cordova` CLI, iOS, Node) son compatibilidad
-probada y recomendada, no una barrera automática — el chequeo de engines de
-Cordova ni siquiera reconoce un tipo `node`, y el `package.json` del plugin
-no declara `engines`.
+Of this table, only `cordova-ios` and `cordova-android` are declared in `plugin.xml`'s
+`<engines>`. Mind what that does: if the installed platform does not meet the minimum,
+`cordova plugin add` **does not fail**. Cordova warns and skips the plugin for that
+platform — a `warn` reading `Plugin doesn't support this project's cordova-ios version`
+followed by `Skipping 'cordova-khipu' for ios` — and the install still finishes clean,
+with exit code 0 (verified in `checkEngines()` and the `catch` around it,
+`cordova-lib/src/plugman/install.js`). A merchant on a `cordova-ios` version below the
+minimum sees a green install, the plugin gets listed in their `package.json`, nothing
+native gets installed, and they only discover the problem at runtime with
+`window.Khipu === undefined`. What protects the merchant is reading that warning, not an
+error Cordova never throws. The other three rows (`cordova` CLI, iOS, Node) are tested
+and recommended compatibility, not an automatic barrier — Cordova's engine check does not
+even recognize a `node` type, and the plugin's `package.json` does not declare `engines`.
 
-## Instalación
+## Installation
 
 ```bash
-cordova platform add ios       # o android
+cordova platform add ios       # or android
 cordova plugin add cordova-khipu
 ```
 
-**En iOS el orden importa, y si lo inviertes el error no te va a decir por qué.**
-Declara el `deployment-target` en `config.xml` **antes** de agregar la
-plataforma — ver [Setup de iOS](#setup-de-ios). Si agregas la plataforma
-primero y editas `config.xml` después, en `cordova-ios` 7 el
-`cordova plugin add` falla con esto:
+**On iOS the order matters, and if you reverse it the error will not tell you why.**
+Declare the `deployment-target` in `config.xml` **before** adding the platform — see
+[iOS Setup](#ios-setup). If you add the platform first and edit `config.xml` afterwards,
+on `cordova-ios` 7 `cordova plugin add` fails with this:
 
 ```
 [!] CocoaPods could not find compatible versions for pod "KhipuClientIOS":
     ... required a higher minimum deployment target
 ```
 
-La causa no es la que sugiere el mensaje: el `Podfile` que cordova genera
-todavía tiene el default de `cordova-ios` 7 (11.0) y no se resincronizó con tu
-`config.xml`. Si ya te pasó, un `cordova prepare ios` antes de reintentar el
-`plugin add` lo resuelve.
+The cause is not what the message suggests: the `Podfile` cordova generates still has
+`cordova-ios` 7's default (11.0) and was never resynced with your `config.xml`. If this
+already happened to you, a `cordova prepare ios` before retrying `plugin add` fixes it.
 
-## Setup de iOS
+## iOS Setup
 
-El plugin soporta los dos gestores de paquetes, y **el que se use lo decide la
-versión de `cordova-ios`**, no una opción:
+The plugin supports both package managers, and **which one is used is decided by your
+`cordova-ios` version**, not by a choice you make:
 
-| Versión | Gestor | Qué necesitas instalado |
+| Version | Manager | What you need installed |
 | --- | --- | --- |
-| `cordova-ios` 8 y superior | Swift Package Manager | nada extra |
-| `cordova-ios` 7 | CocoaPods | CocoaPods 1.7 o superior |
+| `cordova-ios` 8 and above | Swift Package Manager | nothing extra |
+| `cordova-ios` 7 | CocoaPods | CocoaPods 1.7 or above |
 
-El piso de CocoaPods 1.7 no es arbitrario: el `<podspec>` del plugin ya no
-declara un `<config><source>`, así que depende de que CocoaPods use por defecto
-el CDN del trunk en vez del spec repo clásico — el comportamiento desde esa
-versión.
+The CocoaPods 1.7 floor is not arbitrary: the plugin's `<podspec>` no longer declares a
+`<config><source>`, so it depends on CocoaPods defaulting to the trunk CDN instead of the
+classic spec repo — the behaviour since that version.
 
-### El deployment target, y cuándo declararlo
+### The deployment target, and when to declare it
 
-Khipu necesita **iOS 13.0**. Qué hacer depende de tu versión de `cordova-ios`, y
-son cuatro casos:
+Khipu needs **iOS 13.0**. What to do depends on your `cordova-ios` version, and there are
+four cases:
 
-**En `cordova-ios` 7 no hay decisión que tomar.** No existe SPM: el plugin usa
-CocoaPods siempre, declares o no la preferencia. Y sí tienes que declararla,
-porque el default de `cordova-ios` 7 es 11.0, por debajo de lo que Khipu exige.
-Ponla en `config.xml` **antes** de agregar la plataforma:
+**On `cordova-ios` 7 there is no decision to make.** SPM does not exist: the plugin
+always uses CocoaPods, whether or not you declare the preference. And you do have to
+declare it, because `cordova-ios` 7's default is 11.0, below what Khipu requires. Put it
+in `config.xml` **before** adding the platform:
 
 ```xml
     <platform name="ios">
@@ -84,25 +90,24 @@ Ponla en `config.xml` **antes** de agregar la plataforma:
     </platform>
 ```
 
-Los otros tres casos son de `cordova-ios` 8:
+The other three cases are for `cordova-ios` 8:
 
-1. **Si te alcanza con iOS 13, no la declares.** El default ya es 13.0 y el
-   plugin se queda en SPM, sin tocar CocoaPods.
-2. **Si la declaras con cualquier valor, incluido 13.0, vas a necesitar
-   CocoaPods.** El plugin sigue cargando un `<podspec>` —lo necesita el camino
-   de `cordova-ios` 7—, así que cordova crea igual un `Podfile` vacío al
-   instalar el plugin. Cuando `config.xml` trae un `deployment-target`, cordova
-   sincroniza ese Podfile corriendo `pod install` en cada `prepare`, aunque no
-   tenga ninguna dependencia adentro.
-3. **Si necesitas un piso mayor a 13.0, la preferencia es la única vía**, y
-   tener CocoaPods es el costo. No es un error tuyo ni algo que se pueda
-   esquivar: es la consecuencia de que el plugin soporte los dos gestores desde
-   un mismo `plugin.xml`.
+1. **If iOS 13 is enough for you, do not declare it.** The default is already 13.0 and
+   the plugin stays on SPM, without touching CocoaPods.
+2. **If you declare it with any value, including 13.0, you will need CocoaPods.** The
+   plugin still ships a `<podspec>` — the `cordova-ios` 7 path needs it — so cordova
+   creates an empty `Podfile` when installing the plugin regardless. When `config.xml`
+   carries a `deployment-target`, cordova syncs that Podfile by running `pod install` on
+   every `prepare`, even though it has no dependency inside.
+3. **If you need a floor higher than 13.0, the preference is the only way**, and having
+   CocoaPods is the cost. This is not a mistake on your part, nor something you can
+   avoid: it is the consequence of the plugin supporting both managers from a single
+   `plugin.xml`.
 
-### Versión de Swift
+### Swift version
 
-El plugin configura `SWIFT_VERSION` por su cuenta cuando hace falta. Si
-necesitas otra, declárala y el plugin la respeta:
+The plugin configures `SWIFT_VERSION` on its own when needed. If you need a different
+one, declare it and the plugin respects it:
 
 ```xml
     <platform name="ios">
@@ -110,15 +115,43 @@ necesitas otra, declárala y el plugin la respeta:
     </platform>
 ```
 
-## Setup de Android
+### Authorizing Khipu to open bank apps
 
-No requiere pasos adicionales: el plugin habilita el plugin de Kotlin de Gradle
-por su cuenta.
+Khipu opens the payer's bank app directly when a payment needs stronger authorization
+(2FA). For iOS to allow that, your app has to declare which bank apps it may query, via
+`LSApplicationQueriesSchemes` in your `Info.plist`. Add it through `config.xml`, inside
+`<platform name="ios">`:
 
-**No hace falta que fijes versiones de Kotlin, Gradle ni AGP.** Los defaults de
-cada `cordova-android` funcionan tal cual, y son bastante distintos entre sí.
-Estos son los que trae cada versión, y con los tres se verificó que el plugin
-compila y corre una operación real:
+```xml
+    <config-file target="*-Info.plist" parent="LSApplicationQueriesSchemes">
+      <array>
+        <string>bancochilemipass2</string>
+        <string>BciPassApp</string>
+        <string>BICEPassApp</string>
+        <string>scotiabankgo</string>
+        <string>SantanderPassApp</string>
+        <string>tupass</string>
+        <string>bancoestado</string>
+        <string>itau.cl</string>
+        <string>SecurityPass</string>
+      </array>
+    </config-file>
+```
+
+These nine are Khipu's own published list for Chile, from Khipu's integration
+documentation. Copy them from there, not from another app's `config.xml` or `Info.plist`
+— stale copies are exactly how other example apps have ended up with the wrong list.
+Missing one does not fail your build: `canOpenURL` just silently reports that bank app as
+not installed, and the payer is never offered the shortcut into it.
+
+## Android Setup
+
+No extra steps required: the plugin enables Gradle's Kotlin plugin on its own.
+
+**You do not need to pin Kotlin, Gradle or AGP versions.** Each `cordova-android`'s
+defaults work as they are, and they differ quite a bit from each other. These are what
+each version ships, and all three were verified to compile the plugin and run a real
+operation:
 
 | | cordova-android 13.0.0 | 14.0.0 | 15.1.0 |
 | --- | --- | --- | --- |
@@ -128,38 +161,118 @@ compila y corre una operación real:
 | `compileSdk` / `targetSdk` | 34 | 35 | 36 |
 | Java | 21 | 21 | 21 |
 
-Si vas a sobreescribir alguna, no la bajes por debajo de la columna que
-corresponde a **tu** versión de `cordova-android`. Fijar valores de una versión
-distinta es peor que no fijar nada: por ejemplo, imponer Kotlin 1.9 en un
-proyecto con `cordova-android` 15 lo baja dos majors respecto de su default.
+If you are going to override one, do not take it below the column for **your**
+`cordova-android` version. Pinning values from a different version is worse than pinning
+nothing: for example, forcing Kotlin 1.9 in a `cordova-android` 15 project takes it two
+majors below its default.
 
-### Acceso de red en CI
+### Network access in CI
 
-El plugin agrega un repositorio Maven propio de Khipu además de Google y Maven
-Central:
+The plugin adds a Maven repository of its own, in addition to Google and Maven Central:
 
 ```
 https://dev.khipu.com/nexus/content/repositories/khenshin
 ```
 
-En una máquina de desarrollo no vas a notarlo, pero si tu CI corre detrás de un
-proxy o con una lista de hosts permitidos, ese dominio tiene que estar
-habilitado o el build falla al resolver dependencias.
+On a development machine you will not notice it, but if your CI runs behind a proxy or
+with an allow-list of hosts, that domain has to be enabled or the build fails resolving
+dependencies.
 
-## App de ejemplo
+### Permissions this plugin adds to your app
 
-En [`example/`](example/) hay una app que ejercita todas las opciones del
-plugin con un harness de prueba, y que corre en los tres escenarios soportados.
-Ver [`example/README.md`](example/README.md).
+Installing this plugin adds three permissions to your app. The Khipu Android SDK declares
+them in its own manifest and Android's manifest merger pulls them in, so you do not have
+to declare anything — but you do have to know they are there, because your privacy notice
+has to account for what your app can collect.
+
+| Permission | What it is for |
+| --- | --- |
+| `android.permission.INTERNET` | Talking to Khipu |
+| `android.permission.ACCESS_COARSE_LOCATION` | Banks that ask to geolocate the payer during the payment |
+| `android.permission.ACCESS_FINE_LOCATION` | The same |
+
+**Declared is not the same as used.** Location is not requested when the payment starts,
+and for most payments it is never requested at all:
+
+- Nothing is asked for at startup. The location screen appears only if Khipu's server asks
+  for it during the payment, which happens when the payer's bank requires it.
+- When it does appear, the payer grants or denies it themselves, through Android's own
+  dialog.
+- **If the payer denies it, the payment continues.** It is not a requirement.
+- Until it is granted, the only thing reported is whether the device has a location
+  provider at all — not where it is. That check needs no permission.
+
+Precise location is personal data, so under Chile's Ley 21.719 this belongs in your
+privacy notice even though it is conditional and consented. If you need the authoritative
+version of any of this, ask us rather than inferring it from here.
+
+If your integration definitely does not need location, you can drop those two permissions
+with the manifest merger. In a Cordova app you do not edit `AndroidManifest.xml` by hand —
+Cordova generates it — so it goes through `config.xml`.
+
+**Verify this before you rely on it — Cordova's own XML merging has a gap here.**
+Declaring `tools:node="remove"` on a `<uses-permission>` inside a plain `<config-file>` is
+not enough by itself; we built a debug APK against `cordova-android` 15.1.0 to confirm it.
+Cordova copies that node into `AndroidManifest.xml` without ever binding the `tools:`
+prefix on the manifest's own root element, so the merged manifest is invalid XML and
+Gradle's `generateDebugBuildConfig` fails before it even gets to compiling anything. And
+because your `config.xml` is itself compiled as an Android resource
+(`res/xml/config.xml`), any `android:`-prefixed attribute you write there — `android:name`
+included — needs that same namespace bound on `config.xml`'s own `<widget>` root, or the
+resource merge step fails too, with a different, equally unhelpful XML error. The form
+that actually builds clean needs all three pieces together:
+
+```xml
+<widget ... xmlns:android="http://schemas.android.com/apk/res/android">
+    ...
+    <platform name="android">
+        <edit-config target="/manifest" file="AndroidManifest.xml" mode="merge">
+            <manifest xmlns:tools="http://schemas.android.com/tools" />
+        </edit-config>
+        <config-file target="AndroidManifest.xml" parent="/manifest" xmlns:tools="http://schemas.android.com/tools">
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
+        </config-file>
+    </platform>
+</widget>
+```
+
+Verified against `cordova-android` 15.1.0: the merged manifest kept both `tools:node`
+markers, and `aapt2 dump permissions` on the built debug APK showed
+`android.permission.INTERNET` present and neither location permission.
+
+### If Android destroys your app during a payment
+
+The payment runs in the SDK's own activity, and Android can destroy your app's process
+while it is on top. When the payer comes back, Cordova rebuilds the plugin, and the
+rebuilt instance has no callback to answer: **your success and error callbacks will not
+fire.** The SDK does report the outcome — when it was destroyed for more than three
+minutes it deliberately ends the operation as `USER_CANCELED` — but the bridge no longer
+has anywhere to deliver it. A plain system back press is a further exception: it finishes
+the SDK's activity with no payload at all, so what your error callback gets is not a
+result object but the plain string `"The Khipu operation returned no result."`
+
+So do not treat a missing callback as a missing outcome. Confirm the operation's status
+against the Khipu API from your backend before deciding a payment did not happen. That
+holds on iOS too, for a different reason: an event the SDK cannot decode is logged and
+leaves the operation unfinished.
+
+## Example app
+
+[`example/`](example/) has an app that exercises every option of the plugin with a test
+harness, and that runs in the three supported scenarios. See
+[`example/README.md`](example/README.md).
 
 ## Usage
 
-The `cordova-khipu` plugin makes the `Khipu.startOperation` method available in the `window` object.
+The `cordova-khipu` plugin makes the `Khipu.startOperation` method available on the
+`window` object.
 
-The first parameter is the `operationId` of the payment to authorize with all the options (datailed in the example).
-
-The second parameter is a callback funcion that will be invoked if the authorization process completed and the third if it failed.
-
+Called with two callbacks, the first parameter is the `operationId` of the payment to
+authorize together with its options (detailed below), the second is a callback invoked
+when the authorization completes, and the third is invoked when it fails. Called with
+neither callback, `startOperation` instead returns a Promise for the same result — see
+below for what it resolves and rejects with.
 
 ```javascript
 
@@ -168,13 +281,13 @@ The second parameter is a callback funcion that will be invoked if the authoriza
           options: {
               title: '<Title to display in the payment process>', // Title for the top bar during the payment process.
               titleImageUrl: '<Image to display centered in the topbar>', // Url of the image to display in the top bar.
-              locale: 'es_CL', // Regional settings for the interface language. The standard format combines an ISO 639-1 language code and an ISO 3166 country code. For example, "es_CL" for Spanish (Chile). Conviene enviarlo siempre: si se omite, el idioma difiere entre plataformas (ver la nota debajo del ejemplo).
+              locale: 'es_CL', // Regional settings for the interface language. The standard format combines an ISO 639-1 language code and an ISO 3166 country code. For example, "es_CL" for Spanish (Chile). Send it always: if omitted, the language differs between platforms (see the note below the example).
               theme: 'light', // The theme of the interface, can be 'dark', 'light' or 'system'
               showFooter: true, // If true, a message is displayed at the bottom with the Khipu logo.
               showMerchantLogo: true, // If true, the merchant's logo is displayed in the top bar.
               showPaymentDetails: true, // If true, the payment code and a link to view the details are displayed.
               skipExitPage: false, // If true, skips the exit page at the end of the payment process, whether successful or failed.
-              skipExitSuccessPage: false, // If true, skips the exit page at the end of the payment process when its successful.
+              skipExitSuccessPage: false, // If true, skips the exit page at the end of the payment process when it's successful.
               colors: {
                   lightTopBarContainer: '<colorHex>', // Optional background color for the top bar in light mode.
                   lightOnTopBarContainer: '<colorHex>', // Optional color of the elements on the top bar in light mode.
@@ -200,21 +313,43 @@ The second parameter is a callback funcion that will be invoked if the authoriza
   )
 ```
 
-### Envía `locale` siempre, aunque parezca redundante
+The promise rejects with an `Error` when the call itself is malformed — a missing
+`operationId`, say — and with the `KhipuResult` object when the operation reached Khipu
+and failed there. The callback form receives the same two cases as a plain string and as
+a `KhipuResult` respectively. So a `catch` that assumes one shape will be wrong half the
+time; check what you got.
 
-Si omites `locale`, **el idioma no es el mismo en las dos plataformas**. Lo
-verificamos en los SDK nativos: `KhipuClientIOS` lo fija en `es_CL` por omisión
-(`KhipuOptions.swift`, `var _locale: String = "es_CL"`), mientras que
-`khipu-client-android` lo deja sin definir —el constructor de su `Builder` pasa
-`null` y la cadena `es_CL` no aparece en ninguna clase del `.aar`— y la
-resolución termina más abajo, siguiendo la configuración del dispositivo.
+### TypeScript
 
-En la práctica: la misma operación, con el mismo payload y sin `locale`, sale en
-español en iOS y en el idioma del teléfono en Android. No es un defecto del
-plugin sino una diferencia entre los SDK nativos, pero te toca a ti. Para un
-idioma determinista, mándalo explícito.
+The plugin ships its own declarations. TypeScript does not pick them up automatically, so
+add this to your `tsconfig.json` once:
 
-The `data` and `error` object passed to the callback functions are of the type `KhipuResult`
+```json
+    {
+      "compilerOptions": {
+        "types": ["cordova-khipu"]
+      }
+    }
+```
+
+`window.Khipu` is then typed, and so are the options and the result. A triple-slash
+`/// <reference types="cordova-khipu" />` in a single file works too if you would rather
+not touch your compiler options.
+
+### Send `locale` always, even if it looks redundant
+
+If you omit `locale`, **the language is not the same on both platforms**. We verified it
+in the native SDKs: `KhipuClientIOS` defaults it to `es_CL` (`KhipuOptions.swift`, `var
+_locale: String = "es_CL"`), while `khipu-client-android` leaves it undefined — its
+`Builder`'s constructor passes `null` and the string `es_CL` does not appear in any class
+of the `.aar` — and resolution falls through to the device's own configuration.
+
+In practice: the same operation, with the same payload and no `locale`, comes out in
+Spanish on iOS and in the phone's language on Android. This is not a defect in the plugin
+but a difference between the native SDKs, and it is on you to handle it. For a
+deterministic language, send it explicitly.
+
+The `data` and `error` objects passed to the callback functions are of type `KhipuResult`.
 
 #### KhipuResult
 
@@ -229,32 +364,31 @@ The `data` and `error` object passed to the callback functions are of the type `
 | **`continueUrl`**   | <code>string \| null</code>                             |
 | **`events`**        | <code>KhipuEvent[]</code>                               |
 
-Los tres campos anulables lo son en el SDK, no por casualidad: en
-`KhipuClientIOS` están declarados `String?`, mientras que `operationId`,
-`exitTitle`, `exitMessage` y `result` no lo están.
+The three nullable fields are nullable in the SDK, not by accident: in `KhipuClientIOS`
+they are declared `String?`, while `operationId`, `exitTitle`, `exitMessage` and `result`
+are not.
 
-**Ojo con cómo llegan vacíos, porque no todos llegan igual.** En una operación
-cancelada de verdad observamos esto:
+**Watch how they arrive empty, because they do not all arrive the same way.** In a real
+cancelled operation we observed this:
 
-| Campo | Valor recibido |
+| Field | Value received |
 | --- | --- |
 | `continueUrl` | `null` |
-| `exitUrl` | `""` — cadena vacía, **no** `null` |
+| `exitUrl` | `""` — empty string, **not** `null` |
 
-O sea que este chequeo, que parece razonable, **no atrapa el `exitUrl` vacío**:
-
-```javascript
-if (result.exitUrl === null) { /* nunca entra */ }
-```
-
-Y este sí:
+So this check, which looks reasonable, **does not catch the empty `exitUrl`**:
 
 ```javascript
-if (!result.exitUrl) { /* entra con "" y con null */ }
+if (result.exitUrl === null) { /* never enters */ }
 ```
 
-Chequea siempre por *falsy* y no por `=== null`.
+And this one does:
 
+```javascript
+if (!result.exitUrl) { /* enters with "" and with null */ }
+```
+
+Always check for *falsy*, not for `=== null`.
 
 #### KhipuEvent
 
