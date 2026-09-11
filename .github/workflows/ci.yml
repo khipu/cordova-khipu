@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run verify:versions
+
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # The package declares platforms: [.iOS(.v13)] and CordovaLib is UIKit-only,
+      # so `swift test` cannot work here: it would try to build for macOS. The tests
+      # have to go through a simulator destination.
+      - name: Cache the SPM resolution
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.swift') }}
+      - name: Build the package
+        run: xcodebuild build -scheme cordova-khipu -destination generic/platform=iOS
+      - name: Run the package tests
+        run: xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16'
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # gradle-wrapper.jar is a binary no diff can review. This action compares its
+      # checksum against Gradle's published ones, and it is the only defence against
+      # an altered wrapper.
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Unit-test the pure half
+        run: ./gradlew test
+        working-directory: tests/android
+      # The only check that compiles KhipuPlugin.java, which needs Cordova on the
+      # classpath. It runs on every pull request because Ubuntu makes it cheap; the
+      # iOS half of the example is push-only, in the `example` job.
+      - name: Build the example's Android platform
+        run: |
+          npm ci
+          npm install
+          npm run plugin:add
+          npx cordova platform add android@15.1.0 --nosave
+          npx cordova build android --debug
+        working-directory: example
+
+  example:
+    if: github.event_name == 'push'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The only thing that exercises the full install path: the after_prepare hooks,
+      # the podspec and the SPM package. Both iOS majors, because the plugin supports
+      # CocoaPods on cordova-ios 7 and SPM on 8, and the two paths differ.
+      - name: Install the plugin into the example
+        run: |
+          npm install
+          npm run plugin:add
+        working-directory: example
+      - name: Build with cordova-ios 8 (SPM)
+        run: |
+          npx cordova platform add ios@8.1.1 --nosave
+          npx cordova build ios --emulator
+        working-directory: example
+      - name: Build with cordova-ios 7 (CocoaPods)
+        run: |
+          npm run reset
+          npm run plugin:add
+          npx cordova platform add ios@7.1.1 --nosave
+          npx cordova build ios --emulator
+        working-directory: example

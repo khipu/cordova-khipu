@@ -36,7 +36,10 @@
   ],
   "scripts": {
     "test": "node --test tests/scripts/",
+    "verify": "npm test && npm run verify:versions && npm run verify:ios && npm run verify:android",
     "verify:versions": "node scripts/check-native-versions.js",
+    "verify:ios": "xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16'",
+    "verify:android": "cd tests/android && ./gradlew test",
     "prepublishOnly": "npm run verify:versions && npm test",
     "release": "release-it",
     "prepare": "husky"
