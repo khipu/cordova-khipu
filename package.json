@@ -32,6 +32,9 @@
     "src/",
     "types/",
     "tests/",
+    "!tests/android/gradlew",
+    "!tests/android/gradlew.bat",
+    "!tests/android/gradle/",
     "scripts/",
     "README.md",
     "LICENSE"
