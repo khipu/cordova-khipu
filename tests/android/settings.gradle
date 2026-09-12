@@ -1,0 +1,20 @@
+// The Khipu SDK lives in Khipu's own Nexus, so the repository has to be
+// declared here as well as in src/android/khipu.gradle: this project resolves
+// the SDK on its own, outside any Cordova app.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://dev.khipu.com/nexus/content/repositories/khenshin' }
+    }
+}
+
+rootProject.name = 'cordova-khipu-android-tests'

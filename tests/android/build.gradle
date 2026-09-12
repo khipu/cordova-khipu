@@ -1,0 +1,48 @@
+// A place to compile and unit-test the pure half of the Android plugin.
+//
+// src/android/ holds loose files that Cordova injects into the merchant's app,
+// so there is no Gradle project there and never was — which is why none of that
+// Java was ever compiled by a check. This module takes those sources as its own
+// source set.
+//
+// KhipuPlugin.java is deliberately excluded: it is the only file that needs
+// org.apache.cordova on the classpath, and keeping Cordova out of the unit-test
+// classpath is most of what extracting the mappers buys. That file is compiled
+// for real by the example app's Android build, in CI's `android` job.
+plugins {
+    id 'com.android.library' version '8.10.1'
+}
+
+android {
+    namespace 'com.khipu.cordova.tests'
+    compileSdk 36
+
+    defaultConfig {
+        minSdk 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs = ['../../src/android']
+            java.exclude 'com/khipu/cordova/KhipuPlugin.java'
+        }
+        test {
+            java.srcDirs = ['src/test/java']
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.khipu:khipu-client-android:2.28.5'
+
+    testImplementation 'junit:junit:4.13.2'
+    // org.json inside android.jar is a set of stubs whose every method throws
+    // `Stub!` in a JVM unit test. Depending on the real implementation makes it
+    // shadow the stub, which is what lets the mappers be tested off-device.
+    testImplementation 'org.json:json:20240303'
+}

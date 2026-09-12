@@ -1,8 +1,8 @@
 import UIKit
 #if canImport(Cordova)
-// cordova-ios 8 expone CordovaLib como el módulo `Cordova` (viene de
-// CordovaLib/include/Cordova/). En cordova-ios 7 no hay módulo: CDVPlugin llega
-// por el bridging header del proyecto y este import no aplica.
+// cordova-ios 8 exposes CordovaLib as the `Cordova` module (it comes from
+// CordovaLib/include/Cordova/). cordova-ios 7 has no module: CDVPlugin arrives
+// through the project's bridging header instead, and this import does not apply.
 import Cordova
 #endif
 import KhipuClientIOS
@@ -37,7 +37,7 @@ public class KhipuPlugin: CDVPlugin {
         }
     }
 
-    func startKhipuOperation(operationId: String, options: KhipuOptions, completion: @escaping ([String: Any]?, String?) -> Void) {
+    private func startKhipuOperation(operationId: String, options: KhipuOptions, completion: @escaping ([String: Any]?, String?) -> Void) {
         DispatchQueue.main.async {
             guard let presenter = self.presenter() else {
                 completion(nil, "No view controller available to present from")
@@ -47,56 +47,79 @@ public class KhipuPlugin: CDVPlugin {
             KhipuLauncher.launch(presenter: presenter,
                                  operationId: operationId,
                                  options: options) { result in
-                completion([
-                    "operationId": result.operationId,
-                    "result": result.result,
-                    "exitTitle": result.exitTitle,
-                    "exitMessage": result.exitMessage,
-                    "exitUrl": result.exitUrl as Any,
-                    "failureReason": result.failureReason as Any,
-                    "continueUrl": result.continueUrl as Any,
-                    "events": result.events.map { event in
-                        return [
-                            "name": event.name,
-                            "type": event.type,
-                            "timestamp": event.timestamp
-                        ]
-                    }
-                ], nil)
+                completion(Self.makeResult(from: result), nil)
             }
         }
     }
 
-    /// El controller sobre el que presentar la vista de Khipu.
+    /// The result dictionary handed to JavaScript.
     ///
-    /// Se parte de `self.viewController`, que es el que Cordova asocia al
-    /// webview desde el que llegó la llamada. Es mejor punto de partida que
-    /// `UIApplication.shared.windows`: esa API está deprecada desde iOS 15
-    /// —sin que el compilador avise a un piso de iOS 13— y devuelve ventanas
-    /// de todas las escenas conectadas, incluida alguna que no esté en
-    /// pantalla.
+    /// Extracted from the launch closure so a test can reach it. These eight keys are one
+    /// half of a cross-platform contract — `KhipuResultMapper.toJson` on Android builds the
+    /// same eight, and a guard compares the two — so they are worth pinning by a test rather
+    /// than only by review.
+    static func makeResult(from result: KhipuResult) -> [String: Any] {
+        return [
+            "operationId": result.operationId,
+            "result": result.result,
+            "exitTitle": result.exitTitle,
+            "exitMessage": result.exitMessage,
+            "exitUrl": jsonValue(result.exitUrl),
+            "failureReason": jsonValue(result.failureReason),
+            "continueUrl": jsonValue(result.continueUrl),
+            "events": result.events.map { event in
+                return [
+                    "name": event.name,
+                    "type": event.type,
+                    "timestamp": event.timestamp
+                ]
+            }
+        ]
+    }
+
+    /// `NSNull` rather than a bridged `nil`.
     ///
-    /// Después se baja por la cadena de presentados. UIKit rechaza presentar
-    /// sobre un controller que ya está presentando algo, así que un comercio
-    /// que llame al plugin con su propio modal arriba no vería nada. Antes esto
-    /// se resolvía haciendo `dismiss` de lo que hubiera, es decir cerrándole el
-    /// modal al comercio, y esperando un segundo fijo a que terminara; bajar
-    /// por la cadena no destruye nada y no necesita esperar.
+    /// `result.exitUrl as Any` did reach JavaScript as `null`, because Swift bridges a
+    /// nil optional in an `Any` to `NSNull`. Saying so explicitly costs one function and
+    /// means the behaviour is a decision rather than a property of the bridge, and it
+    /// reads the same as Android's `JSONObject.NULL`, which is the other half of the same
+    /// contract.
+    private static func jsonValue(_ value: String?) -> Any {
+        if let value = value {
+            return value
+        }
+        return NSNull()
+    }
+
+    /// The controller to present Khipu's view from.
     ///
-    /// Se deja privado al plugin en vez de como extensión de `UIViewController`:
-    /// el plugin se enlaza estáticamente dentro de la app del comercio, donde
-    /// una extensión con un nombre así puede chocar con la suya.
+    /// It starts at `self.viewController`, which is the one Cordova associates with the
+    /// webview the call came from. That is a better starting point than
+    /// `UIApplication.shared.windows`: that API has been deprecated since iOS 15 — with
+    /// no compiler warning at an iOS 13 floor — and it returns windows from every
+    /// connected scene, including ones that are not on screen.
+    ///
+    /// From there it walks down the chain of presented controllers. UIKit refuses to
+    /// present on a controller that is already presenting something, so a merchant who
+    /// calls the plugin with their own modal up would see nothing. This used to be
+    /// handled by dismissing whatever was there — closing the merchant's own modal — and
+    /// waiting a fixed second for it to finish; walking the chain destroys nothing and
+    /// needs no wait.
+    ///
+    /// Kept private to the plugin rather than as a `UIViewController` extension: the
+    /// plugin links statically inside the merchant's app, where an extension with a name
+    /// like this could collide with theirs.
     private func presenter() -> UIViewController? {
         var controller: UIViewController? = self.viewController
 
-        while let presentado = controller?.presentedViewController {
-            controller = presentado
+        while let presented = controller?.presentedViewController {
+            controller = presented
         }
 
         return controller
     }
 
-    func handleError(command: CDVInvokedUrlCommand, message: String) {
+    private func handleError(command: CDVInvokedUrlCommand, message: String) {
         let pluginResult = CDVPluginResult(status: .error, messageAs: message)
         self.commandDelegate.send(pluginResult, callbackId: command.callbackId)
     }

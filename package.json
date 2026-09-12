@@ -2,6 +2,7 @@
   "name": "cordova-khipu",
   "version": "2.10.1",
   "description": "Khipu Cordova Plugin",
+  "types": "types/index.d.ts",
   "cordova": {
     "id": "cordova-khipu",
     "platforms": [
@@ -29,15 +30,23 @@
     "Package.swift",
     "www/",
     "src/",
+    "types/",
     "tests/",
+    "!tests/android/gradlew",
+    "!tests/android/gradlew.bat",
+    "!tests/android/gradle/",
     "scripts/",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test tests/scripts/",
+    "test": "node --test tests/scripts/ tests/js/",
+    "verify": "npm test && npm run verify:versions && npm run verify:keys && npm run verify:ios && npm run verify:android",
     "verify:versions": "node scripts/check-native-versions.js",
-    "prepublishOnly": "npm run verify:versions && npm test",
+    "verify:keys": "node scripts/check-option-keys.js",
+    "verify:ios": "xcodebuild test -scheme cordova-khipu -destination \"$(node scripts/ios-destination.js)\"",
+    "verify:android": "cd tests/android && ./gradlew test",
+    "prepublishOnly": "npm run verify",
     "release": "release-it",
     "prepare": "husky"
   },
@@ -46,8 +55,7 @@
     "@release-it/conventional-changelog": "^9.0.3",
     "commitlint": "^19.6.1",
     "husky": "^9.1.7",
-    "release-it": "^17.10.0",
-    "xml2js": "^0.6.2"
+    "release-it": "^17.10.0"
   },
   "commitlint": {
     "extends": [
@@ -75,7 +83,7 @@
       }
     },
     "hooks": {
-      "before:init": "npm run verify:versions && npm test",
+      "before:init": "npm run verify",
       "after:bump": "node scripts/update-plugin-version.js && git add plugin.xml && (git diff --cached --quiet || git commit -m 'chore: sync version to plugin.xml')"
     }
   }

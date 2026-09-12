@@ -1,25 +1,26 @@
 /*
- * Harness de prueba de cordova-khipu.
+ * Test harness for cordova-khipu.
  *
- * El punto central es el tri-estado por campo: cada opción tiene una casilla
- * "incluir" además de su control. El plugin distingue "clave ausente" de
- * `false` — ver `options["showFooter"] as? Bool` en
- * KhipuOptionsMapper.parse (src/ios/KhipuOptionsMapper.swift) y
- * `options.has("showFooter")` en KhipuPlugin.java — y el SDK nativo aplica sus
- * propios valores por omisión. Si el harness mandara siempre los booleanos,
- * sería imposible probar el comportamiento que ve un comercio que no configura
- * nada.
+ * The central point is the per-field tri-state: every option has an
+ * "include" checkbox in addition to its own control. The plugin distinguishes
+ * "key absent" from `false` — see `options["showFooter"] as? Bool` in
+ * KhipuOptionsMapper.parse (src/ios/KhipuOptionsMapper.swift) and
+ * `booleanOrNull(options, "showFooter")` in KhipuOptionsMapper.parse
+ * (src/android/com/khipu/cordova/KhipuOptionsMapper.java) — and the native SDK
+ * applies its own defaults. If the harness always sent the booleans, it
+ * would be impossible to test the behaviour a merchant who configures
+ * nothing actually sees.
  */
 
-var CLAVE_ALMACENAMIENTO = 'cordova-khipu-harness';
+var STORAGE_KEY = 'cordova-khipu-harness';
 
-var CAMPOS_TEXTO = [
-  { clave: 'title', ejemplo: 'Demo Cordova' },
-  { clave: 'titleImageUrl', ejemplo: 'https://s3.amazonaws.com/static.khipu.com/logo-khipu-color.png' },
-  { clave: 'locale', ejemplo: 'es_CL' }
+var TEXT_FIELDS = [
+  { key: 'title', example: 'Demo Cordova' },
+  { key: 'titleImageUrl', example: 'https://s3.amazonaws.com/static.khipu.com/logo-khipu-color.png' },
+  { key: 'locale', example: 'es_CL' }
 ];
 
-var CAMPOS_SWITCH = [
+var SWITCH_FIELDS = [
   'skipExitPage',
   'skipExitSuccessPage',
   'showFooter',
@@ -27,7 +28,7 @@ var CAMPOS_SWITCH = [
   'showPaymentDetails'
 ];
 
-var CLAVES_COLOR = [
+var COLOR_KEYS = [
   'lightBackground',
   'lightOnBackground',
   'lightPrimary',
@@ -42,20 +43,20 @@ var CLAVES_COLOR = [
   'darkOnTopBarContainer'
 ];
 
-var TEMAS = ['light', 'dark', 'system'];
+var THEMES = ['light', 'dark', 'system'];
 
 var PRESETS = {
-  'Todo por defecto': {
-    texto: {},
-    interruptores: {},
-    tema: null,
-    colores: null
+  'All defaults': {
+    text: {},
+    switches: {},
+    theme: null,
+    colors: null
   },
-  'Marca Khipu': {
-    texto: { title: 'Demo Cordova', locale: 'es_CL' },
-    interruptores: { showFooter: true, showMerchantLogo: true, showPaymentDetails: true },
-    tema: 'light',
-    colores: {
+  'Khipu brand': {
+    text: { title: 'Demo Cordova', locale: 'es_CL' },
+    switches: { showFooter: true, showMerchantLogo: true, showPaymentDetails: true },
+    theme: 'light',
+    colors: {
       lightBackground: '#ffffff',
       lightOnBackground: '#1a1a1a',
       lightPrimary: '#8347ad',
@@ -70,23 +71,23 @@ var PRESETS = {
       darkOnTopBarContainer: '#e8eaed'
     }
   },
-  'Todo activado': {
-    texto: { title: 'Demo Cordova', locale: 'es_CL' },
-    interruptores: {
+  'Everything on': {
+    text: { title: 'Demo Cordova', locale: 'es_CL' },
+    switches: {
       skipExitPage: true,
       skipExitSuccessPage: true,
       showFooter: true,
       showMerchantLogo: true,
       showPaymentDetails: true
     },
-    tema: 'system',
-    colores: null
+    theme: 'system',
+    colors: null
   },
-  'Modo oscuro': {
-    texto: {},
-    interruptores: {},
-    tema: 'dark',
-    colores: {
+  'Dark mode': {
+    text: {},
+    switches: {},
+    theme: 'dark',
+    colors: {
       darkBackground: '#101418',
       darkOnBackground: '#e8eaed',
       darkPrimary: '#3cb4e5',
@@ -97,422 +98,428 @@ var PRESETS = {
   }
 };
 
-var controles = {
-  texto: {},
-  interruptores: {},
-  colores: {},
-  tema: null
+var controls = {
+  text: {},
+  switches: {},
+  colors: {},
+  theme: null
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-  construirCampos();
-  construirPresets();
-  restaurar();
-  // Incondicional: en una instalación limpia (sin nada en localStorage)
-  // `restaurar()` vuelve temprano y nunca llegaría a ocultar
-  // `#campos-color`, dejando el bloque de colores visible aunque
-  // `#incluir-colors` esté sin marcar.
-  sincronizarOpacidad();
-  escuchar();
-  refrescarPreview();
+  buildFields();
+  buildPresets();
+  restore();
+  // Unconditional: on a clean install (nothing in localStorage) `restore()`
+  // returns early and would never get to hide `#color-fields`, leaving the
+  // colour block visible even though `#include-colors` is unchecked.
+  syncOpacity();
+  listen();
+  refreshPreview();
 });
 
 document.addEventListener('deviceready', function () {
-  var estado = document.getElementById('estado');
-  var disponible = typeof window.Khipu !== 'undefined';
+  var status = document.getElementById('status');
+  var available = typeof window.Khipu !== 'undefined';
 
-  estado.className = 'estado ' + (disponible ? 'estado--listo' : 'estado--esperando');
-  estado.textContent = disponible
-    ? 'Listo · window.Khipu disponible'
-    : 'deviceready llegó pero window.Khipu no está: revisa la instalación del plugin.';
+  status.className = 'status ' + (available ? 'status--ready' : 'status--waiting');
+  status.textContent = available
+    ? 'Ready · window.Khipu available'
+    : 'deviceready fired but window.Khipu is missing: check the plugin installation.';
 
-  document.getElementById('lanzar').disabled = !disponible;
+  document.getElementById('launch').disabled = !available;
 });
 
-/* ---------- construcción de la interfaz ---------- */
+/* ---------- interface construction ---------- */
 
-function construirCampos () {
-  var contenedorTexto = document.getElementById('campos-texto');
+function buildFields () {
+  var textContainer = document.getElementById('text-fields');
 
-  CAMPOS_TEXTO.forEach(function (campo) {
-    var entrada = document.createElement('input');
-    entrada.type = 'text';
-    entrada.placeholder = campo.ejemplo;
-    entrada.autocapitalize = 'off';
-    entrada.autocorrect = 'off';
-    entrada.spellcheck = false;
+  TEXT_FIELDS.forEach(function (field) {
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = field.example;
+    input.autocapitalize = 'off';
+    input.autocorrect = 'off';
+    input.spellcheck = false;
 
-    controles.texto[campo.clave] = agregarFila(contenedorTexto, campo.clave, entrada);
+    controls.text[field.key] = addRow(textContainer, field.key, input);
   });
 
-  // `theme` es de texto pero con valores cerrados, así que va como selector.
-  var selectorTema = document.createElement('select');
-  TEMAS.forEach(function (tema) {
-    var opcion = document.createElement('option');
-    opcion.value = tema;
-    opcion.textContent = tema;
-    selectorTema.appendChild(opcion);
+  // `theme` is a text field but with a closed set of values, so it goes as a
+  // <select>.
+  var themeSelect = document.createElement('select');
+  THEMES.forEach(function (theme) {
+    var option = document.createElement('option');
+    option.value = theme;
+    option.textContent = theme;
+    themeSelect.appendChild(option);
   });
-  controles.tema = agregarFila(contenedorTexto, 'theme', selectorTema);
+  controls.theme = addRow(textContainer, 'theme', themeSelect);
 
-  var contenedorSwitch = document.getElementById('campos-switch');
-  CAMPOS_SWITCH.forEach(function (clave) {
-    var interruptor = document.createElement('input');
-    interruptor.type = 'checkbox';
-    controles.interruptores[clave] = agregarFila(contenedorSwitch, clave, interruptor);
+  var switchContainer = document.getElementById('switch-fields');
+  SWITCH_FIELDS.forEach(function (key) {
+    var toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    controls.switches[key] = addRow(switchContainer, key, toggle);
   });
 
-  var contenedorColor = document.getElementById('campos-color');
-  CLAVES_COLOR.forEach(function (clave) {
-    var selectorColor = document.createElement('input');
-    selectorColor.type = 'color';
-    selectorColor.value = clave.indexOf('dark') === 0 ? '#101418' : '#ffffff';
-    controles.colores[clave] = agregarFila(contenedorColor, clave, selectorColor);
+  var colorContainer = document.getElementById('color-fields');
+  COLOR_KEYS.forEach(function (key) {
+    var colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.value = key.indexOf('dark') === 0 ? '#101418' : '#ffffff';
+    controls.colors[key] = addRow(colorContainer, key, colorPicker);
   });
 }
 
-// Cada fila es control + casilla "incluir". El valor del control solo llega al
-// payload si la casilla está marcada.
-function agregarFila (contenedor, clave, control) {
-  var fila = document.createElement('label');
-  fila.className = 'campo campo--apagado';
+// Each row is a control plus an "include" checkbox. The control's value only
+// reaches the payload if the checkbox is checked.
+//
+// This function's name is load-bearing: scripts/check-option-keys.js locates
+// the `theme` option key with the regex addRow\([^,]+,\s*'(\w+)',, since
+// `theme` is built as a <select> and never passes through TEXT_FIELDS or
+// SWITCH_FIELDS. Renaming this function again means updating that regex too.
+function addRow (container, key, control) {
+  var row = document.createElement('label');
+  row.className = 'field field--off';
 
-  var incluir = document.createElement('input');
-  incluir.type = 'checkbox';
+  var include = document.createElement('input');
+  include.type = 'checkbox';
 
-  var nombre = document.createElement('span');
-  nombre.className = 'campo__nombre';
-  nombre.textContent = clave;
+  var name = document.createElement('span');
+  name.className = 'field__name';
+  name.textContent = key;
 
-  fila.appendChild(incluir);
-  fila.appendChild(nombre);
-  fila.appendChild(control);
-  contenedor.appendChild(fila);
+  row.appendChild(include);
+  row.appendChild(name);
+  row.appendChild(control);
+  container.appendChild(row);
 
-  return { fila: fila, incluir: incluir, control: control };
+  return { row: row, include: include, control: control };
 }
 
-function construirPresets () {
-  var contenedor = document.getElementById('presets');
+function buildPresets () {
+  var container = document.getElementById('presets');
 
-  Object.keys(PRESETS).forEach(function (nombre) {
-    var boton = document.createElement('button');
-    boton.type = 'button';
-    boton.textContent = nombre;
-    boton.addEventListener('click', function () {
-      aplicarPreset(PRESETS[nombre]);
+  Object.keys(PRESETS).forEach(function (name) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = name;
+    button.addEventListener('click', function () {
+      applyPreset(PRESETS[name]);
     });
-    contenedor.appendChild(boton);
+    container.appendChild(button);
   });
 }
 
-/* ---------- estado ---------- */
+/* ---------- state ---------- */
 
-function escuchar () {
-  document.addEventListener('input', alCambiar);
-  document.addEventListener('change', alCambiar);
-  document.getElementById('lanzar').addEventListener('click', lanzar);
+function listen () {
+  document.addEventListener('input', onChange);
+  document.addEventListener('change', onChange);
+  document.getElementById('launch').addEventListener('click', launch);
 }
 
-function alCambiar () {
-  sincronizarOpacidad();
-  refrescarPreview();
-  guardar();
+function onChange () {
+  syncOpacity();
+  refreshPreview();
+  save();
 }
 
-function sincronizarOpacidad () {
-  var todos = []
-    .concat(Object.keys(controles.texto).map(function (k) { return controles.texto[k]; }))
-    .concat(Object.keys(controles.interruptores).map(function (k) { return controles.interruptores[k]; }))
-    .concat(Object.keys(controles.colores).map(function (k) { return controles.colores[k]; }))
-    .concat([controles.tema]);
+function syncOpacity () {
+  var all = []
+    .concat(Object.keys(controls.text).map(function (k) { return controls.text[k]; }))
+    .concat(Object.keys(controls.switches).map(function (k) { return controls.switches[k]; }))
+    .concat(Object.keys(controls.colors).map(function (k) { return controls.colors[k]; }))
+    .concat([controls.theme]);
 
-  todos.forEach(function (entrada) {
-    entrada.fila.className = 'campo' + (entrada.incluir.checked ? '' : ' campo--apagado');
+  all.forEach(function (entry) {
+    entry.row.className = 'field' + (entry.include.checked ? '' : ' field--off');
   });
 
-  var incluirColores = document.getElementById('incluir-colors').checked;
-  document.getElementById('campos-color').style.display = incluirColores ? '' : 'none';
+  var includeColors = document.getElementById('include-colors').checked;
+  document.getElementById('color-fields').style.display = includeColors ? '' : 'none';
 }
 
-function construirPayload () {
-  var opciones = {};
+function buildPayload () {
+  var options = {};
 
-  Object.keys(controles.texto).forEach(function (clave) {
-    var entrada = controles.texto[clave];
-    if (entrada.incluir.checked) {
-      opciones[clave] = entrada.control.value;
+  Object.keys(controls.text).forEach(function (key) {
+    var entry = controls.text[key];
+    if (entry.include.checked) {
+      options[key] = entry.control.value;
     }
   });
 
-  if (controles.tema.incluir.checked) {
-    opciones.theme = controles.tema.control.value;
+  if (controls.theme.include.checked) {
+    options.theme = controls.theme.control.value;
   }
 
-  Object.keys(controles.interruptores).forEach(function (clave) {
-    var entrada = controles.interruptores[clave];
-    if (entrada.incluir.checked) {
-      opciones[clave] = entrada.control.checked;
+  Object.keys(controls.switches).forEach(function (key) {
+    var entry = controls.switches[key];
+    if (entry.include.checked) {
+      options[key] = entry.control.checked;
     }
   });
 
-  if (document.getElementById('incluir-colors').checked) {
-    var colores = {};
-    Object.keys(controles.colores).forEach(function (clave) {
-      var entrada = controles.colores[clave];
-      if (entrada.incluir.checked) {
-        colores[clave] = entrada.control.value;
+  if (document.getElementById('include-colors').checked) {
+    var colors = {};
+    Object.keys(controls.colors).forEach(function (key) {
+      var entry = controls.colors[key];
+      if (entry.include.checked) {
+        colors[key] = entry.control.value;
       }
     });
-    opciones.colors = colores;
+    options.colors = colors;
   }
 
   var payload = { operationId: document.getElementById('operationId').value.trim() };
 
-  // `options` solo viaja si tiene algo adentro: mandarlo vacío no es lo mismo
-  // que no mandarlo, y acá queremos poder probar las dos cosas.
-  if (Object.keys(opciones).length > 0) {
-    payload.options = opciones;
+  // `options` only travels if it has something inside: sending it empty is
+  // not the same as not sending it, and here we want to be able to test both.
+  if (Object.keys(options).length > 0) {
+    payload.options = options;
   }
 
   return payload;
 }
 
-function refrescarPreview () {
+function refreshPreview () {
   document.getElementById('preview').textContent =
-    JSON.stringify(construirPayload(), null, 2);
+    JSON.stringify(buildPayload(), null, 2);
 }
 
-function aplicarPreset (preset) {
-  Object.keys(controles.texto).forEach(function (clave) {
-    var entrada = controles.texto[clave];
-    var valor = preset.texto[clave];
-    entrada.incluir.checked = valor !== undefined;
-    if (valor !== undefined) {
-      entrada.control.value = valor;
+function applyPreset (preset) {
+  Object.keys(controls.text).forEach(function (key) {
+    var entry = controls.text[key];
+    var value = preset.text[key];
+    entry.include.checked = value !== undefined;
+    if (value !== undefined) {
+      entry.control.value = value;
     }
   });
 
-  controles.tema.incluir.checked = preset.tema !== null;
-  if (preset.tema !== null) {
-    controles.tema.control.value = preset.tema;
+  controls.theme.include.checked = preset.theme !== null;
+  if (preset.theme !== null) {
+    controls.theme.control.value = preset.theme;
   }
 
-  Object.keys(controles.interruptores).forEach(function (clave) {
-    var entrada = controles.interruptores[clave];
-    var valor = preset.interruptores[clave];
-    entrada.incluir.checked = valor !== undefined;
-    entrada.control.checked = valor === true;
+  Object.keys(controls.switches).forEach(function (key) {
+    var entry = controls.switches[key];
+    var value = preset.switches[key];
+    entry.include.checked = value !== undefined;
+    entry.control.checked = value === true;
   });
 
-  document.getElementById('incluir-colors').checked = preset.colores !== null;
-  Object.keys(controles.colores).forEach(function (clave) {
-    var entrada = controles.colores[clave];
-    var valor = preset.colores ? preset.colores[clave] : undefined;
-    entrada.incluir.checked = valor !== undefined;
-    if (valor !== undefined) {
-      entrada.control.value = valor;
+  document.getElementById('include-colors').checked = preset.colors !== null;
+  Object.keys(controls.colors).forEach(function (key) {
+    var entry = controls.colors[key];
+    var value = preset.colors ? preset.colors[key] : undefined;
+    entry.include.checked = value !== undefined;
+    if (value !== undefined) {
+      entry.control.value = value;
     }
   });
 
-  alCambiar();
+  onChange();
 }
 
-/* ---------- persistencia ---------- */
+/* ---------- persistence ---------- */
 
-// Probando en dispositivo se recarga mucho, y retipear el operationId cada vez
-// es fricción real.
-function guardar () {
-  var estado = {
+// Testing on device reloads a lot, and retyping the operationId every time is
+// real friction.
+function save () {
+  var state = {
     operationId: document.getElementById('operationId').value,
-    incluirColores: document.getElementById('incluir-colors').checked,
-    texto: {},
-    tema: { incluir: controles.tema.incluir.checked, valor: controles.tema.control.value },
-    interruptores: {},
-    colores: {}
+    includeColors: document.getElementById('include-colors').checked,
+    text: {},
+    theme: { include: controls.theme.include.checked, value: controls.theme.control.value },
+    switches: {},
+    colors: {}
   };
 
-  Object.keys(controles.texto).forEach(function (clave) {
-    estado.texto[clave] = {
-      incluir: controles.texto[clave].incluir.checked,
-      valor: controles.texto[clave].control.value
+  Object.keys(controls.text).forEach(function (key) {
+    state.text[key] = {
+      include: controls.text[key].include.checked,
+      value: controls.text[key].control.value
     };
   });
 
-  Object.keys(controles.interruptores).forEach(function (clave) {
-    estado.interruptores[clave] = {
-      incluir: controles.interruptores[clave].incluir.checked,
-      valor: controles.interruptores[clave].control.checked
+  Object.keys(controls.switches).forEach(function (key) {
+    state.switches[key] = {
+      include: controls.switches[key].include.checked,
+      value: controls.switches[key].control.checked
     };
   });
 
-  Object.keys(controles.colores).forEach(function (clave) {
-    estado.colores[clave] = {
-      incluir: controles.colores[clave].incluir.checked,
-      valor: controles.colores[clave].control.value
+  Object.keys(controls.colors).forEach(function (key) {
+    state.colors[key] = {
+      include: controls.colors[key].include.checked,
+      value: controls.colors[key].control.value
     };
   });
 
   try {
-    window.localStorage.setItem(CLAVE_ALMACENAMIENTO, JSON.stringify(estado));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (error) {
-    // Sin almacenamiento el harness igual funciona; solo pierde la memoria.
+    // Without storage the harness still works; it just loses its memory.
   }
 }
 
-function restaurar () {
-  var crudo;
+function restore () {
+  var raw;
 
   try {
-    crudo = window.localStorage.getItem(CLAVE_ALMACENAMIENTO);
+    raw = window.localStorage.getItem(STORAGE_KEY);
   } catch (error) {
     return;
   }
 
-  if (!crudo) {
+  if (!raw) {
     return;
   }
 
-  var estado;
+  var state;
   try {
-    estado = JSON.parse(crudo);
+    state = JSON.parse(raw);
   } catch (error) {
     return;
   }
 
-  document.getElementById('operationId').value = estado.operationId || '';
-  document.getElementById('incluir-colors').checked = estado.incluirColores === true;
+  document.getElementById('operationId').value = state.operationId || '';
+  document.getElementById('include-colors').checked = state.includeColors === true;
 
-  if (estado.tema) {
-    controles.tema.incluir.checked = estado.tema.incluir === true;
-    controles.tema.control.value = estado.tema.valor || 'system';
+  if (state.theme) {
+    controls.theme.include.checked = state.theme.include === true;
+    controls.theme.control.value = state.theme.value || 'system';
   }
 
-  aplicarGuardado(controles.texto, estado.texto, 'value');
-  aplicarGuardado(controles.interruptores, estado.interruptores, 'checked');
-  aplicarGuardado(controles.colores, estado.colores, 'value');
+  applySaved(controls.text, state.text, 'value');
+  applySaved(controls.switches, state.switches, 'checked');
+  applySaved(controls.colors, state.colors, 'value');
 }
 
-function aplicarGuardado (grupo, guardado, propiedad) {
-  if (!guardado) {
+function applySaved (group, saved, property) {
+  if (!saved) {
     return;
   }
 
-  Object.keys(grupo).forEach(function (clave) {
-    var entrada = guardado[clave];
-    if (!entrada) {
+  Object.keys(group).forEach(function (key) {
+    var entry = saved[key];
+    if (!entry) {
       return;
     }
-    grupo[clave].incluir.checked = entrada.incluir === true;
-    grupo[clave].control[propiedad] = entrada.valor;
+    group[key].include.checked = entry.include === true;
+    group[key].control[property] = entry.value;
   });
 }
 
-/* ---------- ejecución ---------- */
+/* ---------- execution ---------- */
 
-function lanzar () {
-  var payload = construirPayload();
+function launch () {
+  var payload = buildPayload();
 
   if (!payload.operationId) {
-    mostrarError('Falta el operationId.');
+    showError('Missing operationId.');
     return;
   }
 
-  var boton = document.getElementById('lanzar');
-  boton.disabled = true;
-  document.getElementById('resultado').textContent = 'Ejecutando…';
+  var button = document.getElementById('launch');
+  button.disabled = true;
+  document.getElementById('result').textContent = 'Running…';
 
   window.Khipu.startOperation(
     payload,
-    function (resultado) {
-      boton.disabled = false;
-      mostrarResultado(resultado, 'ok');
+    function (result) {
+      button.disabled = false;
+      showResult(result, 'ok');
     },
     function (error) {
-      boton.disabled = false;
-      // El callback de error recibe un KhipuResult cuando el SDK terminó en
-      // ERROR, y un string cuando el plugin rechazó antes de arrancar.
+      button.disabled = false;
+      // The error callback receives a KhipuResult when the SDK finished in
+      // ERROR, and a string when the plugin rejected before starting.
       if (typeof error === 'string') {
-        mostrarError(error);
+        showError(error);
       } else {
-        mostrarResultado(error, 'error');
+        showResult(error, 'error');
       }
     }
   );
 }
 
-// Distingue tres formas de "sin valor" que se ven iguales si uno no las separa,
-// y que en la práctica no lo son.
+// Distinguishes three forms of "no value" that look the same if you don't
+// separate them, and that in practice are not.
 //
-// `continueUrl` llega `null` en una operación cancelada, pero `exitUrl` llega
-// como **cadena vacía** — verificado en una operación real. Un comercio que
-// escriba `if (result.exitUrl === null)` no la va a atrapar; tiene que chequear
-// por falsy. Mostrarlas distinto es lo que hace visible esa diferencia.
+// `continueUrl` arrives as `null` on a cancelled operation, but `exitUrl`
+// arrives as an **empty string** — verified on a real operation. A merchant
+// who writes `if (result.exitUrl === null)` will not catch it; they have to
+// check for falsy instead. Showing them differently is what makes that
+// difference visible.
 //
-// Y una celda en blanco es indistinguible de un fallo de renderizado, así que
-// ninguno de los casos se deja vacío.
-function pintarValor (elemento, crudo) {
-  if (crudo === null || crudo === undefined) {
-    elemento.textContent = '—';
-  } else if (crudo === '') {
-    elemento.textContent = '"" (cadena vacía)';
+// And a blank cell is indistinguishable from a rendering failure, so neither
+// case is left empty.
+function paintValue (element, raw) {
+  if (raw === null || raw === undefined) {
+    element.textContent = '—';
+  } else if (raw === '') {
+    element.textContent = '"" (empty string)';
   } else {
-    elemento.textContent = String(crudo);
+    element.textContent = String(raw);
     return;
   }
 
-  elemento.className = 'resultado__ausente';
+  element.className = 'result__absent';
 }
 
-function mostrarError (mensaje) {
-  var contenedor = document.getElementById('resultado');
-  contenedor.className = 'resultado resultado--error';
-  contenedor.textContent = mensaje;
+function showError (message) {
+  var container = document.getElementById('result');
+  container.className = 'result result--error';
+  container.textContent = message;
 }
 
-function mostrarResultado (resultado, clase) {
-  var contenedor = document.getElementById('resultado');
-  contenedor.className = 'resultado resultado--' + clase;
-  contenedor.textContent = '';
+function showResult (result, kind) {
+  var container = document.getElementById('result');
+  container.className = 'result result--' + kind;
+  container.textContent = '';
 
-  var lista = document.createElement('dl');
+  var list = document.createElement('dl');
   ['operationId', 'result', 'exitTitle', 'exitMessage', 'exitUrl', 'failureReason', 'continueUrl']
-    .forEach(function (clave) {
-      var fila = document.createElement('div');
-      fila.className = 'resultado__campo';
+    .forEach(function (key) {
+      var row = document.createElement('div');
+      row.className = 'result__field';
 
-      var nombre = document.createElement('dt');
-      nombre.textContent = clave;
+      var name = document.createElement('dt');
+      name.textContent = key;
 
-      var valor = document.createElement('dd');
-      pintarValor(valor, resultado[clave]);
+      var value = document.createElement('dd');
+      paintValue(value, result[key]);
 
-      fila.appendChild(nombre);
-      fila.appendChild(valor);
-      lista.appendChild(fila);
+      row.appendChild(name);
+      row.appendChild(value);
+      list.appendChild(row);
     });
-  contenedor.appendChild(lista);
+  container.appendChild(list);
 
-  var eventos = resultado.events || [];
-  if (eventos.length === 0) {
+  var events = result.events || [];
+  if (events.length === 0) {
     return;
   }
 
-  var tabla = document.createElement('table');
-  tabla.innerHTML =
+  var table = document.createElement('table');
+  table.innerHTML =
     '<thead><tr><th>name</th><th>type</th><th>timestamp</th></tr></thead>';
 
-  var cuerpo = document.createElement('tbody');
-  eventos.forEach(function (evento) {
-    var fila = document.createElement('tr');
-    [evento.name, evento.type, evento.timestamp].forEach(function (celda) {
+  var body = document.createElement('tbody');
+  events.forEach(function (event) {
+    var row = document.createElement('tr');
+    [event.name, event.type, event.timestamp].forEach(function (cell) {
       var td = document.createElement('td');
-      pintarValor(td, celda);
-      fila.appendChild(td);
+      paintValue(td, cell);
+      row.appendChild(td);
     });
-    cuerpo.appendChild(fila);
+    body.appendChild(row);
   });
 
-  tabla.appendChild(cuerpo);
-  contenedor.appendChild(tabla);
+  table.appendChild(body);
+  container.appendChild(table);
 }

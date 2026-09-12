@@ -1,33 +1,49 @@
-const fs = require('fs');
-const path = require('path');
-const xml2js = require('xml2js');
+const fs = require('node:fs');
+const path = require('node:path');
 
-// Rutas de los archivos
-const packageJsonPath = path.resolve(__dirname, '../package.json');
-const pluginXmlPath = path.resolve(__dirname, '../plugin.xml');
+// Rewrites one attribute and nothing else.
+//
+// This used to parse plugin.xml with xml2js and write it back out through the Builder,
+// which reformats the whole file: attribute order, self-closing tags, the declaration,
+// and any comment. check-native-versions.js still carries attribute-order-tolerant
+// regexes that were written for that reformatting. Replacing just the attribute keeps
+// the file the author wrote.
+function withVersion (pluginXml, version) {
+    // The <plugin> tag is isolated first because `version` also appears in the XML
+    // declaration and on every <engine>.
+    const pluginTag = pluginXml.match(/<plugin\b[^>]*>/);
 
-// Leer la versión de package.json
-const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-const newVersion = packageJson.version;
+    if (!pluginTag) {
+        throw new Error('plugin.xml has no <plugin> tag');
+    }
 
-// Actualizar plugin.xml
-fs.readFile(pluginXmlPath, 'utf-8', (err, data) => {
-    if (err) throw err;
+    if (!/\bversion="[^"]*"/.test(pluginTag[0])) {
+        throw new Error('the <plugin> tag of plugin.xml does not declare a version');
+    }
 
-    xml2js.parseString(data, (err, result) => {
-        if (err) throw err;
+    const updatedTag = pluginTag[0].replace(/\bversion="[^"]*"/, `version="${version}"`);
 
-        // Actualizar la versión en plugin.xml
-        result.plugin.$.version = newVersion;
+    return pluginXml.slice(0, pluginTag.index) +
+        updatedTag +
+        pluginXml.slice(pluginTag.index + pluginTag[0].length);
+}
 
-        // Convertir de nuevo a XML
-        const builder = new xml2js.Builder();
-        const updatedXml = builder.buildObject(result);
+function main () {
+    const root = path.resolve(__dirname, '..');
+    const pluginXmlPath = path.join(root, 'plugin.xml');
+    const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
 
-        // Guardar los cambios en plugin.xml
-        fs.writeFile(pluginXmlPath, updatedXml, 'utf-8', (err) => {
-            if (err) throw err;
-            console.log(`plugin.xml version updated to ${newVersion}`);
-        });
-    });
-});
+    fs.writeFileSync(
+        pluginXmlPath,
+        withVersion(fs.readFileSync(pluginXmlPath, 'utf-8'), version),
+        'utf-8'
+    );
+
+    console.log(`update-plugin-version: plugin.xml set to ${version}.`);
+}
+
+module.exports = { withVersion };
+
+if (require.main === module) {
+    main();
+}

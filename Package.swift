@@ -2,16 +2,16 @@
 
 import PackageDescription
 
-// El nombre del package y el del product tienen que ser exactamente el id del
-// plugin: cordova-ios genera `.product(name: "cordova-khipu", package:
-// "cordova-khipu")` a partir de él (SwiftPackage._pluginReference). El nombre
-// del target sí es libre.
+// The package name and the product name have to be exactly the plugin's id:
+// cordova-ios generates `.product(name: "cordova-khipu", package:
+// "cordova-khipu")` from it (SwiftPackage._pluginReference). The target's
+// name is free.
 //
-// La dependencia a apache/cordova-ios la reescribe cordova al instalar el
-// plugin, apuntándola a la CordovaLib local del proyecto; acá solo se usa para
-// compilar y testear el paquete suelto. En la práctica resuelve a 8.0.0 exacto,
-// porque Apache etiqueta los releases posteriores como `rel/8.1.1` y SPM no lee
-// esos tags como semver.
+// The dependency on apache/cordova-ios gets rewritten by cordova when
+// installing the plugin, pointing it at the project's local CordovaLib; here
+// it is only used to compile and test the standalone package. In practice it
+// resolves to exact 8.0.0, because Apache tags later releases as `rel/8.1.1`
+// and SPM does not read those tags as semver.
 let package = Package(
     name: "cordova-khipu",
     platforms: [
@@ -22,7 +22,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apache/cordova-ios.git", from: "8.0.0"),
-        .package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "2.16.5")
+        .package(url: "https://github.com/khipu/KhipuClientIOS.git", exact: "2.17.1")
     ],
     targets: [
         .target(

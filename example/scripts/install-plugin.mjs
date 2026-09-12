@@ -1,19 +1,20 @@
-// Instala el plugin en la app de ejemplo desde un tarball de `npm pack`.
+// Installs the plugin into the example app from an `npm pack` tarball.
 //
-// Los dos rodeos de acá parecen innecesarios y no lo son. Salieron de probar los
-// tres métodos posibles contra un clon desechable (§15 del spec de diseño):
+// The two detours here look unnecessary and are not. They came out of trying
+// all three possible methods against a throwaway clone (spec §15):
 //
-// 1. Tarball en vez de `cordova plugin add ../`. Esa forma falla con
-//    `EINVAL: cp ... subdirectory of self`, porque el destino (example/plugins/)
-//    es hijo del origen (el repo). Y `--link`, que sí funciona hoy, deja al
-//    plugin dependiendo de apache/cordova-ios por git en vez de la CordovaLib
-//    local del proyecto: SwiftPM lo tolera dedupeando, pero avisa "Conflicting
-//    identity for cordova-ios ... will be escalated to an error in future
-//    versions of SwiftPM". Instalar desde el tarball tiene además la ventaja de
-//    ejercitar exactamente el artefacto que recibe un comercio desde npm.
+// 1. Tarball instead of `cordova plugin add ../`. That form fails with
+//    `EINVAL: cp ... subdirectory of self`, because the destination
+//    (example/plugins/) is a child of the source (the repo). And `--link`,
+//    which does work today, leaves the plugin depending on apache/cordova-ios
+//    via git instead of the project's local CordovaLib: SwiftPM tolerates it
+//    by deduping, but warns "Conflicting identity for cordova-ios ... will be
+//    escalated to an error in future versions of SwiftPM". Installing from
+//    the tarball also has the advantage of exercising exactly the artifact a
+//    merchant gets from npm.
 //
-// 2. Prefijo `file:` y ruta absoluta. `cordova plugin add ./algo.tgz` falla por
-//    un bug de parseo de cordova-lib 13.0.0.
+// 2. `file:` prefix with an absolute path. `cordova plugin add ./thing.tgz`
+//    fails on a parsing bug in cordova-lib 13.0.0.
 
 import { execFileSync } from 'node:child_process';
 import { readdirSync, rmSync } from 'node:fs';
@@ -23,19 +24,19 @@ import { fileURLToPath } from 'node:url';
 const example = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = resolve(example, '..');
 
-const esTarball = (nombre) => nombre.startsWith('cordova-khipu-') && nombre.endsWith('.tgz');
+const isTarball = (name) => name.startsWith('cordova-khipu-') && name.endsWith('.tgz');
 
-// Un tarball de una versión anterior haría que más abajo se elija el equivocado.
-for (const viejo of readdirSync(example).filter(esTarball)) {
-    rmSync(join(example, viejo));
+// A tarball from an earlier version would make the wrong one get picked below.
+for (const old of readdirSync(example).filter(isTarball)) {
+    rmSync(join(example, old));
 }
 
 execFileSync('npm', ['pack', '--pack-destination', example], { cwd: repo, stdio: 'inherit' });
 
-const tarball = readdirSync(example).find(esTarball);
+const tarball = readdirSync(example).find(isTarball);
 
 if (!tarball) {
-    throw new Error('npm pack no dejó ningún cordova-khipu-*.tgz en example/');
+    throw new Error('npm pack left no cordova-khipu-*.tgz in example/');
 }
 
 execFileSync('npx', ['cordova', 'plugin', 'add', `file:${join(example, tarball)}`, '--nosave'], {
