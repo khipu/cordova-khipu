@@ -86,6 +86,20 @@ public class KhipuOptionsMapperTest {
         assertNull(input.locale);
     }
 
+    /**
+     * The Java side already rejected numbers; this pins it, because the Swift side did not
+     * and the two must agree.
+     */
+    @Test
+    public void aNumberIsNotABoolean() throws Exception {
+        KhipuOptionsInput input = KhipuOptionsMapper.parse(new JSONObject(
+                "{\"options\":{\"showFooter\":0,\"showMerchantLogo\":1,\"skipExitPage\":2}}"));
+
+        assertNull(input.showFooter);
+        assertNull(input.showMerchantLogo);
+        assertNull(input.skipExitPage);
+    }
+
     @Test
     public void anUnknownThemeIsDiscarded() throws Exception {
         assertNull(KhipuOptionsMapper.parse(

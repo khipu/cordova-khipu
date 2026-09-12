@@ -1,3 +1,4 @@
+import Foundation
 #if canImport(Cordova)
 import Cordova
 #endif
@@ -52,6 +53,24 @@ enum KhipuOptionsMapper {
         colorSetters.map(\.key)
     }
 
+    /// A boolean, and not the numbers 0 and 1.
+    ///
+    /// `as? Bool` accepts them: `JSONSerialization` yields an `NSNumber` for a JSON boolean
+    /// and for a JSON number alike, and bridging an `NSNumber` holding 0 or 1 to `Bool`
+    /// succeeds. Android reads the same field with `instanceof Boolean`, which rejects a
+    /// number outright, so `{ "showFooter": 0 }` used to hide the footer on iOS while
+    /// leaving the SDK's default on Android — the same payload behaving two ways, which is
+    /// what this mapper exists to prevent. `CFBooleanGetTypeID` is what tells the two apart
+    /// once they are both `NSNumber`.
+    private static func boolean(_ value: Any?) -> Bool? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number as CFTypeRef) == CFBooleanGetTypeID() else {
+            return nil
+        }
+
+        return number.boolValue
+    }
+
     /// Interprets the dictionary that arrived from JavaScript. It neither throws nor
     /// fails: a value of the wrong type is discarded as though it had never been sent.
     static func parse(_ call: [String: Any]) -> KhipuOptionsInput {
@@ -62,11 +81,11 @@ enum KhipuOptionsMapper {
         var input = KhipuOptionsInput()
         input.topBarTitle = options["title"] as? String
         input.topBarImageUrl = options["titleImageUrl"] as? String
-        input.skipExitPage = options["skipExitPage"] as? Bool
-        input.skipExitSuccessPage = options["skipExitSuccessPage"] as? Bool
-        input.showFooter = options["showFooter"] as? Bool
-        input.showMerchantLogo = options["showMerchantLogo"] as? Bool
-        input.showPaymentDetails = options["showPaymentDetails"] as? Bool
+        input.skipExitPage = boolean(options["skipExitPage"])
+        input.skipExitSuccessPage = boolean(options["skipExitSuccessPage"])
+        input.showFooter = boolean(options["showFooter"])
+        input.showMerchantLogo = boolean(options["showMerchantLogo"])
+        input.showPaymentDetails = boolean(options["showPaymentDetails"])
         input.locale = options["locale"] as? String
 
         if let theme = options["theme"] as? String {

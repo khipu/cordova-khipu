@@ -4,6 +4,22 @@ import KhipuClientIOS
 
 final class KhipuOptionsMapperTests: XCTestCase {
 
+    /// Parses a fixture the way the plugin really receives one.
+    ///
+    /// Cordova hands `command.arguments` over after JSON parsing, so a JSON number arrives
+    /// as `NSNumber` and a JSON boolean arrives as `NSNumber` too — a `CFBoolean` one. A
+    /// Swift dictionary literal does not reproduce that: it boxes a native `Int`, which
+    /// `as? Bool` rejects for reasons that have nothing to do with the code under test. A
+    /// test written that way passes whether or not the mapper is correct.
+    private func parse(_ json: String) throws -> KhipuOptionsInput {
+        let data = Data(json.utf8)
+        let call = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        return KhipuOptionsMapper.parse(call)
+    }
+
     func testWithNoOptionsKeyEverythingIsNil() {
         let input = KhipuOptionsMapper.parse(["operationId": "abc"])
 
@@ -50,14 +66,8 @@ final class KhipuOptionsMapperTests: XCTestCase {
     }
 
     /// This is the divergence that made Android and iOS disagree.
-    func testAWrongTypeIsDiscardedRatherThanCoerced() {
-        let input = KhipuOptionsMapper.parse([
-            "options": [
-                "title": 123,
-                "showFooter": "yes",
-                "locale": ["es", "CL"]
-            ]
-        ])
+    func testAWrongTypeIsDiscardedRatherThanCoerced() throws {
+        let input = try parse(#"{"options":{"title":123,"showFooter":"yes","locale":["es","CL"]}}"#)
 
         XCTAssertNil(input.topBarTitle)
         XCTAssertNil(input.showFooter)
@@ -146,5 +156,24 @@ final class KhipuOptionsMapperTests: XCTestCase {
     func testTheColourTableHasTwelveEntries() {
         XCTAssertEqual(KhipuOptionsMapper.colorSetters.count, 12)
         XCTAssertEqual(Set(KhipuOptionsMapper.colorKeys).count, 12, "a duplicated key would silently shadow a setter")
+    }
+
+    /// The divergence that survived the rest of this work: `as? Bool` accepts an NSNumber
+    /// holding 0 or 1, while Android's `instanceof Boolean` rejects it, so this payload
+    /// used to hide the footer on iOS and leave the SDK's default on Android.
+    func testANumberIsNotABoolean() throws {
+        let input = try parse(#"{"options":{"showFooter":0,"showMerchantLogo":1,"skipExitPage":2}}"#)
+
+        XCTAssertNil(input.showFooter)
+        XCTAssertNil(input.showMerchantLogo)
+        XCTAssertNil(input.skipExitPage)
+    }
+
+    /// The guard above must not cost us real booleans.
+    func testRealBooleansStillArrive() throws {
+        let input = try parse(#"{"options":{"showFooter":true,"showMerchantLogo":false}}"#)
+
+        XCTAssertEqual(input.showFooter, true)
+        XCTAssertEqual(input.showMerchantLogo, false)
     }
 }

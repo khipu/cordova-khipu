@@ -130,7 +130,14 @@ function compareSurfaces (sources) {
                 // Restricted to the scalar casts (String/Bool) so the nested
                 // `options["colors"] as? [String: Any]` read — the entry point into
                 // the colour table, not a flat option — is not counted here too.
-                'the Swift mapper': keysMatching(sources.swiftMapper, /options\["(\w+)"\] as\? (?:String|Bool)/g),
+                // The boolean fields no longer read as `as? Bool` directly: they go
+                // through the `boolean(_:)` helper, which tells a real CFBoolean apart
+                // from an NSNumber holding 0 or 1 (see KhipuOptionsMapper.swift). Both
+                // forms are scanned for, so that helper does not read as a dropped key.
+                'the Swift mapper': new Set([
+                    ...keysMatching(sources.swiftMapper, /options\["(\w+)"\] as\? (?:String|Bool)/g),
+                    ...keysMatching(sources.swiftMapper, /boolean\(options\["(\w+)"\]\)/g)
+                ]),
                 // objectOrNull(options, "colors") is that same nested-object read on
                 // the Java side; stringOrNull/booleanOrNull are the flat option reads.
                 'the Java mapper': keysMatching(sources.javaMapper, /(?:stringOrNull|booleanOrNull)\(options, "(\w+)"\)/g),
