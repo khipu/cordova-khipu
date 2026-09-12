@@ -2,6 +2,31 @@
 
 ## 2.11.0 (2026-09-12)
 
+### Upgrading from 2.10.x — read this if you support Android
+
+Five things changed in what Android hands your callbacks. All five bring it in line with iOS
+and with what the README always documented, but if your code relied on the old behaviour it
+needs a one-line change. The README's usage section has the same table with more detail.
+
+| Before, on Android | Now | What to do |
+| --- | --- | --- |
+| The result arrived as a **JSON string** | An object, as on iOS | Delete your `JSON.parse(...)`. If you support both platforms you were probably already branching on the type — that keeps working |
+| `exitUrl`, `continueUrl` and `failureReason` were **absent** when null | Present, as `null` | Nothing, unless you tested with `'continueUrl' in result` |
+| A cancellation after the app was backgrounded for over three minutes arrived as the string `"Activity cancelled or failed"` | Your **error** callback, with a full result whose `result` is `'ERROR'` and `failureReason` is `'USER_CANCELED'` | Handle it like any other cancellation |
+| An option of the wrong type was coerced to `false` | Discarded, so the SDK's own default applies | Send the right type. `showFooter: 'yes'` was never doing what it looked like |
+| An option sent as the string `'true'` or `'false'` was parsed as a boolean | Discarded like any other wrong type | Send a real boolean. This is the one case where the old behaviour did what it looked like |
+
+Android also now rejects a second `startOperation` while one is in flight, with
+`"A Khipu operation is already in progress."`. iOS does not — do not rely on either.
+
+`startOperation` returns a promise when you omit both callbacks, and the package ships
+TypeScript declarations. See the README for the one `tsconfig.json` line needed to reach them.
+
+The native SDKs move to `khipu-client-android` 2.28.5 and `KhipuClientIOS` 2.17.1, which
+between them fix three crashes that killed the merchant's app process and two cases that left
+a payer stranded with no callback.
+
+
 * fix: throw when invalid input has no error callback to report through ([8ee0f51](https://github.com/khipu/cordova-khipu/commit/8ee0f51))
 * fix(android): answer from the payload, and never lose the callback ([c4eca66](https://github.com/khipu/cordova-khipu/commit/c4eca66))
 * fix(android): build the result instead of delegating it to Gson ([ddf46d9](https://github.com/khipu/cordova-khipu/commit/ddf46d9))
