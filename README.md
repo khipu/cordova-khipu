@@ -4,7 +4,7 @@ Cordova plugin for Khipu
 
 > ### Upgrading to 2.11.0 from 2.10.x — read this if you support Android
 >
-> Five things changed in what Android hands your callbacks. All five bring it in line
+> Six things changed in what Android hands your callbacks. All six bring it in line
 > with iOS and with what this README always documented, but if your code depended on the
 > old behaviour it needs a one-line change.
 >
@@ -15,6 +15,7 @@ Cordova plugin for Khipu
 > | A cancellation after the app was backgrounded for over three minutes arrived as the string `"Activity cancelled or failed"` | Your **error** callback, with a full result object whose `result` is `'ERROR'` and `failureReason` is `'USER_CANCELED'` | Handle it like any other cancellation — an ordinary cancellation from the exit page arrives the same way |
 > | An option of the wrong type was silently coerced to `false` | Discarded, so the SDK's own default applies | Send the right type. `showFooter: 'yes'` was never doing what it looked like |
 > | An option sent as the string `'true'` or `'false'` was parsed as a boolean | Discarded like any other wrong type, so the SDK's default applies | Send a real boolean. This is the one case where the old behaviour did what it looked like |
+> | Nothing stopped a second `startOperation` call while one was already in flight; the second call's callback silently replaced the first's, so the first operation's callback never fired | Rejected immediately with an error, `"A Khipu operation is already in progress."` | Do not start a second payment while one is open. iOS has no such guard — a second call there presents a second view controller — so do not rely on either platform's behaviour. |
 
 ## Requirements
 
@@ -257,8 +258,8 @@ the payer to confirm; confirming reports the cancellation to Khipu and returns a
 
 So do not treat a missing callback as a missing outcome. Confirm the operation's status
 against the Khipu API from your backend before deciding a payment did not happen. That
-holds on iOS too, for a different reason: an event the SDK cannot decode is logged and
-leaves the operation unfinished.
+holds on iOS too, for a different reason: any bridge can lose a callback when the host
+app is killed, and your backend is the only place that always knows the truth.
 
 ## Example app
 
@@ -276,6 +277,12 @@ authorize together with its options (detailed below), the second is a callback i
 when the authorization completes, and the third is invoked when it fails. Called with
 neither callback, `startOperation` instead returns a Promise for the same result — see
 below for what it resolves and rejects with.
+
+The two platforms do not behave the same way if you call `startOperation` again before the
+first call has finished: Android serialises operations and rejects the second call outright,
+while iOS has no such guard and will present a second view controller on top of the first.
+Do not rely on either behaviour — wait for the callback (or Promise) from one operation before
+starting another.
 
 ```javascript
 

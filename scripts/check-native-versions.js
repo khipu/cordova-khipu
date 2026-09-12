@@ -2,8 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // iOS's dual support (CocoaPods on cordova-ios 7, SPM on cordova-ios 8) depends on several
-// things in plugin.xml and Package.swift staying in sync. With no CI, this is the only thing
-// that stops a release from breaking that sync: the KhipuClientIOS version matching between
+// things in plugin.xml and Package.swift staying in sync. This guard runs in the node job of
+// .github/workflows/ci.yml as well as in prepublishOnly, and it is the only thing that stops
+// a release from breaking that sync: the KhipuClientIOS version matching between
 // the two manifests, `nospm="true"` staying on the <pod> (if it falls off, cordova-ios 8
 // installs the pod again in addition to SPM), `package="swift"` staying on
 // <platform name="ios"> (without it, cordova-ios 8 stops using SPM), and every .swift file in
@@ -156,11 +157,14 @@ function comparePluginVersion (packageJsonVersion, pluginXml) {
 // the fifteenth constant. 2.28.1 then guarded the listeners so no deserialization failure
 // reaches the EventThread at all, and 2.28.3 added OPERATION_WARNING to the guard's
 // terminal types — without which an OPERATION_WARNING that failed to parse left the
-// operation unfinished and its callback never fired.
+// operation unfinished and its callback never fired. 2.28.4 is the actual floor: it makes
+// an undecipherable terminal message resolve the merchant's callback (result "ERROR",
+// failureReason null) instead of stranding the payer with the socket closed and nobody
+// answering.
 //
 // This is a floor, not a mirror of the pin: khipu.gradle can move above it freely and this
 // check does not care. Raise the floor only when a release fixes something the plugin
-// depends on, which is what 2.28.0, 2.28.1 and 2.28.3 each did.
+// depends on, which is what 2.28.0, 2.28.1, 2.28.3 and 2.28.4 each did.
 //
 // tests/android/ asserts the same floor at runtime; this catches it at publish time,
 // before anyone runs a test.

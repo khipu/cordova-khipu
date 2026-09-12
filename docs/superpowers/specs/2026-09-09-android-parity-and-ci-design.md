@@ -551,8 +551,10 @@ wrong: iOS's enum has `USER_DISCONNECTED`, so iOS decodes that value correctly. 
    incomplete as a description of the platform; iOS had a crash path of its own, by a
    different mechanism, and 2.16.6 fixes both it and the stall.
 
-§4.5's README guidance — confirm status server-side — still applies to both platforms,
-because the iOS path to a lost callback exists even though nothing triggers it today.
+§4.5's README guidance — confirm status server-side — still applies to both platforms. Not
+because of the decode path above, which 2.16.6 closed, but because any bridge can lose a
+callback when the host app is killed while an operation is in flight, on either platform;
+the merchant's backend is the only place that always knows the truth.
 
 **Why the pin had to go past 2.28.0.** A protocol bump alone removes the value known to
 trigger the crash; it does not make the crash impossible. At tag 2.28.0 the

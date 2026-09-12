@@ -5,7 +5,8 @@
  * "include" checkbox in addition to its own control. The plugin distinguishes
  * "key absent" from `false` — see `options["showFooter"] as? Bool` in
  * KhipuOptionsMapper.parse (src/ios/KhipuOptionsMapper.swift) and
- * `options.has("showFooter")` in KhipuPlugin.java — and the native SDK
+ * `booleanOrNull(options, "showFooter")` in KhipuOptionsMapper.parse
+ * (src/android/com/khipu/cordova/KhipuOptionsMapper.java) — and the native SDK
  * applies its own defaults. If the harness always sent the booleans, it
  * would be impossible to test the behaviour a merchant who configures
  * nothing actually sees.

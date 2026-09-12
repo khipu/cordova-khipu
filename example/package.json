@@ -3,7 +3,7 @@
   "displayName": "Khipu Example",
   "version": "1.0.0",
   "private": true,
-  "description": "App de ejemplo del plugin cordova-khipu",
+  "description": "Example app for the cordova-khipu plugin",
   "license": "MIT",
   "scripts": {
     "reset": "rm -rf platforms plugins cordova-khipu-*.tgz",
