@@ -62,6 +62,12 @@ public class KhipuResultMapperTest {
     public void mapsEveryEventField() throws Exception {
         JSONObject event = KhipuResultMapper.toJson(cancelled()).getJSONArray("events").getJSONObject(0);
 
+        // The count, not just the three values: scripts/check-option-keys.js anchors on
+        // json.put( to find the result keys, which deliberately excludes these three event
+        // keys (they land on a fresh JSONObject, not on `json`). Without asserting the
+        // count here, a fourth key added to this object on the Java side alone would be
+        // caught by neither guard.
+        assertEquals(3, event.length());
         assertEquals("form", event.getString("name"));
         assertEquals("start", event.getString("type"));
         assertEquals("2026-09-09T12:00:00Z", event.getString("timestamp"));

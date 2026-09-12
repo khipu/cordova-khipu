@@ -47,6 +47,40 @@ function difference (left, right) {
     return [...left].filter(key => !right.has(key));
 }
 
+// Isolates one function's body, the same way interfaceKeys isolates one TypeScript
+// interface and main() isolates the harness's colour table: grab the substring first,
+// extract keys from it second. A brace counter, not a regex, because the body is not
+// flat — makeResult's "events" entry is a `.map { event in ... }` closure whose own
+// braces would confuse a regex looking for the first line that dedents.
+function functionBody (source, signature) {
+    const match = source.match(signature);
+
+    if (!match) {
+        return null;
+    }
+
+    let depth = 1;
+    let i = match.index + match[0].length;
+    const start = i;
+
+    while (i < source.length && depth > 0) {
+        if (source[i] === '{') {
+            depth++;
+        } else if (source[i] === '}') {
+            depth--;
+        }
+        i++;
+    }
+
+    if (depth !== 0) {
+        return null;
+    }
+
+    return source.slice(start, i - 1);
+}
+
+const MAKE_RESULT_SIGNATURE = /static func makeResult\(from result: KhipuResult\) -> \[String: Any\] \{/;
+
 function compareSurfaces (sources) {
     const contract = {
         options: interfaceKeys(sources.declarations, 'KhipuOptions'),
@@ -67,6 +101,12 @@ function compareSurfaces (sources) {
 
     if (!event) {
         return { ok: false, message: 'could not read the event interface from types/index.d.ts; this guard\'s parser is out of date' };
+    }
+
+    const resultDictionaryBody = functionBody(sources.swiftPlugin, MAKE_RESULT_SIGNATURE);
+
+    if (resultDictionaryBody === null) {
+        return { ok: false, message: 'could not find KhipuPlugin.swift\'s makeResult function; this guard\'s parser is out of date' };
     }
 
     // `colors` is a nested object (KhipuColors), tracked in full by the `colors`
@@ -123,7 +163,11 @@ function compareSurfaces (sources) {
                 // and event keys onto different receivers (`json.put` vs. a fresh
                 // JSONObject per event), so anchoring on `json.put(` alone already
                 // excludes the event keys — no union needed on that side.
-                'the Swift result dictionary': keysMatching(sources.swiftPlugin, /"(\w+)":/g)
+                //
+                // Scanned as resultDictionaryBody, not sources.swiftPlugin: isolating
+                // makeResult's body first means a `"key":` literal anywhere else in
+                // KhipuPlugin.swift cannot be mistaken for a result or event field.
+                'the Swift result dictionary': keysMatching(resultDictionaryBody, /"(\w+)":/g)
             }
         },
         {
@@ -189,11 +233,12 @@ function main () {
         harnessColors: harnessColors
     });
 
-    console.log(`check-option-keys: ${result.message}.`);
-
     if (!result.ok) {
+        console.error(`check-option-keys: ${result.message}.`);
         process.exit(1);
     }
+
+    console.log(`check-option-keys: ${result.message}.`);
 }
 
 module.exports = { compareSurfaces };

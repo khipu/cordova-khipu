@@ -51,9 +51,24 @@ function sources (overrides = {}) {
             'if let colors = options["colors"] as? [String: Any] {',
             ...COLOR_KEYS.map(key => `("${key}", { $0.${key}($1) }),`)
         ].join('\n'),
+        // Wrapped in the real makeResult signature, with a decoy key on either side of
+        // it, so the fixture exercises the guard's isolation: only the function body is
+        // scanned, so "notAResultKey" and "alsoNotAResultKey" must never be reported.
         swiftPlugin: [
-            ...RESULT_KEYS.map(key => `"${key}": something,`),
-            ...EVENT_KEYS.map(key => `"${key}": event.${key},`)
+            'private let unrelated: [String: Any] = ["notAResultKey": 1]',
+            '',
+            'static func makeResult(from result: KhipuResult) -> [String: Any] {',
+            '    return [',
+            ...RESULT_KEYS.filter(key => key !== 'events').map(key => `        "${key}": something,`),
+            '        "events": result.events.map { event in',
+            '            return [',
+            ...EVENT_KEYS.map(key => `                "${key}": event.${key},`),
+            '            ]',
+            '        }',
+            '    ]',
+            '}',
+            '',
+            'private func other() -> [String: Any] { return ["alsoNotAResultKey": 2] }'
         ].join('\n'),
         javaMapper: [
             ...TEXT_KEYS.map(key => `input.x = stringOrNull(options, "${key}");`),
@@ -116,6 +131,28 @@ test('catches an event key missing from the Swift dictionary', () => {
     assert.strictEqual(result.ok, false);
     assert.match(result.message, /the Swift result dictionary/);
     assert.match(result.message, /timestamp/);
+});
+
+test('ignores keys outside makeResult when scanning the Swift result dictionary', () => {
+    // The baseline fixture already has "notAResultKey" and "alsoNotAResultKey" outside
+    // makeResult's body (see the comment on the swiftPlugin fixture). If the guard ever
+    // regressed to scanning the whole file, this would fail with "unexpected".
+    const result = compareSurfaces(sources());
+
+    assert.strictEqual(result.ok, true, result.message);
+});
+
+test('reports a broken parser when makeResult cannot be found', () => {
+    const broken = sources().swiftPlugin.replace(
+        'static func makeResult(from result: KhipuResult) -> [String: Any] {',
+        'static func makeSomethingElse() -> [String: Any] {'
+    );
+
+    const result = compareSurfaces(sources({ swiftPlugin: broken }));
+
+    assert.strictEqual(result.ok, false);
+    assert.match(result.message, /makeResult/);
+    assert.match(result.message, /parser is out of date/);
 });
 
 test('does not flag the event keys the Java result mapper writes on a separate object', () => {

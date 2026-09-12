@@ -18,7 +18,24 @@ function enableKotlin (configPath) {
     // Read with fs, not `require`: `require` caches the parsed module, so a second call
     // in the same process would mutate and re-inspect the first read rather than the
     // file. Cordova runs hooks in-process across platforms.
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const raw = fs.readFileSync(configPath, 'utf-8');
+
+    let config;
+    try {
+        config = JSON.parse(raw);
+    } catch (error) {
+        // Branded and re-thrown, unlike configure-swift-ios.js's catch-and-warn: a
+        // broken Swift configuration leaves a merchant with a manual workaround, but a
+        // Kotlin plugin that stays off means the Android build fails later anyway, on
+        // an error that never mentions this plugin. Failing loudly here, at the point
+        // that already knows the cause, is strictly better than that.
+        throw new Error(
+            `cordova-khipu: could not parse ${configPath} (${error.message}). ` +
+            'Kotlin support for the Khipu Android SDK could not be enabled, and the ' +
+            'build will fail later with a Kotlin compilation error. Regenerate this ' +
+            'file (e.g. by removing and re-adding the android platform) and try again.'
+        );
+    }
 
     if (config[FLAG] === true) {
         return 'already-enabled';

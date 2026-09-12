@@ -35,6 +35,18 @@ test('reports a missing file instead of throwing', () => {
     assert.strictEqual(enableKotlin(path.join(os.tmpdir(), 'nope', 'cdv-gradle-config.json')), 'missing');
 });
 
+test('throws a branded, actionable error on malformed JSON instead of an uncaught SyntaxError', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'khipu-hook-'));
+    const file = path.join(directory, 'cdv-gradle-config.json');
+    fs.writeFileSync(file, '{ not valid json', 'utf-8');
+
+    assert.throws(() => enableKotlin(file), (error) => {
+        assert.match(error.message, /cordova-khipu:/);
+        assert.match(error.message, /cdv-gradle-config\.json/);
+        return true;
+    });
+});
+
 test('reads from disk rather than from the module cache', () => {
     const file = aConfigFile({ IS_GRADLE_PLUGIN_KOTLIN_ENABLED: false });
 
