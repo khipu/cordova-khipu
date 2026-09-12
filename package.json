@@ -44,7 +44,7 @@
     "verify": "npm test && npm run verify:versions && npm run verify:keys && npm run verify:ios && npm run verify:android",
     "verify:versions": "node scripts/check-native-versions.js",
     "verify:keys": "node scripts/check-option-keys.js",
-    "verify:ios": "xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16'",
+    "verify:ios": "xcodebuild test -scheme cordova-khipu -destination \"$(node scripts/ios-destination.js)\"",
     "verify:android": "cd tests/android && ./gradlew test",
     "prepublishOnly": "npm run verify",
     "release": "release-it",
