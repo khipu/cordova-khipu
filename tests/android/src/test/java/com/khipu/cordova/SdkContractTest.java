@@ -19,13 +19,14 @@ import java.util.Arrays;
  * Android framework, every mapper test would fail at once with a confusing error. This
  * test fails first, with an obvious one.
  *
- * The second is part of the reason src/android/khipu.gradle says 2.28.4 and not 2.27.0.
+ * The second is part of the reason src/android/khipu.gradle says 2.28.5 and not 2.27.0.
  * Protocol 1.0.59 has fourteen FailureReasonType constants and no USER_DISCONNECTED; its
  * forValue() throws IOException on any value it does not know, and the SDK's
  * OPERATION_FAILURE listener calls the converter with no try/catch on socket.io's
  * EventThread, so that throw is uncaught and kills the app process. 1.0.60 has the
  * fifteenth constant. Anyone lowering the pin gets a failing test instead of a crash in
- * a merchant's app. (2.28.4 is the actual floor, on top of this: it makes an
+ * a merchant's app. (2.28.5 is the actual floor, on top of this: it synchronises the cookie jar, whose
+ * unsynchronised HashSet killed the app process from an OkHttp dispatcher thread. 2.28.4 makes an
  * undecipherable terminal message resolve the merchant's callback instead of stranding
  * the payer with the socket closed and nobody answering.)
  */
@@ -54,7 +55,7 @@ public class SdkContractTest {
         assertNotNull("the protocol jar is not on the test classpath", constants);
         assertEquals(15, constants.length);
         assertTrue(
-                "protocol 1.0.59 is on the classpath; the SDK pin must be 2.28.4 or newer",
+                "protocol 1.0.59 is on the classpath; the SDK pin must be 2.28.5 or newer",
                 Arrays.stream(constants).anyMatch(c -> c.toString().equals("USER_DISCONNECTED"))
         );
     }

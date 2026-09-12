@@ -157,18 +157,22 @@ function comparePluginVersion (packageJsonVersion, pluginXml) {
 // the fifteenth constant. 2.28.1 then guarded the listeners so no deserialization failure
 // reaches the EventThread at all, and 2.28.3 added OPERATION_WARNING to the guard's
 // terminal types — without which an OPERATION_WARNING that failed to parse left the
-// operation unfinished and its callback never fired. 2.28.4 is the actual floor: it makes
+// operation unfinished and its callback never fired. 2.28.5 is the actual floor: it synchronises
+// KhipuCookieJar, whose unsynchronised HashSet was iterated from OkHttp's dispatcher threads while
+// another mutated it. The ConcurrentModificationException ran on a background thread, uncaught, and
+// killed the merchant's app process — with no callback and no exception, so the merchant could not
+// tell from the client whether the payment went through. 2.28.4 makes
 // an undecipherable terminal message resolve the merchant's callback (result "ERROR",
 // failureReason null) instead of stranding the payer with the socket closed and nobody
 // answering.
 //
 // This is a floor, not a mirror of the pin: khipu.gradle can move above it freely and this
 // check does not care. Raise the floor only when a release fixes something the plugin
-// depends on, which is what 2.28.0, 2.28.1, 2.28.3 and 2.28.4 each did.
+// depends on, which is what 2.28.0, 2.28.1, 2.28.3, 2.28.4 and 2.28.5 each did.
 //
 // tests/android/ asserts the same floor at runtime; this catches it at publish time,
 // before anyone runs a test.
-const ANDROID_SDK_FLOOR = '2.28.4';
+const ANDROID_SDK_FLOOR = '2.28.5';
 
 function compareAndroidPin (khipuGradle) {
     const pin = khipuGradle.match(/com\.khipu:khipu-client-android:([^'"\s]+)/);
