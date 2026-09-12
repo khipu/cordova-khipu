@@ -1,6 +1,6 @@
 {
   "name": "cordova-khipu",
-  "version": "2.10.1",
+  "version": "2.11.0",
   "description": "Khipu Cordova Plugin",
   "types": "types/index.d.ts",
   "cordova": {
