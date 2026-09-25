@@ -40,7 +40,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test tests/scripts/ tests/js/",
+    "test": "node --test tests/scripts/*.test.js tests/js/*.test.js",
     "verify": "npm test && npm run verify:versions && npm run verify:keys && npm run verify:ios && npm run verify:android",
     "verify:versions": "node scripts/check-native-versions.js",
     "verify:keys": "node scripts/check-option-keys.js",
