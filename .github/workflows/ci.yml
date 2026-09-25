@@ -40,7 +40,7 @@ jobs:
       # so `swift test` cannot work here: it would try to build for macOS. The tests
       # have to go through a simulator destination.
       - name: Cache the SPM resolution
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .build
           key: spm-${{ runner.os }}-${{ hashFiles('Package.swift') }}
