@@ -64,7 +64,7 @@ jobs:
           java-version: 17
       # v3's default also installs `tools`, which Google no longer serves, and the whole
       # step fails on "Failed to find package 'tools'". v4.0.2 drops it from the default.
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
       - uses: actions/setup-node@v4
