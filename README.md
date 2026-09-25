@@ -25,7 +25,7 @@ Cordova plugin for Khipu
 | `cordova-ios` | 7.0.0 | 7.1.1 and 8.1.1 |
 | `cordova-android` | 13.0.0 | 13.0.0, 14.0.0 and 15.1.0 |
 | iOS | 13.0 | |
-| Node | `^20.17.0 \|\| >=22.9.0` | 20.19.4 |
+| Node | `^20.17.0 \|\| >=22.9.0` | 22.23.2, and 20.19.4 for the hooks' unit tests |
 
 Of this table, only `cordova-ios` and `cordova-android` are declared in `plugin.xml`'s
 `<engines>`. Mind what that does: if the installed platform does not meet the minimum,

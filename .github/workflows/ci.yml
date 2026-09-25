@@ -12,11 +12,20 @@ permissions:
 jobs:
   node:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - node-version-file: .nvmrc
+          # The after_prepare hooks in scripts/ run on the merchant's Node, not ours,
+          # and Cordova 13 still accepts 20. The tooling needs 22, so this entry is
+          # the only thing that notices a script picking up an API 20 lacks.
+          - node-version: 20.19.4
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version: ${{ matrix.node-version }}
+          node-version-file: ${{ matrix.node-version-file }}
           cache: npm
       - run: npm ci
       - run: npm test
