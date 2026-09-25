@@ -1,0 +1,49 @@
+# Dependabot keeps two things current: the npm tooling (every package here is a
+# devDependency) and the GitHub Actions the CI runs on.
+#
+# Left out on purpose: the native SDK pins. khipu-client-android is pinned in
+# src/android/khipu.gradle and tests/android/build.gradle, KhipuClientIOS in plugin.xml
+# and Package.swift, and scripts/check-native-versions.js fails the build when a pair
+# drifts. Dependabot can edit only one side of each pair (it reads neither plugin.xml
+# nor the custom gradleReference), so every one of its pull requests would fail that
+# guard. Moving an SDK is a release decision, made by hand.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /example
+    schedule:
+      interval: monthly
+    # A published package defaults to `widen`, which turns "^21.1.0" into
+    # ">=21.1.0 <23.0.0". For devDependencies that only blurs what is installed.
+    versioning-strategy: increase
+    # A new release waits a week before it is proposed, which gives the registry time to
+    # pull a compromised one. Security updates ignore this and arrive at once.
+    cooldown:
+      default-days: 7
+    groups:
+      # Majors stay out of the group and arrive one per pull request. They are where the
+      # Node floor moves: release-it 21 and commitlint 21 both dropped Node 20.
+      tooling:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      # Only takes effect once security updates are enabled in the repository settings.
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+    commit-message:
+      prefix: chore
+      include: scope
+
+  # No group: the workflows pin major tags (@v4), so every update here is a major, and one
+  # pull request each keeps a breaking one attributable.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
