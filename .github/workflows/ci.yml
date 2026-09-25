@@ -21,7 +21,7 @@ jobs:
           # the only thing that notices a script picking up an API 20 lacks.
           - node-version: 20.19.4
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
@@ -35,7 +35,7 @@ jobs:
   ios:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The package declares platforms: [.iOS(.v13)] and CordovaLib is UIKit-only,
       # so `swift test` cannot work here: it would try to build for macOS. The tests
       # have to go through a simulator destination.
@@ -52,7 +52,7 @@ jobs:
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # gradle-wrapper.jar is a binary no diff can review. This action compares its
       # checksum against Gradle's published ones, and it is the only defence against
       # an altered wrapper.
@@ -90,7 +90,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
