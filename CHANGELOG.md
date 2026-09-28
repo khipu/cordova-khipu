@@ -2,6 +2,15 @@
 
 ## [2.11.1](https://github.com/khipu/cordova-khipu/compare/2.11.0...2.11.1) (2026-09-28)
 
+Documentation only: nothing changes in how the plugin builds or behaves.
+
+- The README now documents that Xcode 27 needs an iOS deployment target of 15.0: on
+  `cordova-ios` 8, declare `<preference name="deployment-target" value="15.0" />`;
+  `cordova-ios` 7 does not build on Xcode 27. See "Xcode 27 needs a deployment target of
+  15.0" in the README.
+- The requirements table lists Xcode 26 as the minimum, which App Store Connect has
+  required for uploads since April 28, 2026.
+
 ## 2.11.0 (2026-09-12)
 
 ### Upgrading from 2.10.x — read this if you support Android
