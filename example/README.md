@@ -2,7 +2,8 @@
 
 Exercises the plugin against the three scenarios it supports, and is the way
 to verify it by hand. `.github/workflows/ci.yml` also runs a four-job CI workflow (node,
-iOS, Android and this example, the last push-only) on pushes and pull requests, but this
+iOS, Android and this example, the last skipped on pull requests) on pushes, pull requests
+and manual dispatch (`gh workflow run ci.yml --ref <branch>`), but this
 guide is still what you need to reproduce a scenario locally or debug one that fails in CI.
 
 ## Requirements
