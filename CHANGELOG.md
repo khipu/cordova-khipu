@@ -1,5 +1,7 @@
 # Changelog
 
+## [2.11.1](https://github.com/khipu/cordova-khipu/compare/2.11.0...2.11.1) (2026-09-28)
+
 ## 2.11.0 (2026-09-12)
 
 ### Upgrading from 2.10.x — read this if you support Android
