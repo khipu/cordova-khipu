@@ -112,10 +112,14 @@ jobs:
           npx cordova platform add ios@8.1.1 --nosave
           npx cordova build ios --emulator
         working-directory: example
+      # Without a target, cordova-ios 7 takes the last iPhone device type it lists and asks
+      # xcodebuild for it on OS:latest, whether or not that runtime has it: on macos-26 it
+      # picked iPhone 16e, which only the iOS 26.2 runtime carries. The generic destination
+      # is what cordova-ios 8 already passes, and a build needs no particular device.
       - name: Build with cordova-ios 7 (CocoaPods)
         run: |
           npm run reset
           npm run plugin:add
           npx cordova platform add ios@7.1.1 --nosave
-          npx cordova build ios --emulator
+          npx cordova build ios --emulator --buildFlag="-destination generic/platform=iOS Simulator"
         working-directory: example
