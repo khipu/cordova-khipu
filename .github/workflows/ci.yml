@@ -19,7 +19,10 @@ jobs:
           # The after_prepare hooks in scripts/ run on the merchant's Node, not ours,
           # and Cordova 13 still accepts 20. The tooling needs 22, so this entry is
           # the only thing that notices a script picking up an API 20 lacks.
-          - node-version: 20.19.4
+          # It sits on 20.17.0 because that is the floor Cordova declares. A later 20
+          # already has what arrived since (require(esm) turned on in 20.19.0, for one),
+          # so a hook relying on it would pass here and break on a merchant's 20.17.
+          - node-version: 20.17.0
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -32,8 +35,11 @@ jobs:
       - run: npm run verify:versions
       - run: npm run verify:keys
 
+  # macos-26, not macos-15: macos-15 builds with Xcode 16.4 by default, and App Store
+  # Connect has required Xcode 26 since April 28, 2026, so that is what merchants build
+  # the plugin with.
   ios:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       # The package declares platforms: [.iOS(.v13)] and CordovaLib is UIKit-only,
@@ -47,7 +53,7 @@ jobs:
       - name: Build the package
         run: xcodebuild build -scheme cordova-khipu -destination generic/platform=iOS
       - name: Run the package tests
-        run: xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 16'
+        run: xcodebuild test -scheme cordova-khipu -destination 'platform=iOS Simulator,name=iPhone 17'
 
   android:
     runs-on: ubuntu-latest
@@ -84,7 +90,8 @@ jobs:
 
   example:
     if: github.event_name == 'push'
-    runs-on: macos-15
+    # Xcode 26, for the same reason as the ios job.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

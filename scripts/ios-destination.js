@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Prints an xcodebuild -destination for an iOS simulator that actually exists here.
 //
-// `-destination 'platform=iOS Simulator,name=iPhone 16'` is what CI uses, and it works there,
-// but it resolves to OS:latest — so on a machine whose newest installed runtime has no iPhone 16
+// `-destination 'platform=iOS Simulator,name=iPhone 17'` is what CI uses, and it works there,
+// but it resolves to OS:latest — so on a machine whose newest installed runtime has no iPhone 17
 // it fails with "Unable to find a device matching the provided destination specifier", and the
 // whole verify chain stops before it reaches the Android suite. Pinning a runtime instead just
 // moves the problem to whoever does not have that one.
