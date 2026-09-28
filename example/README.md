@@ -10,7 +10,10 @@ guide is still what you need to reproduce a scenario locally or debug one that f
 
 - Node `^20.17.0` or `>=22.9.0` (the actual `engines` range in `example/package.json`; it
   excludes 20.0–20.16 and the whole 21.x series)
-- Xcode 15 or later, with an iOS simulator installed
+- Xcode 26, with an iOS simulator installed. That is what CI builds with, and what App Store
+  Connect requires. Xcode 27 does not build the example as it is: the SPM scenario needs its
+  `deployment-target` in `config.xml` raised to 15.0, and the CocoaPods scenario does not
+  build at all (see "Xcode 27 needs a deployment target of 15.0" in the plugin's README)
 - CocoaPods, **only** for the cordova-ios 7 scenario
 - Android SDK with an emulator or a connected device
 - `npm install` run **at the repo root and in `example/`**, in that order, before the first

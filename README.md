@@ -24,8 +24,9 @@ Cordova plugin for Khipu
 | `cordova` (CLI) | 13.0.0 | 13.0.0 |
 | `cordova-ios` | 7.0.0 | 7.1.1 and 8.1.1 |
 | `cordova-android` | 13.0.0 | 13.0.0, 14.0.0 and 15.1.0 |
-| iOS | 13.0 | |
+| iOS | 13.0, or 15.0 with Xcode 27 | |
 | Node | `^20.17.0 \|\| >=22.9.0` | 22.23.2, and 20.17.0 for the hooks' unit tests |
+| Xcode | 26 | 26.6, and 27.0 by hand (see [Xcode 27](#xcode-27-needs-a-deployment-target-of-150)) |
 
 Of this table, only `cordova-ios` and `cordova-android` are declared in `plugin.xml`'s
 `<engines>`. Mind what that does: if the installed platform does not meet the minimum,
@@ -37,9 +38,11 @@ with exit code 0 (verified in `checkEngines()` and the `catch` around it,
 minimum sees a green install, the plugin gets listed in their `package.json`, nothing
 native gets installed, and they only discover the problem at runtime with
 `window.Khipu === undefined`. What protects the merchant is reading that warning, not an
-error Cordova never throws. The other three rows (`cordova` CLI, iOS, Node) are tested
-and recommended compatibility, not an automatic barrier — Cordova's engine check does not
-even recognize a `node` type, and the plugin's `package.json` does not declare `engines`.
+error Cordova never throws. The other four rows (`cordova` CLI, iOS, Node, Xcode) are
+tested and recommended compatibility, not an automatic barrier — Cordova's engine check
+does not even recognize a `node` type, and the plugin's `package.json` does not declare
+`engines`. Xcode's minimum is App Store Connect's: it has required Xcode 26 for uploads
+since April 28, 2026.
 
 ## Installation
 
@@ -95,7 +98,8 @@ in `config.xml` **before** adding the platform:
 The other three cases are for `cordova-ios` 8:
 
 1. **If iOS 13 is enough for you, do not declare it.** The default is already 13.0 and
-   the plugin stays on SPM, without touching CocoaPods.
+   the plugin stays on SPM, without touching CocoaPods. This holds on Xcode 26 only: on
+   Xcode 27, 13.0 no longer builds, see [below](#xcode-27-needs-a-deployment-target-of-150).
 2. **If you declare it with any value, including 13.0, you will need CocoaPods.** The
    plugin still ships a `<podspec>` — the `cordova-ios` 7 path needs it — so cordova
    creates an empty `Podfile` when installing the plugin regardless. When `config.xml`
@@ -105,6 +109,38 @@ The other three cases are for `cordova-ios` 8:
    CocoaPods is the cost. This is not a mistake on your part, nor something you can
    avoid: it is the consequence of the plugin supporting both managers from a single
    `plugin.xml`.
+
+### Xcode 27 needs a deployment target of 15.0
+
+Xcode 27 turns a deployment target below iOS 15.0 into a build error, not a warning:
+
+```
+The iOS Simulator deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 13.0, but the
+range of supported deployment target versions is 15.0 to 27.0.x.
+```
+
+On Xcode 26, 13.0 still builds and nothing above changes. On Xcode 27:
+
+- **On `cordova-ios` 8, declare 15.0**, before adding the platform:
+
+  ```xml
+      <platform name="ios">
+          <preference name="deployment-target" value="15.0" />
+      </platform>
+  ```
+
+  That is case 3 above, so you will need CocoaPods installed, but Khipu's SDK still
+  arrives through SPM. Nothing about the plugin needs changing: Xcode raises the SDK's
+  Swift packages to 15.0 on its own.
+- **`cordova-ios` 7 does not build on Xcode 27, whatever you declare.** Two things stay
+  below 15.0 and the preference reaches neither: `CordovaLib`, which `cordova-ios` 7 ships
+  at 11.0, and the pods of Khipu's SDK, which declare 12.0. Keep building with Xcode 26, or
+  move to `cordova-ios` 8.
+
+This was measured with Xcode 27.0 (build 27A266a) on the [example app](#example-app),
+with `cordova build ios --emulator`: `cordova-ios` 8.1.1 fails at 13.0 and builds at 15.0,
+and `cordova-ios` 7.1.1 still fails at 15.0 on exactly those two. CI builds with Xcode
+26.6, so it does not cover Xcode 27 yet.
 
 ### Swift version
 
