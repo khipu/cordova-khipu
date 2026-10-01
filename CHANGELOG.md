@@ -2,6 +2,21 @@
 
 ## [2.11.3](https://github.com/khipu/cordova-khipu/compare/2.11.2...2.11.3) (2026-10-01)
 
+The Android SDK moves to `khipu-client-android` 2.28.7, which ships its own R8 rules. Nothing
+changes in the plugin's API or in what your callbacks receive.
+
+- **Check this if your Android release build uses R8** (`minifyEnabled true`). Until now the
+  SDK did not ship the R8 rules its integration guide asks you to copy. An app that had not
+  copied them built fine, but every payment ended in `ERROR` right after it started, with no
+  events. From this version R8 applies them on its own. If you already copied them, they are
+  now redundant but harmless.
+- cordova-android does not turn R8 on by default. If you never enabled it, nothing changes
+  for you.
+- Your own R8 rules still have to keep Cordova's plugins, because Cordova loads them by
+  reflection from `config.xml`. Without a rule such as
+  `-keep public class * extends org.apache.cordova.CordovaPlugin { *; }`, R8 removes this
+  plugin, and Cordova's own core plugins as well.
+
 ### Bug Fixes
 
 * **android:** take 2.28.7, which ships its own R8 rules ([a6baa52](https://github.com/khipu/cordova-khipu/commit/a6baa525d238c3664bc817c8a9224852ede3e9cf))
