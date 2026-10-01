@@ -19,7 +19,7 @@ import java.util.Arrays;
  * Android framework, every mapper test would fail at once with a confusing error. This
  * test fails first, with an obvious one.
  *
- * The second is part of the reason src/android/khipu.gradle says 2.28.6 and not 2.27.0.
+ * The second is part of the reason src/android/khipu.gradle says 2.28.7 and not 2.27.0.
  * Protocol 1.0.59 has fourteen FailureReasonType constants and no USER_DISCONNECTED; its
  * forValue() throws IOException on any value it does not know, and the SDK's
  * OPERATION_FAILURE listener calls the converter with no try/catch on socket.io's
