@@ -2,6 +2,31 @@
 
 ## [2.11.2](https://github.com/khipu/cordova-khipu/compare/2.11.1...2.11.2) (2026-10-01)
 
+The Android SDK moves to `khipu-client-android` 2.28.6, which reads payment QR codes with
+ZXing instead of Google's ML Kit. Nothing changes in the plugin's API or in what your
+callbacks receive.
+
+- Your Android app gets smaller. ML Kit's native library (`libbarhopper_v3.so`), its models
+  and its telemetry leave the build: the example app's debug APK went from 44.5 MB to 23.1 MB
+  across four ABIs.
+- **Check this if your app uses `ConnectivityManager`.** Your merged manifest no longer
+  includes `ACCESS_NETWORK_STATE`. It never came from the plugin: ML Kit's telemetry brought
+  it in. If your own native code queries `ConnectivityManager` without declaring the
+  permission, it was working by accident and now throws `SecurityException`. Declare it in
+  your `config.xml`, with `xmlns:android="http://schemas.android.com/apk/res/android"` on the
+  root `<widget>`:
+
+  ```xml
+  <platform name="android">
+      <config-file parent="/manifest" target="AndroidManifest.xml">
+          <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+      </config-file>
+  </platform>
+  ```
+
+  `cordova-plugin-network-information` declares the permission itself, so apps that use it
+  are not affected.
+
 ### Bug Fixes
 
 * **android:** take 2.28.6, which swaps ML Kit for ZXing ([10a2a76](https://github.com/khipu/cordova-khipu/commit/10a2a76b609309417726df6b253d981f660e9470))
