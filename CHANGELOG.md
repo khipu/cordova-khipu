@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.11.3](https://github.com/khipu/cordova-khipu/compare/2.11.2...2.11.3) (2026-10-01)
+
+### Bug Fixes
+
+* **android:** take 2.28.7, which ships its own R8 rules ([a6baa52](https://github.com/khipu/cordova-khipu/commit/a6baa525d238c3664bc817c8a9224852ede3e9cf))
+
 ## [2.11.2](https://github.com/khipu/cordova-khipu/compare/2.11.1...2.11.2) (2026-10-01)
 
 The Android SDK moves to `khipu-client-android` 2.28.6, which reads payment QR codes with
