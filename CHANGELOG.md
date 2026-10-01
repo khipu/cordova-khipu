@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.11.2](https://github.com/khipu/cordova-khipu/compare/2.11.1...2.11.2) (2026-10-01)
+
+### Bug Fixes
+
+* **android:** take 2.28.6, which swaps ML Kit for ZXing ([10a2a76](https://github.com/khipu/cordova-khipu/commit/10a2a76b609309417726df6b253d981f660e9470))
+
 ## [2.11.1](https://github.com/khipu/cordova-khipu/compare/2.11.0...2.11.1) (2026-09-28)
 
 Documentation only: nothing changes in how the plugin builds or behaves.
