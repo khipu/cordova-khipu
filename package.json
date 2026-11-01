@@ -51,9 +51,9 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.4",
     "@release-it/conventional-changelog": "^12.0.2",
-    "commitlint": "^21.2.3",
+    "commitlint": "^21.2.4",
     "husky": "^9.1.7",
     "release-it": "^21.1.1"
   },
